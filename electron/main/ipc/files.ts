@@ -1,7 +1,7 @@
-import { ipcMain } from 'electron'
+import { ipcMain, shell } from 'electron'
 import {
   readdirSync, statSync, readFileSync, writeFileSync,
-  existsSync, mkdirSync, unlinkSync, renameSync
+  existsSync, mkdirSync, unlinkSync, renameSync, copyFileSync, rmSync
 } from 'fs'
 import { join, extname, relative, resolve } from 'path'
 
@@ -73,7 +73,12 @@ export function registerFileIPC(): void {
   })
 
   ipcMain.handle('files:delete', (_, filePath: string) => {
-    unlinkSync(filePath)
+    const stat = statSync(filePath)
+    if (stat.isDirectory()) {
+      rmSync(filePath, { recursive: true })
+    } else {
+      unlinkSync(filePath)
+    }
   })
 
   ipcMain.handle('files:rename', (_, oldPath: string, newPath: string) => {
@@ -82,5 +87,13 @@ export function registerFileIPC(): void {
 
   ipcMain.handle('files:mkdir', (_, dirPath: string) => {
     mkdirSync(dirPath, { recursive: true })
+  })
+
+  ipcMain.handle('files:copy', (_, srcPath: string, destPath: string) => {
+    copyFileSync(srcPath, destPath)
+  })
+
+  ipcMain.handle('files:showInFinder', (_, filePath: string) => {
+    shell.showItemInFolder(filePath)
   })
 }

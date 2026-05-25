@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, webUtils } from 'electron'
 
 const api = {
   // Store
@@ -30,6 +30,9 @@ const api = {
   deleteFile: (filePath: string) => ipcRenderer.invoke('files:delete', filePath),
   renameFile: (oldPath: string, newPath: string) => ipcRenderer.invoke('files:rename', oldPath, newPath),
   mkdir: (dirPath: string) => ipcRenderer.invoke('files:mkdir', dirPath),
+  copyFile: (srcPath: string, destPath: string) => ipcRenderer.invoke('files:copy', srcPath, destPath),
+  getPathForFile: (file: File) => webUtils.getPathForFile(file),
+  showInFinder: (filePath: string) => ipcRenderer.invoke('files:showInFinder', filePath),
 
   // Git
   gitStatus: (projectPath: string) => ipcRenderer.invoke('git:status', projectPath),
