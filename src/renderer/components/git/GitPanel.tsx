@@ -1,9 +1,15 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import AddRemoteModal from './AddRemoteModal'
 
 interface FileStatus {
   path: string
   status: string
+}
+
+interface ContextMenu {
+  x: number
+  y: number
+  file: FileStatus
 }
 
 interface GitStatus {
@@ -36,6 +42,7 @@ export default function GitPanel({ projectPath, onOpenFile }: Props) {
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
   const [showAddRemote, setShowAddRemote] = useState(false)
   const [hasRemote, setHasRemote] = useState(true)
+  const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null)
 
   const refresh = useCallback(async () => {
     setLoading(true)
@@ -144,6 +151,35 @@ export default function GitPanel({ projectPath, onOpenFile }: Props) {
     }
   }
 
+  async function addToGitignore(pattern: string) {
+    const gitignorePath = `${projectPath}/.gitignore`
+    let content = ''
+    try { content = await window.api.readFile(gitignorePath) } catch { /* doesn't exist yet */ }
+    const lines = content.split('\n').map(l => l.trim())
+    if (!lines.includes(pattern)) {
+      const sep = content.length > 0 && !content.endsWith('\n') ? '\n' : ''
+      await window.api.writeFile(gitignorePath, content + sep + pattern + '\n')
+    }
+    refresh()
+  }
+
+  async function deleteFile(filePath: string) {
+    try {
+      await window.api.deleteFile(`${projectPath}/${filePath}`)
+      refresh()
+    } catch (e) {
+      showMsg(`Delete failed: ${e instanceof Error ? e.message : e}`, 'error')
+    }
+  }
+
+  useEffect(() => {
+    if (!contextMenu) return
+    const close = () => setContextMenu(null)
+    window.addEventListener('click', close)
+    window.addEventListener('contextmenu', close)
+    return () => { window.removeEventListener('click', close); window.removeEventListener('contextmenu', close) }
+  }, [contextMenu])
+
   const hasStaged = (status?.staged.length ?? 0) > 0
   const hasUnstaged = (status?.unstaged.length ?? 0) > 0
   const hasConflicts = (status?.conflicted.length ?? 0) > 0
@@ -215,6 +251,7 @@ export default function GitPanel({ projectPath, onOpenFile }: Props) {
                 action="unstage"
                 onAction={() => unstage(f.path)}
                 onClick={() => onOpenFile(`${projectPath}/${f.path}`)}
+                onContextMenu={e => { e.preventDefault(); e.stopPropagation(); setContextMenu({ x: e.clientX, y: e.clientY, file: f }) }}
               />
             ))}
             {status?.staged.length === 0 && (
@@ -235,6 +272,7 @@ export default function GitPanel({ projectPath, onOpenFile }: Props) {
                 action="stage"
                 onAction={() => stage(f.path)}
                 onClick={() => onOpenFile(`${projectPath}/${f.path}`)}
+                onContextMenu={e => { e.preventDefault(); e.stopPropagation(); setContextMenu({ x: e.clientX, y: e.clientY, file: f }) }}
               />
             ))}
             {status?.unstaged.length === 0 && (
@@ -307,6 +345,55 @@ export default function GitPanel({ projectPath, onOpenFile }: Props) {
           onAdded={() => { setShowAddRemote(false); setHasRemote(true); refresh() }}
         />
       )}
+
+      {contextMenu && (() => {
+        const filePath = contextMenu.file.path
+        const fileName = filePath.split('/').pop() ?? filePath
+        const ext = fileName.includes('.') ? fileName.split('.').pop() : null
+        const enclosingDir = filePath.includes('/') ? filePath.split('/').slice(0, -1).join('/') + '/' : null
+        const ignoreIcon = <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+        const trashIcon = <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+        return (
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              position: 'fixed',
+              top: contextMenu.y, left: contextMenu.x,
+              background: 'var(--color-bg-modal)',
+              border: '1px solid var(--color-border)',
+              borderRadius: 8, padding: 4, zIndex: 2000,
+              minWidth: 210, boxShadow: 'var(--shadow-md)',
+            }}
+          >
+            <GitContextMenuItem
+              label="Add file to .gitignore"
+              icon={ignoreIcon}
+              onClick={() => { addToGitignore(filePath); setContextMenu(null) }}
+            />
+            {ext && (
+              <GitContextMenuItem
+                label={`Add *.${ext} to .gitignore`}
+                icon={ignoreIcon}
+                onClick={() => { addToGitignore(`*.${ext}`); setContextMenu(null) }}
+              />
+            )}
+            {enclosingDir && (
+              <GitContextMenuItem
+                label="Add enclosing folder to .gitignore"
+                icon={ignoreIcon}
+                onClick={() => { addToGitignore(enclosingDir); setContextMenu(null) }}
+              />
+            )}
+            <div style={{ height: 1, background: 'var(--color-border)', margin: '3px 6px' }} />
+            <GitContextMenuItem
+              label="Delete file"
+              icon={trashIcon}
+              onClick={() => { deleteFile(filePath); setContextMenu(null) }}
+              danger
+            />
+          </div>
+        )
+      })()}
     </div>
   )
 }
@@ -335,16 +422,18 @@ function SectionHeader({ title, count, onAction, actionLabel }: {
   )
 }
 
-function FileRow({ file, action, onAction, onClick }: {
+function FileRow({ file, action, onAction, onClick, onContextMenu }: {
   file: FileStatus
   action: 'stage' | 'unstage'
   onAction: () => void
   onClick: () => void
+  onContextMenu: (e: React.MouseEvent) => void
 }) {
   const meta = STATUS_LABELS[file.status] || { label: '?', color: '#94a3b8' }
 
   return (
     <div
+      onContextMenu={onContextMenu}
       style={{
         display: 'flex', alignItems: 'center', gap: 6,
         padding: '3px 10px',
@@ -385,6 +474,29 @@ function FileRow({ file, action, onAction, onClick }: {
           </svg>
         )}
       </button>
+    </div>
+  )
+}
+
+function GitContextMenuItem({ label, icon, onClick, danger }: {
+  label: string
+  icon: React.ReactNode
+  onClick: () => void
+  danger?: boolean
+}) {
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 8,
+        padding: '7px 10px', borderRadius: 5, cursor: 'pointer',
+        color: danger ? '#f87171' : '#e2e8f0', fontSize: 12,
+      }}
+      onMouseEnter={e => { e.currentTarget.style.background = danger ? 'rgba(248,113,113,0.1)' : 'rgba(255,255,255,0.08)' }}
+      onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+    >
+      <span style={{ color: danger ? '#f87171' : '#64748b', flexShrink: 0 }}>{icon}</span>
+      {label}
     </div>
   )
 }

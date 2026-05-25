@@ -181,7 +181,22 @@ export function registerCompileIPC(store: Store): void {
 
       proc.on('close', (code) => {
         activeCompiles.delete(projectPath)
-        const { errors, warnings } = parseLog(rawLog, projectPath)
+
+        // latexmk often buffers or swallows pdflatex's stdout, so the captured
+        // rawLog may be empty or incomplete on first compile. The .log file in
+        // the build directory always contains the full pdflatex output.
+        const texLogFile = join(buildDir, basename(rootDoc).replace(/\.tex$/, '.log'))
+        let parseSource = rawLog
+        if (existsSync(texLogFile)) {
+          try {
+            const texLog = readFileSync(texLogFile, 'utf8')
+            // Prefer the .log file for error parsing; append it to rawLog for display
+            parseSource = texLog
+            rawLog = texLog + (rawLog ? '\n\n--- latexmk output ---\n' + rawLog : '')
+          } catch { /* fall back to captured stdout */ }
+        }
+
+        const { errors, warnings } = parseLog(parseSource, projectPath)
         const success = code === 0
         let pdfPath: string | undefined
         if (success) {

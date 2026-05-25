@@ -149,34 +149,119 @@ export default function CompilePanel({ result, compiling, onClose, onJumpToError
 
 function ErrorRow({ item, onClick }: { item: CompileError; onClick: () => void }) {
   const isError = item.type === 'error'
+  const jumpable = !!item.line
+  const [hovered, setHovered] = useState(false)
+  const [jumped, setJumped] = useState(false)
+
+  const accentColor = isError ? '#ef4444' : '#f59e0b'
+  const accentDim = isError ? 'rgba(239,68,68,0.18)' : 'rgba(245,158,11,0.15)'
+  const accentGlow = isError ? 'rgba(239,68,68,0.08)' : 'rgba(245,158,11,0.06)'
+
+  function handleClick() {
+    if (!jumpable) return
+    onClick()
+    setJumped(true)
+    setTimeout(() => setJumped(false), 600)
+  }
+
   return (
     <div
-      onClick={item.line ? onClick : undefined}
+      onClick={handleClick}
+      onMouseEnter={() => { if (jumpable) setHovered(true) }}
+      onMouseLeave={() => setHovered(false)}
       style={{
         display: 'flex',
-        alignItems: 'flex-start',
-        gap: 8,
-        padding: '5px 12px',
-        cursor: item.line ? 'pointer' : 'default',
-        borderBottom: '1px solid rgba(45,63,85,0.5)',
-        fontSize: 12,
+        alignItems: 'stretch',
+        borderBottom: '1px solid rgba(30,45,65,0.8)',
+        cursor: jumpable ? 'pointer' : 'default',
+        background: hovered ? accentGlow : 'transparent',
+        transition: 'background 140ms ease',
+        position: 'relative',
+        overflow: 'hidden',
       }}
-      onMouseEnter={e => { if (item.line) e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
-      onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
     >
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ flexShrink: 0, marginTop: 1, color: isError ? '#f87171' : '#fbbf24' }}>
-        {isError
-          ? <><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></>
-          : <><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></>
-        }
-      </svg>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <span style={{ color: isError ? '#f87171' : '#fbbf24' }}>
-          {item.file && <span style={{ color: '#64748b' }}>{item.file}</span>}
-          {item.line && <span style={{ color: '#64748b' }}>:{item.line}</span>}
-          {item.file && ' '}
-        </span>
-        <span style={{ color: '#e2e8f0' }}>{item.message}</span>
+      {/* Left accent rail */}
+      <div style={{
+        width: hovered && jumpable ? 3 : 2,
+        flexShrink: 0,
+        background: jumpable
+          ? (hovered ? accentColor : accentDim)
+          : 'rgba(45,63,85,0.4)',
+        transition: 'width 140ms ease, background 140ms ease',
+      }} />
+
+      {/* Content */}
+      <div style={{ flex: 1, display: 'flex', alignItems: 'flex-start', gap: 8, padding: '6px 10px 6px 10px', minWidth: 0 }}>
+        {/* Severity icon */}
+        <svg
+          width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+          style={{ flexShrink: 0, marginTop: 1, color: jumpable ? accentColor : isError ? 'rgba(239,68,68,0.4)' : 'rgba(245,158,11,0.4)', transition: 'color 140ms' }}
+        >
+          {isError
+            ? <><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></>
+            : <><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></>
+          }
+        </svg>
+
+        {/* Location pill + message */}
+        <div style={{ flex: 1, minWidth: 0, fontSize: 12 }}>
+          {(item.file || item.line) && (
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: 2,
+              fontFamily: 'var(--font-mono)', fontSize: 10,
+              color: hovered && jumpable ? accentColor : '#475569',
+              background: hovered && jumpable ? accentDim : 'rgba(30,41,59,0.6)',
+              border: `1px solid ${hovered && jumpable ? accentColor + '44' : 'rgba(45,63,85,0.6)'}`,
+              borderRadius: 4, padding: '1px 5px',
+              marginRight: 7, verticalAlign: 'middle',
+              transition: 'color 140ms, background 140ms, border-color 140ms',
+              textDecoration: hovered && jumpable ? 'underline' : 'none',
+              textDecorationColor: accentColor + '88',
+              flexShrink: 0,
+            }}>
+              {item.file && <span style={{ maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.file}</span>}
+              {item.line && <span>:{item.line}</span>}
+            </span>
+          )}
+          <span style={{
+            color: jumpable ? (hovered ? '#e2e8f0' : '#94a3b8') : '#475569',
+            transition: 'color 140ms',
+            fontSize: 12,
+          }}>
+            {item.message}
+          </span>
+        </div>
+
+        {/* Jump affordance — slides in on hover */}
+        <div style={{
+          flexShrink: 0,
+          display: 'flex', alignItems: 'center', gap: 3,
+          opacity: jumped ? 1 : hovered ? 1 : 0,
+          transform: hovered || jumped ? 'translateX(0)' : 'translateX(6px)',
+          transition: 'opacity 160ms ease, transform 160ms ease',
+          color: jumped ? '#4ade80' : accentColor,
+          fontSize: 10,
+          fontFamily: 'var(--font-mono)',
+          fontWeight: 600,
+          letterSpacing: '0.03em',
+          pointerEvents: 'none',
+        }}>
+          {jumped ? (
+            <>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+              done
+            </>
+          ) : (
+            <>
+              jump
+              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <polyline points="9 18 15 12 9 6"/>
+              </svg>
+            </>
+          )}
+        </div>
       </div>
     </div>
   )

@@ -3,7 +3,7 @@ import {
   readdirSync, statSync, readFileSync, writeFileSync,
   existsSync, mkdirSync, unlinkSync, renameSync
 } from 'fs'
-import { join, extname, relative } from 'path'
+import { join, extname, relative, resolve } from 'path'
 
 export interface FileNode {
   name: string
@@ -63,8 +63,9 @@ export function registerFileIPC(): void {
   })
 
   ipcMain.handle('files:read', (_, filePath: string) => {
-    if (!existsSync(filePath)) throw new Error('File not found: ' + filePath)
-    return readFileSync(filePath, 'utf8')
+    const normalized = resolve(filePath)
+    if (!existsSync(normalized)) throw new Error('File not found: ' + filePath)
+    return readFileSync(normalized, 'utf8')
   })
 
   ipcMain.handle('files:write', (_, filePath: string, content: string) => {

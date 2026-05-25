@@ -63,7 +63,7 @@ function FileTreeNode({
   onOpenFile: (path: string) => void
   onContextMenu: (e: React.MouseEvent, node: FileNode) => void
 }) {
-  const [expanded, setExpanded] = useState(depth === 0)
+  const [expanded, setExpanded] = useState(false)
   const isActive = node.path === activeFile
   const isMain = !!(mainDoc && node.relativePath === mainDoc)
   const isDetected = !isMain && !!(detectedMainDoc && node.relativePath === detectedMainDoc)
@@ -328,33 +328,55 @@ export default function FileExplorer({ projectPath, activeFile, onOpenFile, main
             }}
             disabled={contextMenu.node.isDirectory}
           />
+          <div style={{ height: 1, background: 'var(--color-border)', margin: '3px 6px' }} />
+          <ContextMenuItem
+            label="Delete"
+            icon={
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6l-1 14H6L5 6"/>
+                <path d="M10 11v6"/><path d="M14 11v6"/>
+                <path d="M9 6V4h6v2"/>
+              </svg>
+            }
+            onClick={async () => {
+              try {
+                await window.api.deleteFile(contextMenu.node.path)
+                refresh()
+              } catch (e) {
+                console.error('Delete failed', e)
+              }
+              setContextMenu(null)
+            }}
+            danger
+          />
         </div>
       )}
     </div>
   )
 }
 
-function ContextMenuItem({ label, icon, onClick, disabled }: {
+function ContextMenuItem({ label, icon, onClick, disabled, danger }: {
   label: string
   icon: React.ReactNode
   onClick: () => void
   disabled?: boolean
+  danger?: boolean
 }) {
   return (
     <div
       onClick={disabled ? undefined : onClick}
       style={{
         display: 'flex', alignItems: 'center', gap: 8,
-        padding: '7px 10px',
-        borderRadius: 5,
+        padding: '7px 10px', borderRadius: 5,
         cursor: disabled ? 'default' : 'pointer',
-        color: disabled ? '#475569' : '#e2e8f0',
+        color: disabled ? '#475569' : danger ? '#f87171' : '#e2e8f0',
         fontSize: 12,
       }}
-      onMouseEnter={e => { if (!disabled) e.currentTarget.style.background = 'rgba(255,255,255,0.08)' }}
+      onMouseEnter={e => { if (!disabled) e.currentTarget.style.background = danger ? 'rgba(248,113,113,0.1)' : 'rgba(255,255,255,0.08)' }}
       onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
     >
-      <span style={{ color: disabled ? '#475569' : '#64748b', flexShrink: 0 }}>{icon}</span>
+      <span style={{ color: disabled ? '#475569' : danger ? '#f87171' : '#64748b', flexShrink: 0 }}>{icon}</span>
       {label}
     </div>
   )

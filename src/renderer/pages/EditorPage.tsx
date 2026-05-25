@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
+import SettingsModal from '../components/dashboard/SettingsModal'
 import FileExplorer from '../components/editor/FileExplorer'
-import EditorPane from '../components/editor/EditorPane'
+import EditorPane, { EditorPaneHandle } from '../components/editor/EditorPane'
 import PdfPane from '../components/pdf/PdfPane'
 import GitPanel from '../components/git/GitPanel'
 import CompilePanel from '../components/editor/CompilePanel'
-import Toolbar, { CompileTarget } from '../components/editor/Toolbar'
+import Toolbar, { CompileTarget, ViewMode } from '../components/editor/Toolbar'
 
 export type SidebarTab = 'files' | 'git'
 
@@ -50,8 +51,12 @@ export default function EditorPage({ projectPath, projectName, onBack }: Props) 
   const [pdfWidth, setPdfWidth] = useState(420)
   const [compileTrigger, setCompileTrigger] = useState('manual')
   const [compileTarget, setCompileTarget] = useState<CompileTarget>('root')
+  const [viewMode, setViewMode] = useState<ViewMode>('split')
+  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [showSettings, setShowSettings] = useState(false)
   const [mainDoc, setMainDoc] = useState<string | null>(null)
   const [detectedMainDoc, setDetectedMainDoc] = useState<string | null>(null)
+  const editorRef = useRef<EditorPaneHandle>(null)
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const tabsRef = useRef<OpenTab[]>([])
   const activeTabRef = useRef<string | null>(null)
@@ -106,6 +111,7 @@ export default function EditorPage({ projectPath, projectName, onBack }: Props) 
         const p = result.pdfPath ?? await window.api.getPdfPath(projectPath)
         setPdfPath(p)
         setPdfVersion(v => v + 1)
+        setViewMode(v => v === 'editor' ? 'split' : v)
       }
     } finally {
       setCompiling(false)
@@ -167,17 +173,45 @@ export default function EditorPage({ projectPath, projectName, onBack }: Props) 
     }
   }, [tabs, compileTrigger, compile])
 
-  const jumpToError = useCallback((file: string, line: number | null) => {
+  const jumpToError = useCallback(async (file: string, line: number | null) => {
     if (!line) return
-    const targetPath = file.startsWith('/') ? file : `${projectPath}/${file}`
-    openFile(targetPath)
-    // Editor will handle scrolling via activeTab + line signal
+    let targetPath: string
+    if (file.startsWith('/')) {
+      targetPath = file
+    } else {
+      // Normalize ../.. segments from LaTeX log relative paths
+      const segments = `${projectPath}/${file}`.split('/')
+      const resolved: string[] = []
+      for (const seg of segments) {
+        if (seg === '..') resolved.pop()
+        else if (seg !== '.') resolved.push(seg)
+      }
+      const normalized = resolved.join('/')
+      // If normalization escaped the project directory, LaTeX reported an outside path —
+      // just look for the bare filename inside the project instead
+      targetPath = normalized.startsWith(projectPath)
+        ? normalized
+        : `${projectPath}/${file.split('/').pop() ?? file}`
+    }
+    await openFile(targetPath)
+    // rAF ensures React has committed the (possibly new) EditorPane before we call jump
+    requestAnimationFrame(() => editorRef.current?.jump(line))
   }, [projectPath, openFile])
 
   const activeTabData = tabs.find(t => t.path === activeTab) ?? null
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--color-bg-app)', overflow: 'hidden' }}>
+      {showSettings && (
+        <SettingsModal
+          onClose={async () => {
+            setShowSettings(false)
+            const s = await window.api.storeGet('settings') as { compileTrigger?: string } | null
+            if (s?.compileTrigger) setCompileTrigger(s.compileTrigger)
+          }}
+          onChangeRoot={() => setShowSettings(false)}
+        />
+      )}
       {/* Toolbar */}
       <Toolbar
         projectName={projectName}
@@ -188,9 +222,12 @@ export default function EditorPage({ projectPath, projectName, onBack }: Props) 
         onChangeTrigger={setCompileTrigger}
         compileTarget={compileTarget}
         onChangeTarget={setCompileTarget}
+        viewMode={viewMode}
+        onChangeView={setViewMode}
         projectPath={projectPath}
         activeFilePath={activeTab}
         onSave={() => activeTab && saveFile(activeTab)}
+        onOpenSettings={() => setShowSettings(true)}
       />
 
       {/* Body */}
@@ -208,9 +245,16 @@ export default function EditorPage({ projectPath, projectName, onBack }: Props) 
           flexShrink: 0,
         }}>
           <RailButton
-            active={sidebarTab === 'files'}
+            active={sidebarTab === 'files' && sidebarOpen}
             title="Files"
-            onClick={() => setSidebarTab(prev => prev === 'files' ? prev : 'files')}
+            onClick={() => {
+              if (sidebarTab === 'files') {
+                setSidebarOpen(v => !v)
+              } else {
+                setSidebarTab('files')
+                setSidebarOpen(true)
+              }
+            }}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
               <path d="M3 3h7v7H3z"/><path d="M14 3h7v7h-7z"/><path d="M3 14h7v7H3z"/><path d="M14 14h7v7h-7z"/>
@@ -218,9 +262,16 @@ export default function EditorPage({ projectPath, projectName, onBack }: Props) 
           </RailButton>
 
           <RailButton
-            active={sidebarTab === 'git'}
+            active={sidebarTab === 'git' && sidebarOpen}
             title="Source Control"
-            onClick={() => setSidebarTab(prev => prev === 'git' ? prev : 'git')}
+            onClick={() => {
+              if (sidebarTab === 'git') {
+                setSidebarOpen(v => !v)
+              } else {
+                setSidebarTab('git')
+                setSidebarOpen(true)
+              }
+            }}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
               <line x1="6" y1="3" x2="6" y2="15"/>
@@ -232,38 +283,45 @@ export default function EditorPage({ projectPath, projectName, onBack }: Props) 
         </div>
 
         {/* Sidebar */}
-        <div style={{
-          width: sidebarWidth,
-          background: 'var(--color-bg-sidebar)',
-          borderRight: '1px solid var(--color-border)',
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden',
-          flexShrink: 0,
-        }}>
-          {sidebarTab === 'files' ? (
-            <FileExplorer
-              projectPath={projectPath}
-              activeFile={activeTab}
-              onOpenFile={openFile}
-              mainDoc={mainDoc}
-              detectedMainDoc={detectedMainDoc}
-              onSetMainDoc={handleSetMainDoc}
-            />
-          ) : (
-            <GitPanel
-              projectPath={projectPath}
-              onOpenFile={openFile}
-            />
-          )}
-        </div>
+        {sidebarOpen && viewMode !== 'pdf' && (
+          <div style={{
+            width: sidebarWidth,
+            background: 'var(--color-bg-sidebar)',
+            borderRight: '1px solid var(--color-border)',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+            flexShrink: 0,
+          }}>
+            {sidebarTab === 'files' ? (
+              <FileExplorer
+                projectPath={projectPath}
+                activeFile={activeTab}
+                onOpenFile={openFile}
+                mainDoc={mainDoc}
+                detectedMainDoc={detectedMainDoc}
+                onSetMainDoc={handleSetMainDoc}
+              />
+            ) : (
+              <GitPanel
+                projectPath={projectPath}
+                onOpenFile={openFile}
+              />
+            )}
+          </div>
+        )}
 
         {/* Resize handle - sidebar */}
-        <ResizeHandle
-          onDrag={(dx) => setSidebarWidth(w => Math.max(180, Math.min(500, w + dx)))}
-        />
+        {sidebarOpen && viewMode !== 'pdf' && (
+          <ResizeHandle
+            onDrag={(dx) => setSidebarWidth(w => Math.max(180, Math.min(500, w + dx)))}
+            onCollapse={() => setSidebarOpen(false)}
+            collapseDirection="left"
+          />
+        )}
 
         {/* Editor */}
+        {viewMode !== 'pdf' && (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
           {/* Tab bar */}
           {tabs.length > 0 && (
@@ -291,6 +349,7 @@ export default function EditorPage({ projectPath, projectName, onBack }: Props) 
           <div style={{ flex: 1, overflow: 'hidden' }}>
             {activeTabData ? (
               <EditorPane
+                ref={editorRef}
                 key={activeTabData.path}
                 filePath={activeTabData.path}
                 content={activeTabData.content}
@@ -326,17 +385,20 @@ export default function EditorPage({ projectPath, projectName, onBack }: Props) 
             />
           )}
         </div>
+        )}
 
         {/* Resize handle - pdf */}
-        {pdfPath && (
+        {pdfPath && viewMode === 'split' && (
           <ResizeHandle
             onDrag={(dx) => setPdfWidth(w => Math.max(280, Math.min(800, w - dx)))}
+            onCollapse={() => setViewMode('editor')}
+            collapseDirection="right"
           />
         )}
 
         {/* PDF pane */}
-        {pdfPath && (
-          <div style={{ width: pdfWidth, flexShrink: 0, borderLeft: '1px solid var(--color-border)' }}>
+        {pdfPath && (viewMode === 'split' || viewMode === 'pdf') && (
+          <div style={{ width: viewMode === 'pdf' ? undefined : pdfWidth, flex: viewMode === 'pdf' ? 1 : undefined, flexShrink: 0, borderLeft: '1px solid var(--color-border)' }}>
             <PdfPane pdfPath={pdfPath} version={pdfVersion} />
           </div>
         )}
@@ -436,9 +498,14 @@ function TabItem({ tab, active, onActivate, onClose, onSave }: {
   )
 }
 
-function ResizeHandle({ onDrag }: { onDrag: (dx: number) => void }) {
+function ResizeHandle({ onDrag, onCollapse, collapseDirection }: {
+  onDrag: (dx: number) => void
+  onCollapse?: () => void
+  collapseDirection?: 'left' | 'right'
+}) {
   const dragging = useRef(false)
   const lastX = useRef(0)
+  const [hovered, setHovered] = useState(false)
 
   function onMouseDown(e: React.MouseEvent) {
     dragging.current = true
@@ -461,16 +528,50 @@ function ResizeHandle({ onDrag }: { onDrag: (dx: number) => void }) {
 
   return (
     <div
-      onMouseDown={onMouseDown}
-      style={{
-        width: 4,
-        background: 'var(--color-border)',
-        cursor: 'col-resize',
-        flexShrink: 0,
-        transition: 'background 150ms ease',
-      }}
-      onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-brand)' }}
-      onMouseLeave={e => { e.currentTarget.style.background = 'var(--color-border)' }}
-    />
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{ width: 8, flexShrink: 0, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+    >
+      {/* Drag track */}
+      <div
+        onMouseDown={onMouseDown}
+        style={{
+          position: 'absolute', inset: 0,
+          background: hovered ? 'var(--color-brand)' : 'var(--color-border)',
+          cursor: 'col-resize',
+          width: 4,
+          left: 2,
+          transition: 'background 150ms ease',
+        }}
+      />
+      {/* Collapse chevron */}
+      {onCollapse && hovered && (
+        <button
+          onClick={onCollapse}
+          title={collapseDirection === 'left' ? 'Collapse sidebar' : 'Collapse PDF'}
+          style={{
+            position: 'absolute',
+            zIndex: 10,
+            width: 16, height: 28,
+            border: '1px solid var(--color-border)',
+            borderRadius: 4,
+            background: 'var(--color-bg-modal)',
+            color: '#94a3b8',
+            cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: 0,
+            boxShadow: 'var(--shadow-md)',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.color = '#e2e8f0'; e.stopPropagation() }}
+          onMouseLeave={e => { e.currentTarget.style.color = '#94a3b8' }}
+        >
+          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            {collapseDirection === 'left'
+              ? <polyline points="15 18 9 12 15 6"/>
+              : <polyline points="9 18 15 12 9 6"/>}
+          </svg>
+        </button>
+      )}
+    </div>
   )
 }

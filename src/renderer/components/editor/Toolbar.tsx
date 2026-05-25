@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import AppIcon from '../shared/AppIcon'
 
 export type CompileTarget = 'root' | 'active'
+export type ViewMode = 'editor' | 'split' | 'pdf'
 
 interface Props {
   projectName: string
@@ -12,9 +13,12 @@ interface Props {
   onChangeTrigger: (t: string) => void
   compileTarget: CompileTarget
   onChangeTarget: (t: CompileTarget) => void
+  viewMode: ViewMode
+  onChangeView: (v: ViewMode) => void
   projectPath: string
   activeFilePath: string | null
   onSave: () => void
+  onOpenSettings: () => void
 }
 
 export default function Toolbar({
@@ -26,9 +30,12 @@ export default function Toolbar({
   onChangeTrigger,
   compileTarget,
   onChangeTarget,
+  viewMode,
+  onChangeView,
   projectPath,
   activeFilePath,
   onSave,
+  onOpenSettings,
 }: Props) {
   const [showTriggerMenu, setShowTriggerMenu] = useState(false)
   const [showTargetMenu, setShowTargetMenu] = useState(false)
@@ -71,6 +78,19 @@ export default function Toolbar({
 
       {/* Right actions */}
       <div className="titlebar-no-drag" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        {/* Settings */}
+        <button
+          className="btn btn-ghost btn-sm btn-icon"
+          onClick={onOpenSettings}
+          title="Settings"
+          style={{ color: '#64748b' }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+        </button>
+
         {/* Save */}
         <button
           className="btn btn-ghost btn-sm"
@@ -86,6 +106,56 @@ export default function Toolbar({
           </svg>
           Save
         </button>
+
+        {/* View mode toggle */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          border: '1px solid var(--color-border)',
+          borderRadius: 6,
+          overflow: 'hidden',
+        }}>
+          {([
+            { value: 'editor' as ViewMode, title: 'Editor only', icon: (
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="3" width="18" height="18" rx="2"/>
+                <line x1="9" y1="3" x2="9" y2="21"/>
+              </svg>
+            )},
+            { value: 'split' as ViewMode, title: 'Split view', icon: (
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="3" width="18" height="18" rx="2"/>
+                <line x1="12" y1="3" x2="12" y2="21"/>
+              </svg>
+            )},
+            { value: 'pdf' as ViewMode, title: 'PDF only', icon: (
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="3" width="18" height="18" rx="2"/>
+                <line x1="15" y1="3" x2="15" y2="21"/>
+              </svg>
+            )},
+          ]).map(({ value, title, icon }) => (
+            <button
+              key={value}
+              title={title}
+              onClick={() => onChangeView(value)}
+              style={{
+                width: 28, height: 26,
+                border: 'none',
+                borderRight: value !== 'pdf' ? '1px solid var(--color-border)' : 'none',
+                background: viewMode === value ? 'rgba(76,175,80,0.15)' : 'transparent',
+                color: viewMode === value ? '#4CAF50' : '#64748b',
+                cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                transition: 'all 120ms ease',
+              }}
+              onMouseEnter={e => { if (viewMode !== value) e.currentTarget.style.color = '#94a3b8' }}
+              onMouseLeave={e => { if (viewMode !== value) e.currentTarget.style.color = '#64748b' }}
+            >
+              {icon}
+            </button>
+          ))}
+        </div>
 
         {/* Compile trigger dropdown */}
         <div style={{ position: 'relative' }}>

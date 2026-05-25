@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback } from 'react'
+import React, { useEffect, useRef, useImperativeHandle, forwardRef } from 'react'
 import { EditorState, Extension } from '@codemirror/state'
 import { EditorView, keymap, lineNumbers, highlightActiveLineGutter, highlightSpecialChars, drawSelection, dropCursor, rectangularSelection, crosshairCursor, highlightActiveLine } from '@codemirror/view'
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands'
@@ -14,6 +14,10 @@ interface Props {
   content: string
   onChange: (content: string) => void
   onSave: () => void
+}
+
+export interface EditorPaneHandle {
+  jump: (line: number) => void
 }
 
 const underleafTheme = EditorView.theme({
@@ -46,12 +50,33 @@ const underleafTheme = EditorView.theme({
   '.cm-tooltip-autocomplete ul li[aria-selected]': { backgroundColor: 'rgba(76,175,80,0.2)', color: '#4CAF50' },
   '.cm-foldGutter': { padding: '0 4px' },
   '.cm-foldPlaceholder': { backgroundColor: 'rgba(76,175,80,0.15)', border: 'none', color: '#4CAF50' },
+  '.cm-error-line': { backgroundColor: 'rgba(239,68,68,0.15) !important', borderLeft: '3px solid #ef4444' },
 }, { dark: true })
 
-// Conflict marker decoration
+// Decorations
 import { Decoration, DecorationSet } from '@codemirror/view'
 import { StateField, StateEffect, Text } from '@codemirror/state'
 import { RangeSetBuilder } from '@codemirror/state'
+
+// Error line highlight
+const setErrorLine = StateEffect.define<number | null>()
+const errorLineDeco = Decoration.line({ attributes: { class: 'cm-error-line' } })
+const errorLineField = StateField.define<DecorationSet>({
+  create: () => Decoration.none,
+  update(decos, tr) {
+    for (const e of tr.effects) {
+      if (e.is(setErrorLine)) {
+        if (e.value === null) return Decoration.none
+        try {
+          const line = tr.state.doc.line(e.value)
+          return Decoration.set([errorLineDeco.range(line.from)])
+        } catch { return Decoration.none }
+      }
+    }
+    return decos.map(tr.changes)
+  },
+  provide: f => EditorView.decorations.from(f),
+})
 
 const conflictOursMark = Decoration.line({ attributes: { style: 'background: rgba(76,175,80,0.12); border-left: 3px solid #4CAF50;' } })
 const conflictTheirsMark = Decoration.line({ attributes: { style: 'background: rgba(239,68,68,0.12); border-left: 3px solid #ef4444;' } })
@@ -126,6 +151,7 @@ function buildExtensions(onChange: (val: string) => void, onSave: () => void): E
     oneDark,
     underleafTheme,
     conflictHighlighter,
+    errorLineField,
     EditorView.updateListener.of(update => {
       if (update.docChanged) {
         onChange(update.state.doc.toString())
@@ -135,16 +161,37 @@ function buildExtensions(onChange: (val: string) => void, onSave: () => void): E
   ]
 }
 
-export default function EditorPane({ filePath, content, onChange, onSave }: Props) {
+const EditorPane = forwardRef<EditorPaneHandle, Props>(function EditorPane(
+  { filePath, content, onChange, onSave },
+  ref,
+) {
   const containerRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
   const contentRef = useRef(content)
   const onChangeRef = useRef(onChange)
   const onSaveRef = useRef(onSave)
 
-  // Keep refs pointing at the latest callbacks without recreating the editor
   onChangeRef.current = onChange
   onSaveRef.current = onSave
+
+  useImperativeHandle(ref, () => ({
+    jump(line: number) {
+      const view = viewRef.current
+      if (!view || line < 1 || line > view.state.doc.lines) return
+      const pos = view.state.doc.line(line).from
+      view.dispatch({
+        effects: [
+          setErrorLine.of(line),
+          EditorView.scrollIntoView(pos, { y: 'center' }),
+        ],
+        selection: { anchor: pos },
+      })
+      view.focus()
+      setTimeout(() => {
+        viewRef.current?.dispatch({ effects: setErrorLine.of(null) })
+      }, 4000)
+    },
+  }), [])
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -189,4 +236,6 @@ export default function EditorPane({ filePath, content, onChange, onSave }: Prop
       className="cm-editor-container"
     />
   )
-}
+})
+
+export default EditorPane
