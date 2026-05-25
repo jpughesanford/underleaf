@@ -9,6 +9,7 @@ const api = {
   openFolder: () => ipcRenderer.invoke('dialog:openFolder'),
   openFile: (opts?: { title?: string; filters?: { name: string; extensions: string[] }[] }) =>
     ipcRenderer.invoke('dialog:openFile', opts),
+  showSaveDialog: (fileName: string) => ipcRenderer.invoke('dialog:showSave', fileName) as Promise<'save' | 'discard' | 'cancel'>,
 
   // Projects
   scanProjects: () => ipcRenderer.invoke('projects:scan'),
@@ -22,10 +23,11 @@ const api = {
     ipcRenderer.invoke('projects:newProject', opts),
   cloneProject: (opts: { root: string; url: string }) =>
     ipcRenderer.invoke('projects:clone', opts),
+  deleteProject: (projectPath: string) => ipcRenderer.invoke('projects:delete', projectPath) as Promise<boolean>,
 
   // Files
   fileTree: (projectPath: string) => ipcRenderer.invoke('files:tree', projectPath),
-  readFile: (filePath: string) => ipcRenderer.invoke('files:read', filePath),
+  readFile: (filePath: string) => ipcRenderer.invoke('files:read', filePath) as Promise<string | null>,
   writeFile: (filePath: string, content: string) => ipcRenderer.invoke('files:write', filePath, content),
   deleteFile: (filePath: string) => ipcRenderer.invoke('files:delete', filePath),
   renameFile: (oldPath: string, newPath: string) => ipcRenderer.invoke('files:rename', oldPath, newPath),
@@ -42,6 +44,7 @@ const api = {
   gitPush: (projectPath: string) => ipcRenderer.invoke('git:push', projectPath),
   gitPull: (projectPath: string) => ipcRenderer.invoke('git:pull', projectPath),
   gitFetch: (projectPath: string) => ipcRenderer.invoke('git:fetch', projectPath),
+  gitResetToRemote: (projectPath: string) => ipcRenderer.invoke('git:resetToRemote', projectPath) as Promise<{ success: boolean; error?: string }>,
   gitAddRemote: (projectPath: string, url: string) => ipcRenderer.invoke('git:addRemote', projectPath, url),
   gitForcePush: (projectPath: string) => ipcRenderer.invoke('git:forcePush', projectPath),
   gitLog: (projectPath: string, maxCount?: number) => ipcRenderer.invoke('git:log', projectPath, maxCount),
@@ -65,6 +68,17 @@ const api = {
     const handler = (_: Electron.IpcRendererEvent, chunk: string) => cb(chunk)
     ipcRenderer.on('compile:progress', handler)
     return () => ipcRenderer.removeListener('compile:progress', handler)
+  },
+  onMenuAction: (cb: (action: string) => void) => {
+    const channels = ['menu:save', 'menu:openSettings', 'menu:viewEditor', 'menu:viewSplit', 'menu:viewPdf']
+    const handler = (_: Electron.IpcRendererEvent, ...args: unknown[]) => cb(args[0] as string)
+    const handlers: Array<{ ch: string; fn: typeof handler }> = []
+    for (const ch of channels) {
+      const fn = (_evt: Electron.IpcRendererEvent) => cb(ch)
+      ipcRenderer.on(ch, fn)
+      handlers.push({ ch, fn })
+    }
+    return () => handlers.forEach(({ ch, fn }) => ipcRenderer.removeListener(ch, fn))
   },
 }
 

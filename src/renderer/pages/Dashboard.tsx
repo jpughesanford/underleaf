@@ -1,20 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import ProjectCard from '../components/dashboard/ProjectCard'
+import ProjectCard, { ProjectInfo } from '../components/dashboard/ProjectCard'
 import NewProjectModal from '../components/dashboard/NewProjectModal'
 import CloneModal from '../components/dashboard/CloneModal'
 import SettingsModal from '../components/dashboard/SettingsModal'
 import AppIcon from '../components/shared/AppIcon'
 
-interface ProjectInfo {
-  id: string
-  name: string
-  path: string
-  branch: string
-  lastCommit: string | null
-  lastCommitDate: string | null
-  dirtyCount: number
-  remoteUrl: string | null
-  hasRemote: boolean
+interface ContextMenuState {
+  x: number
+  y: number
+  project: ProjectInfo
 }
 
 interface Props {
@@ -25,12 +19,16 @@ interface Props {
 export default function Dashboard({ onOpenProject, onResetRoot }: Props) {
   const [projects, setProjects] = useState<ProjectInfo[]>([])
   const [loading, setLoading] = useState(true)
+  const [fetchingAll, setFetchingAll] = useState(false)
   const [latexmkAvailable, setLatexmkAvailable] = useState(true)
   const [projectsRoot, setProjectsRoot] = useState<string>('')
   const [showNew, setShowNew] = useState(false)
   const [showClone, setShowClone] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [search, setSearch] = useState('')
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
+  const [actionProject, setActionProject] = useState<string | null>(null)
+  const [resetConfirm, setResetConfirm] = useState<ProjectInfo | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -50,12 +48,67 @@ export default function Dashboard({ onOpenProject, onResetRoot }: Props) {
 
   useEffect(() => { load() }, [load])
 
+  useEffect(() => {
+    if (!contextMenu) return
+    const close = () => setContextMenu(null)
+    window.addEventListener('mousedown', close)
+    return () => window.removeEventListener('mousedown', close)
+  }, [contextMenu])
+
+  const handleFetchAll = async () => {
+    setFetchingAll(true)
+    const withRemote = projects.filter(p => p.hasRemote)
+    await Promise.allSettled(withRemote.map(p => window.api.gitFetch(p.path)))
+    await load()
+    setFetchingAll(false)
+  }
+
+  const handleContextMenu = (e: React.MouseEvent, project: ProjectInfo) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setContextMenu({ x: e.clientX, y: e.clientY, project })
+  }
+
+  const handleFetch = async (project: ProjectInfo) => {
+    setContextMenu(null)
+    setActionProject(project.id)
+    await window.api.gitFetch(project.path)
+    await load()
+    setActionProject(null)
+  }
+
+  const handleResetToRemote = async (project: ProjectInfo) => {
+    setContextMenu(null)
+    setResetConfirm(project)
+  }
+
+  const confirmResetToRemote = async () => {
+    if (!resetConfirm) return
+    const project = resetConfirm
+    setResetConfirm(null)
+    setActionProject(project.id)
+    await window.api.gitResetToRemote(project.path)
+    await load()
+    setActionProject(null)
+  }
+
+  const handleDelete = async (project: ProjectInfo) => {
+    setContextMenu(null)
+    const deleted = await window.api.deleteProject(project.path)
+    if (deleted) await load()
+  }
+
   const filtered = search
     ? projects.filter(p => p.name.toLowerCase().includes(search.toLowerCase()))
     : projects
 
+  const hasRemoteProjects = projects.some(p => p.hasRemote)
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--color-bg-app)' }}>
+    <div
+      style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--color-bg-app)' }}
+      onClick={() => setContextMenu(null)}
+    >
       {/* Titlebar */}
       <div
         className="titlebar-drag"
@@ -86,12 +139,33 @@ export default function Dashboard({ onOpenProject, onResetRoot }: Props) {
           />
         </div>
 
-        <div className="titlebar-no-drag" style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+        <div className="titlebar-no-drag" style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
           <button className="btn btn-ghost btn-sm" onClick={() => setShowSettings(true)} title="Settings">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
             </svg>
           </button>
+
+          {hasRemoteProjects && (
+            <button
+              className="btn btn-ghost btn-sm"
+              onClick={handleFetchAll}
+              disabled={fetchingAll}
+              title="Fetch all repositories"
+              style={{ display: 'flex', alignItems: 'center', gap: 5 }}
+            >
+              {fetchingAll ? (
+                <div className="spinner" style={{ width: 12, height: 12, color: 'var(--color-brand)' }} />
+              ) : (
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                  <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+                  <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                </svg>
+              )}
+              Fetch All
+            </button>
+          )}
+
           <button className="btn btn-secondary btn-sm" onClick={() => setShowClone(true)}>
             Clone Repository
           </button>
@@ -118,13 +192,6 @@ export default function Dashboard({ onOpenProject, onResetRoot }: Props) {
             <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
           </svg>
           <span>TeX Live not detected — compilation will be unavailable.</span>
-          <a
-            href="https://www.tug.org/texlive/"
-            style={{ color: '#fbbf24', textDecoration: 'underline', cursor: 'pointer' }}
-            onClick={e => { e.preventDefault() }}
-          >
-            Install Instructions
-          </a>
           <span style={{ color: 'rgba(251,191,36,0.4)' }}>·</span>
           <button
             style={{
@@ -156,7 +223,6 @@ export default function Dashboard({ onOpenProject, onResetRoot }: Props) {
 
       {/* Main content */}
       <div style={{ flex: 1, overflow: 'auto', padding: '32px 40px' }}>
-        {/* Header */}
         <div style={{ marginBottom: 28 }}>
           <h2 style={{ fontSize: 22, fontWeight: 700, color: '#e2e8f0', marginBottom: 4 }}>Projects</h2>
           <div style={{ color: '#64748b', fontSize: 13 }}>
@@ -190,15 +256,163 @@ export default function Dashboard({ onOpenProject, onResetRoot }: Props) {
             gap: 16,
           }}>
             {filtered.map(project => (
-              <ProjectCard
-                key={project.id}
-                project={project}
-                onOpen={() => onOpenProject(project.path, project.name)}
-              />
+              <div key={project.id} style={{ position: 'relative' }}>
+                {actionProject === project.id && (
+                  <div style={{
+                    position: 'absolute', inset: 0, zIndex: 2,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: 'rgba(15,23,42,0.55)',
+                    borderRadius: 10,
+                    backdropFilter: 'blur(2px)',
+                  }}>
+                    <div className="spinner" style={{ width: 20, height: 20, color: 'var(--color-brand)' }} />
+                  </div>
+                )}
+                <ProjectCard
+                  project={project}
+                  onOpen={() => onOpenProject(project.path, project.name)}
+                  onContextMenu={e => handleContextMenu(e, project)}
+                />
+              </div>
             ))}
           </div>
         )}
       </div>
+
+      {/* Context Menu */}
+      {contextMenu && (
+        <div
+          onMouseDown={e => e.stopPropagation()}
+          style={{
+            position: 'fixed',
+            top: contextMenu.y,
+            left: contextMenu.x,
+            background: 'var(--color-bg-panel)',
+            border: '1px solid var(--color-border)',
+            borderRadius: 8,
+            padding: '4px 0',
+            zIndex: 9999,
+            minWidth: 190,
+            boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+          }}
+        >
+          <div style={{ padding: '4px 12px 6px', fontSize: 11, color: '#475569', fontWeight: 600, borderBottom: '1px solid var(--color-border)', marginBottom: 4 }}>
+            {contextMenu.project.name}
+          </div>
+
+          {contextMenu.project.hasRemote && (
+            <button
+              onClick={() => handleFetch(contextMenu.project)}
+              style={menuItemStyle}
+              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.06)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+              </svg>
+              Fetch
+            </button>
+          )}
+
+          {contextMenu.project.hasRemote && (
+            <>
+              <div style={{ height: 1, background: 'var(--color-border)', margin: '4px 0' }} />
+              <button
+                onClick={() => handleResetToRemote(contextMenu.project)}
+                style={{ ...menuItemStyle, color: '#f87171' }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(248,113,113,0.08)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                  <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.51"/>
+                </svg>
+                Reset to Remote…
+              </button>
+            </>
+          )}
+
+          {contextMenu.project.hasRemote && <div style={{ height: 1, background: 'var(--color-border)', margin: '4px 0' }} />}
+          <button
+            onClick={() => handleDelete(contextMenu.project)}
+            style={{ ...menuItemStyle, color: '#f87171' }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(248,113,113,0.08)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+              <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+            </svg>
+            Delete from Disk…
+          </button>
+        </div>
+      )}
+
+      {/* Reset to Remote confirmation */}
+      {resetConfirm && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, zIndex: 10000,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: 'rgba(0,0,0,0.6)',
+          }}
+          onClick={() => setResetConfirm(null)}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: 'var(--color-bg-panel)',
+              border: '1px solid var(--color-border)',
+              borderRadius: 12,
+              padding: 24,
+              maxWidth: 400,
+              width: '90%',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.6)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+              <div style={{
+                width: 32, height: 32, borderRadius: 8,
+                background: 'rgba(248,113,113,0.15)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                flexShrink: 0, color: '#f87171',
+              }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                  <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+              </div>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: 14, color: '#e2e8f0' }}>Reset to Remote</div>
+                <div style={{ fontSize: 12, color: '#64748b', marginTop: 1 }}>{resetConfirm.name}</div>
+              </div>
+            </div>
+            <p style={{ fontSize: 13, color: '#94a3b8', lineHeight: 1.5, marginBottom: 20 }}>
+              This will discard all local commits and changes, replacing them with the remote version. This cannot be undone.
+            </p>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button className="btn btn-ghost btn-sm" onClick={() => setResetConfirm(null)}>
+                Cancel
+              </button>
+              <button
+                onClick={confirmResetToRemote}
+                style={{
+                  background: 'rgba(248,113,113,0.15)',
+                  border: '1px solid rgba(248,113,113,0.4)',
+                  borderRadius: 6,
+                  color: '#f87171',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  padding: '5px 14px',
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                }}
+              >
+                Reset to Remote
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showNew && (
         <NewProjectModal
@@ -232,4 +446,20 @@ export default function Dashboard({ onOpenProject, onResetRoot }: Props) {
       )}
     </div>
   )
+}
+
+const menuItemStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 8,
+  width: '100%',
+  background: 'transparent',
+  border: 'none',
+  color: '#cbd5e1',
+  fontSize: 13,
+  padding: '6px 12px',
+  cursor: 'pointer',
+  fontFamily: 'inherit',
+  textAlign: 'left',
+  transition: 'background 100ms',
 }

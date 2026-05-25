@@ -108,6 +108,19 @@ export function registerGitIPC(): void {
     }
   })
 
+  ipcMain.handle('git:resetToRemote', async (_, projectPath: string): Promise<{ success: boolean; error?: string }> => {
+    const git = simpleGit(projectPath)
+    try {
+      await git.fetch(['origin'])
+      const branch = (await git.revparse(['--abbrev-ref', 'HEAD'])).trim()
+      await git.raw(['reset', '--hard', `origin/${branch}`])
+      return { success: true }
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e)
+      return { success: false, error: msg }
+    }
+  })
+
   ipcMain.handle('git:addRemote', async (_, projectPath: string, url: string): Promise<{ success: boolean; error?: string; needsForcePush?: boolean }> => {
     const git = simpleGit(projectPath)
     try {

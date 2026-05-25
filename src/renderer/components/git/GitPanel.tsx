@@ -153,8 +153,7 @@ export default function GitPanel({ projectPath, onOpenFile }: Props) {
 
   async function addToGitignore(pattern: string) {
     const gitignorePath = `${projectPath}/.gitignore`
-    let content = ''
-    try { content = await window.api.readFile(gitignorePath) } catch { /* doesn't exist yet */ }
+    const content = (await window.api.readFile(gitignorePath)) ?? ''
     const lines = content.split('\n').map(l => l.trim())
     if (!lines.includes(pattern)) {
       const sep = content.length > 0 && !content.endsWith('\n') ? '\n' : ''

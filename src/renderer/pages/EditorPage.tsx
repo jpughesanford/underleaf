@@ -127,7 +127,7 @@ export default function EditorPage({ projectPath, projectName, onBack }: Props) 
     }
 
     try {
-      const content = await window.api.readFile(filePath)
+      const content = (await window.api.readFile(filePath)) ?? ''
       const name = filePath.split('/').pop() || filePath
       const newTab: OpenTab = { path: filePath, name, content, isDirty: false }
       setTabs(prev => [...prev, newTab])
@@ -137,7 +137,17 @@ export default function EditorPage({ projectPath, projectName, onBack }: Props) 
     }
   }, [tabs])
 
-  const closeTab = useCallback((filePath: string) => {
+  const closeTab = useCallback(async (filePath: string) => {
+    const tab = tabsRef.current.find(t => t.path === filePath)
+    if (tab?.isDirty) {
+      const choice = await window.api.showSaveDialog(tab.name)
+      if (choice === 'save') {
+        await window.api.writeFile(tab.path, tab.content)
+      } else if (choice === 'cancel') {
+        return
+      }
+      // 'discard' falls through to close
+    }
     setTabs(prev => {
       const idx = prev.findIndex(t => t.path === filePath)
       const next = prev.filter(t => t.path !== filePath)
@@ -198,6 +208,30 @@ export default function EditorPage({ projectPath, projectName, onBack }: Props) 
     requestAnimationFrame(() => editorRef.current?.jump(line))
   }, [projectPath, openFile])
 
+  // Menu bar actions — must come after all callbacks/refs are defined.
+  // Uses tabsRef/activeTabRef (always current) and stable setState setters so deps stay empty.
+  useEffect(() => {
+    return window.api.onMenuAction((action) => {
+      if (action === 'menu:save') {
+        const active = activeTabRef.current
+        if (!active) return
+        const tab = tabsRef.current.find(t => t.path === active)
+        if (!tab || !tab.isDirty) return
+        window.api.writeFile(tab.path, tab.content).then(() => {
+          setTabs(prev => prev.map(t => t.path === active ? { ...t, isDirty: false } : t))
+        })
+      } else if (action === 'menu:openSettings') {
+        setShowSettings(true)
+      } else if (action === 'menu:viewEditor') {
+        setViewMode('editor')
+      } else if (action === 'menu:viewSplit') {
+        setViewMode('split')
+      } else if (action === 'menu:viewPdf') {
+        setViewMode('pdf')
+      }
+    })
+  }, []) // refs always current; setState setters are stable
+
   const activeTabData = tabs.find(t => t.path === activeTab) ?? null
 
   return (
@@ -225,8 +259,6 @@ export default function EditorPage({ projectPath, projectName, onBack }: Props) 
         viewMode={viewMode}
         onChangeView={setViewMode}
         projectPath={projectPath}
-        activeFilePath={activeTab}
-        onSave={() => activeTab && saveFile(activeTab)}
         onOpenSettings={() => setShowSettings(true)}
       />
 
@@ -442,10 +474,14 @@ function TabItem({ tab, active, onActivate, onClose, onSave }: {
   onClose: () => void
   onSave: () => void
 }) {
+  const [hovered, setHovered] = useState(false)
+
   return (
     <div
       onClick={onActivate}
       onKeyDown={e => { if (e.key === 's' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); onSave() } }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       style={{
         display: 'flex', alignItems: 'center', gap: 6,
         padding: '0 12px',
@@ -468,31 +504,40 @@ function TabItem({ tab, active, onActivate, onClose, onSave }: {
           background: 'var(--color-brand)',
         }} />
       )}
-      {tab.isDirty && (
-        <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#fbbf24', flexShrink: 0 }} />
-      )}
       <span style={{ maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         {tab.name}
       </span>
+      {/* VS Code-style close/dirty button: shows × always on hover, dot when dirty and not hovering */}
       <button
-        onClick={e => { e.stopPropagation(); onClose() }}
+        onClick={e => {
+          e.stopPropagation()
+          if (tab.isDirty && !hovered) return
+          onClose()
+        }}
+        title={tab.isDirty ? 'Unsaved changes — click to close' : 'Close'}
         style={{
           width: 16, height: 16,
           borderRadius: 3,
           border: 'none',
           background: 'transparent',
-          color: '#64748b',
+          color: tab.isDirty && !hovered ? '#e2e8f0' : '#64748b',
           cursor: 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           padding: 0,
           marginLeft: 2,
+          flexShrink: 0,
         }}
         onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = '#e2e8f0' }}
-        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#64748b' }}
+        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = tab.isDirty ? '#e2e8f0' : '#64748b' }}
       >
-        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-        </svg>
+        {tab.isDirty && !hovered ? (
+          // White dot when dirty and not hovering
+          <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#e2e8f0' }} />
+        ) : (
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        )}
       </button>
     </div>
   )

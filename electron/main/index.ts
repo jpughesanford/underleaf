@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog, shell, Menu } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import Store from 'electron-store'
@@ -81,6 +81,20 @@ app.whenReady().then(() => {
     return result.canceled ? null : result.filePaths[0]
   })
 
+  ipcMain.handle('dialog:showSave', async (_, fileName: string) => {
+    const win = BrowserWindow.getFocusedWindow()
+    if (!win) return 'discard'
+    const { response } = await dialog.showMessageBox(win, {
+      type: 'warning',
+      message: `Do you want to save the changes you made to ${fileName}?`,
+      detail: "Your changes will be lost if you don't save them.",
+      buttons: ['Save', 'Discard', 'Cancel'],
+      defaultId: 0,
+      cancelId: 2,
+    })
+    return response === 0 ? 'save' : response === 1 ? 'discard' : 'cancel'
+  })
+
   ipcMain.handle('dialog:openFile', async (_, opts: { title?: string; filters?: Electron.FileFilter[] }) => {
     const result = await dialog.showOpenDialog({
       properties: ['openFile'],
@@ -92,12 +106,117 @@ app.whenReady().then(() => {
 
   mainWindow = createWindow()
 
+  buildMenu()
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       mainWindow = createWindow()
     }
   })
 })
+
+function sendToFocused(channel: string) {
+  BrowserWindow.getFocusedWindow()?.webContents.send(channel)
+}
+
+function buildMenu() {
+  const template: Electron.MenuItemConstructorOptions[] = [
+    // App menu (macOS)
+    {
+      label: app.name,
+      submenu: [
+        { label: `About ${app.name}`, role: 'about' },
+        { type: 'separator' },
+        {
+          label: 'Preferences…',
+          accelerator: 'CmdOrCtrl+,',
+          click: () => sendToFocused('menu:openSettings'),
+        },
+        { type: 'separator' },
+        { label: 'Services', role: 'services' },
+        { type: 'separator' },
+        { label: `Hide ${app.name}`, role: 'hide' },
+        { label: 'Hide Others', role: 'hideOthers' },
+        { label: 'Show All', role: 'unhide' },
+        { type: 'separator' },
+        { label: `Quit ${app.name}`, role: 'quit' },
+      ],
+    },
+    // File
+    {
+      label: 'File',
+      submenu: [
+        {
+          label: 'New Window',
+          accelerator: 'CmdOrCtrl+N',
+          click: () => createWindow(),
+        },
+        { type: 'separator' },
+        {
+          label: 'Save',
+          accelerator: 'CmdOrCtrl+S',
+          click: () => sendToFocused('menu:save'),
+        },
+        { type: 'separator' },
+        { label: 'Close Window', role: 'close' },
+      ],
+    },
+    // Edit
+    {
+      label: 'Edit',
+      submenu: [
+        { label: 'Undo', role: 'undo' },
+        { label: 'Redo', role: 'redo' },
+        { type: 'separator' },
+        { label: 'Cut', role: 'cut' },
+        { label: 'Copy', role: 'copy' },
+        { label: 'Paste', role: 'paste' },
+        { label: 'Select All', role: 'selectAll' },
+      ],
+    },
+    // View
+    {
+      label: 'View',
+      submenu: [
+        {
+          label: 'Editor Only',
+          accelerator: 'CmdOrCtrl+1',
+          click: () => sendToFocused('menu:viewEditor'),
+        },
+        {
+          label: 'Split View',
+          accelerator: 'CmdOrCtrl+2',
+          click: () => sendToFocused('menu:viewSplit'),
+        },
+        {
+          label: 'PDF Only',
+          accelerator: 'CmdOrCtrl+3',
+          click: () => sendToFocused('menu:viewPdf'),
+        },
+        { type: 'separator' },
+        { label: 'Toggle Full Screen', role: 'togglefullscreen' },
+        ...(is.dev ? [
+          { type: 'separator' as const },
+          { label: 'Reload', role: 'reload' as const },
+          { label: 'Toggle Developer Tools', role: 'toggleDevTools' as const },
+        ] : []),
+      ],
+    },
+    // Window
+    {
+      label: 'Window',
+      role: 'window',
+      submenu: [
+        { label: 'Minimize', role: 'minimize' },
+        { label: 'Zoom', role: 'zoom' },
+        { type: 'separator' },
+        { label: 'Bring All to Front', role: 'front' },
+      ],
+    },
+  ]
+
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template))
+}
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()

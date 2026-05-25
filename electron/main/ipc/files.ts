@@ -64,7 +64,7 @@ export function registerFileIPC(): void {
 
   ipcMain.handle('files:read', (_, filePath: string) => {
     const normalized = resolve(filePath)
-    if (!existsSync(normalized)) throw new Error('File not found: ' + filePath)
+    if (!existsSync(normalized)) return null
     return readFileSync(normalized, 'utf8')
   })
 

@@ -1,6 +1,6 @@
 import React from 'react'
 
-interface ProjectInfo {
+export interface ProjectInfo {
   id: string
   name: string
   path: string
@@ -10,11 +10,16 @@ interface ProjectInfo {
   dirtyCount: number
   remoteUrl: string | null
   hasRemote: boolean
+  aheadBy: number
+  behindBy: number
+  hasConflicts: boolean
+  syncStatusKnown: boolean
 }
 
 interface Props {
   project: ProjectInfo
   onOpen: () => void
+  onContextMenu: (e: React.MouseEvent) => void
 }
 
 function timeAgo(dateStr: string): string {
@@ -31,10 +36,80 @@ function timeAgo(dateStr: string): string {
   return 'just now'
 }
 
-export default function ProjectCard({ project, onOpen }: Props) {
+const badgeBase: React.CSSProperties = {
+  display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 4,
+  fontSize: 11, fontWeight: 600,
+  borderRadius: 5, padding: '2px 8px',
+  flexShrink: 0,
+}
+
+function SyncBadge({ project }: { project: ProjectInfo }) {
+  if (!project.hasRemote) {
+    return <span style={{ ...badgeBase, visibility: 'hidden' }}>x</span>
+  }
+
+  if (project.hasConflicts) {
+    return (
+      <span style={{ ...badgeBase, color: '#f87171', background: 'rgba(248,113,113,0.12)', border: '1px solid rgba(248,113,113,0.35)' }}>
+        ⚠ Conflict
+      </span>
+    )
+  }
+
+  if (!project.syncStatusKnown) {
+    return (
+      <span style={{ ...badgeBase, fontWeight: 500, color: '#64748b', background: 'rgba(100,116,139,0.1)', border: '1px solid rgba(100,116,139,0.25)' }}>
+        Not fetched
+      </span>
+    )
+  }
+
+  if (project.behindBy === 0 && project.aheadBy === 0) {
+    return (
+      <span style={{ ...badgeBase, fontWeight: 500, color: '#4ade80', background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.25)' }}>
+        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg>
+        Synced
+      </span>
+    )
+  }
+
+  // ↑ = remote ahead of you (need to pull); ↓ = you ahead of remote (need to push)
+  const parts: React.ReactNode[] = []
+  if (project.behindBy > 0) {
+    parts.push(
+      <span key="behind" style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+          <line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>
+        </svg>
+        {project.behindBy} behind
+      </span>
+    )
+  }
+  if (project.aheadBy > 0) {
+    parts.push(
+      <span key="ahead" style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+          <line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/>
+        </svg>
+        {project.aheadBy} ahead
+      </span>
+    )
+  }
+
+  return (
+    <span style={{ ...badgeBase, color: '#fbbf24', background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.3)' }}>
+      {parts}
+    </span>
+  )
+}
+
+export default function ProjectCard({ project, onOpen, onContextMenu }: Props) {
   return (
     <div
       onClick={onOpen}
+      onContextMenu={onContextMenu}
       style={{
         background: 'var(--color-bg-card)',
         border: '1px solid var(--color-border)',
@@ -53,14 +128,13 @@ export default function ProjectCard({ project, onOpen }: Props) {
       }}
     >
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12, gap: 8 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
           <div style={{
             width: 36, height: 36, borderRadius: 8,
             background: 'rgba(76,175,80,0.15)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            flexShrink: 0,
-            color: '#4CAF50',
+            flexShrink: 0, color: '#4CAF50',
           }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -72,28 +146,23 @@ export default function ProjectCard({ project, onOpen }: Props) {
           </div>
           <div style={{ minWidth: 0 }}>
             <div style={{
-              fontWeight: 600,
-              fontSize: 14,
-              color: '#e2e8f0',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
+              fontWeight: 600, fontSize: 14, color: '#e2e8f0',
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
             }}>
               {project.name}
             </div>
-            {project.remoteUrl && (
-              <div style={{ fontSize: 11, color: '#475569', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {project.remoteUrl}
-              </div>
-            )}
+            <div style={{ fontSize: 11, color: '#475569', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', visibility: project.remoteUrl ? 'visible' : 'hidden' }}>
+              {project.remoteUrl || 'x'}
+            </div>
           </div>
         </div>
 
-        {project.dirtyCount > 0 && (
-          <span className="badge badge-yellow" style={{ flexShrink: 0 }}>
-            {project.dirtyCount} change{project.dirtyCount !== 1 ? 's' : ''}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 4, flexShrink: 0 }}>
+          <SyncBadge project={project} />
+          <span className={project.dirtyCount > 0 ? 'badge badge-blue' : ''} style={{ justifyContent: 'center', visibility: project.dirtyCount > 0 ? 'visible' : 'hidden', fontSize: 11, padding: '2px 8px' }}>
+            {project.dirtyCount > 0 ? `${project.dirtyCount} change${project.dirtyCount !== 1 ? 's' : ''}` : 'x'}
           </span>
-        )}
+        </div>
       </div>
 
       {/* Meta */}
@@ -120,7 +189,8 @@ export default function ProjectCard({ project, onOpen }: Props) {
         {!project.hasRemote && (
           <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#64748b', fontSize: 12 }}>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="2" y1="2" x2="22" y2="22"/><path d="M10.59 10.59a2 2 0 1 1 2.83 2.83"/>
+              <line x1="2" y1="2" x2="22" y2="22"/>
+              <path d="M10.59 10.59a2 2 0 1 1 2.83 2.83"/>
               <path d="M13.73 7.27A2 2 0 1 0 10.9 10.1"/>
               <path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/>
             </svg>
@@ -129,20 +199,15 @@ export default function ProjectCard({ project, onOpen }: Props) {
         )}
       </div>
 
-      {project.lastCommit && (
-        <div style={{
-          marginTop: 10,
-          paddingTop: 10,
-          borderTop: '1px solid var(--color-border)',
-          fontSize: 12,
-          color: '#475569',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
-        }}>
-          {project.lastCommit}
-        </div>
-      )}
+      <div style={{
+        marginTop: 10, paddingTop: 10,
+        borderTop: project.lastCommit ? '1px solid var(--color-border)' : '1px solid transparent',
+        fontSize: 12, color: '#475569',
+        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        visibility: project.lastCommit ? 'visible' : 'hidden',
+      }}>
+        {project.lastCommit || 'x'}
+      </div>
     </div>
   )
 }

@@ -1,5 +1,5 @@
-import { ipcMain } from 'electron'
-import { readdirSync, statSync, existsSync, mkdirSync } from 'fs'
+import { ipcMain, BrowserWindow, dialog } from 'electron'
+import { readdirSync, statSync, existsSync, mkdirSync, rmSync } from 'fs'
 import { join } from 'path'
 import { execSync } from 'child_process'
 import type Store from 'electron-store'
@@ -44,6 +44,10 @@ export interface ProjectInfo {
   dirtyCount: number
   remoteUrl: string | null
   hasRemote: boolean
+  aheadBy: number
+  behindBy: number
+  hasConflicts: boolean
+  syncStatusKnown: boolean
 }
 
 function getGitInfo(repoPath: string): Omit<ProjectInfo, 'id' | 'name' | 'path'> {
@@ -63,7 +67,20 @@ function getGitInfo(repoPath: string): Omit<ProjectInfo, 'id' | 'name' | 'path'>
   const remoteUrl = run('git remote get-url origin') || null
   const hasRemote = !!remoteUrl
 
-  return { branch, lastCommit, lastCommitDate, dirtyCount, remoteUrl, hasRemote }
+  let aheadBy = 0, behindBy = 0, syncStatusKnown = false
+  const hasConflicts = dirtyStr.split('\n').some(l => /^(UU|AA|DD|AU|UA|DU|UD)/.test(l))
+
+  if (hasRemote) {
+    const aheadStr = run('git rev-list --count @{u}..HEAD')
+    const behindStr = run('git rev-list --count HEAD..@{u}')
+    if (aheadStr !== '' && behindStr !== '') {
+      aheadBy = parseInt(aheadStr) || 0
+      behindBy = parseInt(behindStr) || 0
+      syncStatusKnown = true
+    }
+  }
+
+  return { branch, lastCommit, lastCommitDate, dirtyCount, remoteUrl, hasRemote, aheadBy, behindBy, hasConflicts, syncStatusKnown }
 }
 
 function deriveName(repoPath: string, remoteUrl: string | null): string {
@@ -199,5 +216,22 @@ export function registerProjectIPC(store: Store): void {
 
     execSync(`git clone "${url}" "${dest}"`, { encoding: 'utf8' })
     return dest
+  })
+
+  ipcMain.handle('projects:delete', async (_, projectPath: string): Promise<boolean> => {
+    const win = BrowserWindow.getFocusedWindow()
+    if (!win) return false
+    const name = projectPath.split('/').pop() || projectPath
+    const { response } = await dialog.showMessageBox(win, {
+      type: 'warning',
+      message: `Delete "${name}"?`,
+      detail: `This will permanently delete the folder at:\n${projectPath}\n\nThis cannot be undone.`,
+      buttons: ['Delete', 'Cancel'],
+      defaultId: 1,
+      cancelId: 1,
+    })
+    if (response !== 0) return false
+    rmSync(projectPath, { recursive: true, force: true })
+    return true
   })
 }

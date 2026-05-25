@@ -16,8 +16,6 @@ interface Props {
   viewMode: ViewMode
   onChangeView: (v: ViewMode) => void
   projectPath: string
-  activeFilePath: string | null
-  onSave: () => void
   onOpenSettings: () => void
 }
 
@@ -33,8 +31,6 @@ export default function Toolbar({
   viewMode,
   onChangeView,
   projectPath,
-  activeFilePath,
-  onSave,
   onOpenSettings,
 }: Props) {
   const [showTriggerMenu, setShowTriggerMenu] = useState(false)
@@ -89,22 +85,6 @@ export default function Toolbar({
             <circle cx="12" cy="12" r="3"/>
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
           </svg>
-        </button>
-
-        {/* Save */}
-        <button
-          className="btn btn-ghost btn-sm"
-          onClick={onSave}
-          disabled={!activeFilePath}
-          title="Save (⌘S)"
-          style={{ fontSize: 12, gap: 4 }}
-        >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-            <polyline points="17 21 17 13 7 13 7 21"/>
-            <polyline points="7 3 7 8 15 8"/>
-          </svg>
-          Save
         </button>
 
         {/* View mode toggle */}
