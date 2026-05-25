@@ -1,8 +1,9 @@
 import { ipcMain, BrowserWindow } from 'electron'
 import { spawn } from 'child_process'
 import { readFileSync, existsSync, readdirSync, statSync, mkdirSync, writeFileSync } from 'fs'
-import { join, relative, basename } from 'path'
+import { join, relative, basename, dirname } from 'path'
 import type Store from 'electron-store'
+import { resolveLatexmkPath } from './projects'
 
 // All latexmk build artifacts go here, keeping the project root clean
 const BUILD_DIR_NAME = '.underleaf-build'
@@ -154,7 +155,16 @@ export function registerCompileIPC(store: Store): void {
 
     return new Promise((resolve) => {
       let rawLog = ''
-      const proc = spawn('latexmk', args, { cwd: projectPath })
+      const latexmk = resolveLatexmkPath(store) ?? 'latexmk'
+      // Ensure pdflatex/bibtex siblings are also on PATH for the subprocess
+      const texBinDir = latexmk.includes('/') ? dirname(latexmk) : ''
+      const spawnPath = texBinDir
+        ? `${texBinDir}:${process.env.PATH ?? ''}`
+        : (process.env.PATH ?? '')
+      const proc = spawn(latexmk, args, {
+        cwd: projectPath,
+        env: { ...process.env, PATH: spawnPath },
+      })
       activeCompiles.set(projectPath, proc)
 
       proc.stdout.on('data', (d: Buffer) => {

@@ -81,6 +81,15 @@ app.whenReady().then(() => {
     return result.canceled ? null : result.filePaths[0]
   })
 
+  ipcMain.handle('dialog:openFile', async (_, opts: { title?: string; filters?: Electron.FileFilter[] }) => {
+    const result = await dialog.showOpenDialog({
+      properties: ['openFile'],
+      title: opts?.title,
+      filters: opts?.filters,
+    })
+    return result.canceled ? null : result.filePaths[0]
+  })
+
   mainWindow = createWindow()
 
   app.on('activate', () => {

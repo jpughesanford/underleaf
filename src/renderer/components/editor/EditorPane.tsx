@@ -50,30 +50,29 @@ const underleafTheme = EditorView.theme({
 
 // Conflict marker decoration
 import { Decoration, DecorationSet } from '@codemirror/view'
-import { StateField, StateEffect } from '@codemirror/state'
+import { StateField, StateEffect, Text } from '@codemirror/state'
 import { RangeSetBuilder } from '@codemirror/state'
 
 const conflictOursMark = Decoration.line({ attributes: { style: 'background: rgba(76,175,80,0.12); border-left: 3px solid #4CAF50;' } })
 const conflictTheirsMark = Decoration.line({ attributes: { style: 'background: rgba(239,68,68,0.12); border-left: 3px solid #ef4444;' } })
 const conflictMarkerMark = Decoration.line({ attributes: { style: 'background: rgba(251,191,36,0.1); border-left: 3px solid #fbbf24;' } })
 
-function conflictDecorations(view: EditorView): DecorationSet {
+function conflictDecorations(doc: Text): DecorationSet {
   const builder = new RangeSetBuilder<Decoration>()
-  const text = view.state.doc.toString()
-  const lines = text.split('\n')
   let inOurs = false, inTheirs = false
-  let pos = 0
 
-  for (const line of lines) {
-    const from = pos
-    if (line.startsWith('<<<<<<<')) {
+  for (let i = 1; i <= doc.lines; i++) {
+    const line = doc.line(i)
+    const text = line.text
+    const from = line.from
+    if (text.startsWith('<<<<<<<')) {
       inOurs = true
       builder.add(from, from, conflictMarkerMark)
-    } else if (line.startsWith('=======') && inOurs) {
+    } else if (text.startsWith('=======') && inOurs) {
       inOurs = false
       inTheirs = true
       builder.add(from, from, conflictMarkerMark)
-    } else if (line.startsWith('>>>>>>>') && inTheirs) {
+    } else if (text.startsWith('>>>>>>>') && inTheirs) {
       inTheirs = false
       builder.add(from, from, conflictMarkerMark)
     } else if (inOurs) {
@@ -81,16 +80,15 @@ function conflictDecorations(view: EditorView): DecorationSet {
     } else if (inTheirs) {
       builder.add(from, from, conflictTheirsMark)
     }
-    pos += line.length + 1
   }
 
   return builder.finish()
 }
 
 const conflictHighlighter = StateField.define<DecorationSet>({
-  create(state) { return Decoration.none },
+  create(state) { return conflictDecorations(state.doc) },
   update(decos, tr) {
-    if (tr.docChanged) return conflictDecorations(tr.newDoc as unknown as EditorView)
+    if (tr.docChanged) return conflictDecorations(tr.newDoc)
     return decos
   },
   provide: f => EditorView.decorations.from(f),
@@ -141,6 +139,12 @@ export default function EditorPane({ filePath, content, onChange, onSave }: Prop
   const containerRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
   const contentRef = useRef(content)
+  const onChangeRef = useRef(onChange)
+  const onSaveRef = useRef(onSave)
+
+  // Keep refs pointing at the latest callbacks without recreating the editor
+  onChangeRef.current = onChange
+  onSaveRef.current = onSave
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -148,7 +152,10 @@ export default function EditorPane({ filePath, content, onChange, onSave }: Prop
     const view = new EditorView({
       state: EditorState.create({
         doc: content,
-        extensions: buildExtensions(onChange, onSave),
+        extensions: buildExtensions(
+          (v) => onChangeRef.current(v),
+          () => onSaveRef.current(),
+        ),
       }),
       parent: containerRef.current,
     })
@@ -160,7 +167,6 @@ export default function EditorPane({ filePath, content, onChange, onSave }: Prop
       view.destroy()
       viewRef.current = null
     }
-    // Only recreate when filePath changes
   }, [filePath]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sync external content changes (e.g. initial load) without recreating

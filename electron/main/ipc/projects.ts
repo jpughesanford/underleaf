@@ -4,6 +4,36 @@ import { join } from 'path'
 import { execSync } from 'child_process'
 import type Store from 'electron-store'
 
+// Common TeX Live installation paths on macOS — not on the default app PATH
+const TEX_EXTRA_DIRS = [
+  '/Library/TeX/texbin',
+  '/usr/local/texlive/2024/bin/universal-darwin',
+  '/usr/local/texlive/2024/bin/x86_64-darwin',
+  '/usr/local/texlive/2024/bin/aarch64-darwin',
+  '/usr/local/texlive/2023/bin/universal-darwin',
+  '/usr/local/texlive/2023/bin/x86_64-darwin',
+  '/usr/local/texlive/2023/bin/aarch64-darwin',
+  '/opt/homebrew/bin',
+  '/usr/local/bin',
+]
+
+export function resolveLatexmkPath(store: Store): string | null {
+  const custom = store.get('latexmkPath') as string | undefined
+  if (custom && existsSync(custom)) return custom
+
+  const augmentedPath = [...TEX_EXTRA_DIRS, process.env.PATH ?? ''].join(':')
+  try {
+    const found = execSync('which latexmk', {
+      encoding: 'utf8',
+      env: { ...process.env, PATH: augmentedPath },
+      stdio: ['pipe', 'pipe', 'pipe'],
+    }).trim()
+    if (found && existsSync(found)) return found
+  } catch { /* not found on PATH */ }
+
+  return null
+}
+
 export interface ProjectInfo {
   id: string
   name: string
@@ -108,12 +138,15 @@ export function registerProjectIPC(store: Store): void {
   })
 
   ipcMain.handle('projects:checkLatexmk', () => {
-    try {
-      execSync('which latexmk', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] })
-      return true
-    } catch {
-      return false
-    }
+    return resolveLatexmkPath(store) !== null
+  })
+
+  ipcMain.handle('projects:setLatexmkPath', (_, path: string) => {
+    store.set('latexmkPath', path)
+  })
+
+  ipcMain.handle('projects:getLatexmkPath', () => {
+    return store.get('latexmkPath') ?? null
   })
 
   ipcMain.handle('projects:newProject', async (_, opts: { root: string; name: string; template: string }) => {

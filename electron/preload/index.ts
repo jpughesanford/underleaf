@@ -7,6 +7,8 @@ const api = {
 
   // Dialog
   openFolder: () => ipcRenderer.invoke('dialog:openFolder'),
+  openFile: (opts?: { title?: string; filters?: { name: string; extensions: string[] }[] }) =>
+    ipcRenderer.invoke('dialog:openFile', opts),
 
   // Projects
   scanProjects: () => ipcRenderer.invoke('projects:scan'),
@@ -14,6 +16,8 @@ const api = {
   getProjectsRoot: () => ipcRenderer.invoke('projects:getRoot'),
   createFolder: (path: string) => ipcRenderer.invoke('projects:createFolder', path),
   checkLatexmk: () => ipcRenderer.invoke('projects:checkLatexmk'),
+  setLatexmkPath: (path: string) => ipcRenderer.invoke('projects:setLatexmkPath', path),
+  getLatexmkPath: () => ipcRenderer.invoke('projects:getLatexmkPath'),
   newProject: (opts: { root: string; name: string; template: string }) =>
     ipcRenderer.invoke('projects:newProject', opts),
   cloneProject: (opts: { root: string; url: string }) =>

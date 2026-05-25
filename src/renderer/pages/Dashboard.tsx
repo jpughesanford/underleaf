@@ -109,22 +109,48 @@ export default function Dashboard({ onOpenProject, onResetRoot }: Props) {
           padding: '8px 20px',
           display: 'flex',
           alignItems: 'center',
-          gap: 8,
+          gap: 10,
           color: '#fbbf24',
           fontSize: 13,
           flexShrink: 0,
         }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ flexShrink: 0 }}>
             <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
           </svg>
           <span>TeX Live not detected — compilation will be unavailable.</span>
           <a
             href="https://www.tug.org/texlive/"
-            style={{ color: '#fbbf24', marginLeft: 4, textDecoration: 'underline', cursor: 'pointer' }}
-            onClick={e => { e.preventDefault(); /* shell.openExternal handled by main */ }}
+            style={{ color: '#fbbf24', textDecoration: 'underline', cursor: 'pointer' }}
+            onClick={e => { e.preventDefault() }}
           >
             Install Instructions
           </a>
+          <span style={{ color: 'rgba(251,191,36,0.4)' }}>·</span>
+          <button
+            style={{
+              background: 'rgba(245,158,11,0.15)',
+              border: '1px solid rgba(245,158,11,0.4)',
+              borderRadius: 5,
+              color: '#fbbf24',
+              fontSize: 12,
+              padding: '2px 10px',
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+            }}
+            onClick={async () => {
+              const path = await window.api.openFile({
+                title: 'Locate latexmk',
+                filters: [{ name: 'latexmk', extensions: ['*'] }],
+              })
+              if (path) {
+                await window.api.setLatexmkPath(path)
+                const ok = await window.api.checkLatexmk()
+                if (ok) setLatexmkAvailable(true)
+              }
+            }}
+          >
+            Set Path Manually…
+          </button>
         </div>
       )}
 
