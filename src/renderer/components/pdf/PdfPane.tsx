@@ -141,7 +141,7 @@ export default function PdfPane({ pdfPath, version = 0 }: Props) {
   const pages = doc ? Array.from({ length: numPages }, (_, i) => i + 1) : []
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#111827' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--color-bg-panel)' }}>
 
       {/* Toolbar */}
       <div style={{
@@ -155,7 +155,7 @@ export default function PdfPane({ pdfPath, version = 0 }: Props) {
         height: 36,
       }}>
         {/* Page counter */}
-        <span style={{ fontSize: 11, color: '#94a3b8', minWidth: 52, textAlign: 'center' }}>
+        <span style={{ fontSize: 11, color: 'var(--color-toolbar-fg)', minWidth: 52, textAlign: 'center' }}>
           {numPages ? `${currentPage} / ${numPages}` : '—'}
         </span>
 
@@ -183,9 +183,9 @@ export default function PdfPane({ pdfPath, version = 0 }: Props) {
         <div style={{
           display: 'flex',
           alignItems: 'center',
-          background: 'rgba(255,255,255,0.06)',
+          background: 'var(--color-bg-input)',
           borderRadius: 6,
-          border: '1px solid rgba(255,255,255,0.1)',
+          border: '1px solid var(--color-border)',
           overflow: 'hidden',
         }}>
           <button
@@ -193,10 +193,10 @@ export default function PdfPane({ pdfPath, version = 0 }: Props) {
             title="Zoom out"
             style={{
               width: 26, height: 26, border: 'none', background: 'transparent',
-              color: '#cbd5e1', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: 'var(--color-text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)' }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-bg-card-hover)'; e.currentTarget.style.color = 'var(--color-text-primary)' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--color-text-secondary)' }}
           >
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <line x1="5" y1="12" x2="19" y2="12"/>
@@ -204,8 +204,8 @@ export default function PdfPane({ pdfPath, version = 0 }: Props) {
           </button>
           <span
             style={{
-              fontSize: 11, color: '#cbd5e1', minWidth: 40, textAlign: 'center',
-              borderLeft: '1px solid rgba(255,255,255,0.1)', borderRight: '1px solid rgba(255,255,255,0.1)',
+              fontSize: 11, color: 'var(--color-text-secondary)', minWidth: 40, textAlign: 'center',
+              borderLeft: '1px solid var(--color-border)', borderRight: '1px solid var(--color-border)',
               padding: '0 2px', lineHeight: '26px',
             }}
           >
@@ -216,10 +216,10 @@ export default function PdfPane({ pdfPath, version = 0 }: Props) {
             title="Zoom in"
             style={{
               width: 26, height: 26, border: 'none', background: 'transparent',
-              color: '#cbd5e1', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: 'var(--color-text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)' }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-bg-card-hover)'; e.currentTarget.style.color = 'var(--color-text-primary)' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--color-text-secondary)' }}
           >
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
@@ -231,17 +231,17 @@ export default function PdfPane({ pdfPath, version = 0 }: Props) {
       {/* Scroll area */}
       <div
         ref={scrollRef}
-        style={{ flex: 1, overflow: 'auto', padding: '20px 0 20px', background: '#1e2130' }}
+        style={{ flex: 1, overflow: 'auto', padding: '20px 0 20px', background: 'var(--color-bg-app)' }}
       >
         {loading && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#64748b', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--color-text-muted)', gap: 8 }}>
             <div className="spinner" style={{ color: 'var(--color-brand)' }} />
-            <span style={{ fontSize: 13 }}>Loading PDF…</span>
+            <span style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>Loading PDF…</span>
           </div>
         )}
 
         {error && !loading && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', flexDirection: 'column', gap: 8, color: '#f87171' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', flexDirection: 'column', gap: 8, color: 'var(--color-text-error)' }}>
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
               <circle cx="12" cy="12" r="10"/>
               <line x1="12" y1="8" x2="12" y2="12"/>
@@ -253,7 +253,7 @@ export default function PdfPane({ pdfPath, version = 0 }: Props) {
         )}
 
         {!loading && !error && !doc && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', flexDirection: 'column', gap: 12, color: '#475569' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', flexDirection: 'column', gap: 12, color: 'var(--color-text-muted)' }}>
             <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" style={{ opacity: 0.35 }}>
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
               <polyline points="14 2 14 8 20 8"/>
@@ -293,13 +293,13 @@ function PdfToolButton({ onClick, title, disabled, children }: {
       disabled={disabled}
       style={{
         width: 26, height: 26, border: 'none', borderRadius: 5,
-        background: 'transparent', color: disabled ? '#334155' : '#94a3b8',
+        background: 'transparent', color: disabled ? 'rgba(255,255,255,0.25)' : 'var(--color-toolbar-fg)',
         cursor: disabled ? 'default' : 'pointer',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         transition: 'background 120ms, color 120ms',
       }}
-      onMouseEnter={e => { if (!disabled) { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = '#e2e8f0' } }}
-      onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = disabled ? '#334155' : '#94a3b8' }}
+      onMouseEnter={e => { if (!disabled) { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = 'var(--color-toolbar-fg-active)' } }}
+      onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = disabled ? 'rgba(255,255,255,0.25)' : 'var(--color-toolbar-fg)' }}
     >
       {children}
     </button>

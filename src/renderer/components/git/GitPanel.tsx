@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
+import { AlertTriangle } from 'lucide-react'
 import AddRemoteModal from './AddRemoteModal'
 
 interface FileStatus {
@@ -215,8 +216,9 @@ export default function GitPanel({ projectPath, onOpenFile }: Props) {
             {/* Conflicts */}
             {hasConflicts && (
               <div style={{ padding: '8px 10px', background: 'rgba(239,68,68,0.08)', borderBottom: '1px solid rgba(239,68,68,0.2)' }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: '#f87171', marginBottom: 6 }}>
-                  ⚠ MERGE CONFLICTS
+                <div style={{ fontSize: 11, fontWeight: 600, color: '#f87171', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <AlertTriangle size={11} strokeWidth={2.5} />
+                  MERGE CONFLICTS
                 </div>
                 {status!.conflicted.map(f => (
                   <div

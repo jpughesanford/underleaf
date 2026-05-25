@@ -31,7 +31,7 @@ export default function CompilePanel({ result, compiling, onClose, onJumpToError
     <div style={{
       height: 200,
       borderTop: '1px solid var(--color-border)',
-      background: '#0f172a',
+      background: 'var(--color-bg-panel)',
       display: 'flex',
       flexDirection: 'column',
       flexShrink: 0,
@@ -43,25 +43,25 @@ export default function CompilePanel({ result, compiling, onClose, onJumpToError
         gap: 8,
         padding: '6px 12px',
         borderBottom: '1px solid var(--color-border)',
-        background: '#0d1526',
+        background: 'var(--color-bg-panel)',
         flexShrink: 0,
       }}>
         {compiling ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#94a3b8', fontSize: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--color-text-secondary)', fontSize: 12 }}>
             <div className="spinner" style={{ width: 12, height: 12, color: 'var(--color-brand)' }} />
             Compiling...
           </div>
         ) : result ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'nowrap', overflow: 'hidden' }}>
             {result.success ? (
-              <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#4ade80', fontSize: 12, whiteSpace: 'nowrap', flexShrink: 0 }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--color-success)', fontSize: 12, whiteSpace: 'nowrap', flexShrink: 0 }}>
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <polyline points="20 6 9 17 4 12"/>
                 </svg>
                 Successful
               </span>
             ) : (
-              <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#f87171', fontSize: 12, whiteSpace: 'nowrap', flexShrink: 0 }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--color-error)', fontSize: 12, whiteSpace: 'nowrap', flexShrink: 0 }}>
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
                 </svg>
@@ -83,14 +83,14 @@ export default function CompilePanel({ result, compiling, onClose, onJumpToError
               <button
                 onClick={() => setTab('parsed')}
                 className="btn btn-ghost btn-sm"
-                style={{ fontSize: 11, color: tab === 'parsed' ? '#e2e8f0' : '#64748b' }}
+                style={{ fontSize: 11, color: tab === 'parsed' ? 'var(--color-text-primary)' : 'var(--color-text-muted)' }}
               >
                 Parsed
               </button>
               <button
                 onClick={() => setTab('raw')}
                 className="btn btn-ghost btn-sm"
-                style={{ fontSize: 11, color: tab === 'raw' ? '#e2e8f0' : '#64748b' }}
+                style={{ fontSize: 11, color: tab === 'raw' ? 'var(--color-text-primary)' : 'var(--color-text-muted)' }}
               >
                 Raw Log
               </button>
@@ -99,7 +99,7 @@ export default function CompilePanel({ result, compiling, onClose, onJumpToError
           <button
             onClick={onClose}
             className="btn btn-ghost btn-icon"
-            style={{ color: '#64748b', width: 22, height: 22 }}
+            style={{ color: 'var(--color-text-muted)', width: 22, height: 22 }}
           >
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
@@ -113,7 +113,7 @@ export default function CompilePanel({ result, compiling, onClose, onJumpToError
         {result && tab === 'parsed' && (
           <div>
             {result.errors.length === 0 && result.warnings.length === 0 ? (
-              <div style={{ padding: '12px 16px', color: '#4ade80', fontSize: 12 }}>
+              <div style={{ padding: '12px 16px', color: 'var(--color-text-accent)', fontSize: 12 }}>
                 No errors or warnings.
               </div>
             ) : (
@@ -132,7 +132,7 @@ export default function CompilePanel({ result, compiling, onClose, onJumpToError
         {result && tab === 'raw' && (
           <pre style={{
             padding: '8px 12px',
-            color: '#94a3b8',
+            color: 'var(--color-text-secondary)',
             fontSize: 11,
             fontFamily: 'var(--font-mono)',
             margin: 0,
@@ -153,9 +153,9 @@ function ErrorRow({ item, onClick }: { item: CompileError; onClick: () => void }
   const [hovered, setHovered] = useState(false)
   const [jumped, setJumped] = useState(false)
 
-  const accentColor = isError ? '#ef4444' : '#f59e0b'
-  const accentDim = isError ? 'rgba(239,68,68,0.18)' : 'rgba(245,158,11,0.15)'
-  const accentGlow = isError ? 'rgba(239,68,68,0.08)' : 'rgba(245,158,11,0.06)'
+  const accentColor = isError ? 'var(--color-error)' : 'var(--color-warning)'
+  const accentDim   = isError ? 'rgba(239,68,68,0.18)' : 'rgba(245,158,11,0.15)'
+  const accentGlow  = isError ? 'rgba(239,68,68,0.07)' : 'rgba(245,158,11,0.06)'
 
   function handleClick() {
     if (!jumpable) return
@@ -172,7 +172,7 @@ function ErrorRow({ item, onClick }: { item: CompileError; onClick: () => void }
       style={{
         display: 'flex',
         alignItems: 'stretch',
-        borderBottom: '1px solid rgba(30,45,65,0.8)',
+        borderBottom: '1px solid var(--color-border)',
         cursor: jumpable ? 'pointer' : 'default',
         background: hovered ? accentGlow : 'transparent',
         transition: 'background 140ms ease',
@@ -186,16 +186,20 @@ function ErrorRow({ item, onClick }: { item: CompileError; onClick: () => void }
         flexShrink: 0,
         background: jumpable
           ? (hovered ? accentColor : accentDim)
-          : 'rgba(45,63,85,0.4)',
+          : 'var(--color-border)',
         transition: 'width 140ms ease, background 140ms ease',
       }} />
 
       {/* Content */}
-      <div style={{ flex: 1, display: 'flex', alignItems: 'flex-start', gap: 8, padding: '6px 10px 6px 10px', minWidth: 0 }}>
+      <div style={{ flex: 1, display: 'flex', alignItems: 'flex-start', gap: 8, padding: '6px 10px', minWidth: 0 }}>
         {/* Severity icon */}
         <svg
           width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-          style={{ flexShrink: 0, marginTop: 1, color: jumpable ? accentColor : isError ? 'rgba(239,68,68,0.4)' : 'rgba(245,158,11,0.4)', transition: 'color 140ms' }}
+          style={{
+            flexShrink: 0, marginTop: 1,
+            color: jumpable ? accentColor : 'var(--color-text-muted)',
+            transition: 'color 140ms',
+          }}
         >
           {isError
             ? <><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></>
@@ -209,14 +213,13 @@ function ErrorRow({ item, onClick }: { item: CompileError; onClick: () => void }
             <span style={{
               display: 'inline-flex', alignItems: 'center', gap: 2,
               fontFamily: 'var(--font-mono)', fontSize: 10,
-              color: hovered && jumpable ? accentColor : '#475569',
-              background: hovered && jumpable ? accentDim : 'rgba(30,41,59,0.6)',
-              border: `1px solid ${hovered && jumpable ? accentColor + '44' : 'rgba(45,63,85,0.6)'}`,
+              color: hovered && jumpable ? accentColor : 'var(--color-text-muted)',
+              background: 'var(--color-bg-input)',
+              border: `1px solid ${hovered && jumpable ? accentDim : 'var(--color-border)'}`,
               borderRadius: 4, padding: '1px 5px',
               marginRight: 7, verticalAlign: 'middle',
-              transition: 'color 140ms, background 140ms, border-color 140ms',
+              transition: 'color 140ms, border-color 140ms',
               textDecoration: hovered && jumpable ? 'underline' : 'none',
-              textDecorationColor: accentColor + '88',
               flexShrink: 0,
             }}>
               {item.file && <span style={{ maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.file}</span>}
@@ -224,7 +227,9 @@ function ErrorRow({ item, onClick }: { item: CompileError; onClick: () => void }
             </span>
           )}
           <span style={{
-            color: jumpable ? (hovered ? '#e2e8f0' : '#94a3b8') : '#475569',
+            color: jumpable
+              ? (hovered ? 'var(--color-text-primary)' : 'var(--color-text-secondary)')
+              : 'var(--color-text-muted)',
             transition: 'color 140ms',
             fontSize: 12,
           }}>
@@ -232,14 +237,14 @@ function ErrorRow({ item, onClick }: { item: CompileError; onClick: () => void }
           </span>
         </div>
 
-        {/* Jump affordance — slides in on hover */}
+        {/* Jump affordance */}
         <div style={{
           flexShrink: 0,
           display: 'flex', alignItems: 'center', gap: 3,
           opacity: jumped ? 1 : hovered ? 1 : 0,
           transform: hovered || jumped ? 'translateX(0)' : 'translateX(6px)',
           transition: 'opacity 160ms ease, transform 160ms ease',
-          color: jumped ? '#4ade80' : accentColor,
+          color: jumped ? 'var(--color-success)' : accentColor,
           fontSize: 10,
           fontFamily: 'var(--font-mono)',
           fontWeight: 600,

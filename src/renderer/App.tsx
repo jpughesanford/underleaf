@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import Dashboard from './pages/Dashboard'
 import EditorPage from './pages/EditorPage'
 import Onboarding from './pages/Onboarding'
+import { ThemeProvider } from './context/ThemeContext'
 
 export type AppView =
   | { type: 'onboarding' }
@@ -9,14 +10,20 @@ export type AppView =
   | { type: 'editor'; projectPath: string; projectName: string }
 
 export default function App() {
+  return (
+    <ThemeProvider>
+      <AppInner />
+    </ThemeProvider>
+  )
+}
+
+function AppInner() {
   const [view, setView] = useState<AppView>({ type: 'onboarding' })
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     window.api.getProjectsRoot().then((root) => {
-      if (root) {
-        setView({ type: 'dashboard' })
-      }
+      if (root) setView({ type: 'dashboard' })
       setLoading(false)
     })
   }, [])
@@ -30,11 +37,7 @@ export default function App() {
   }
 
   if (view.type === 'onboarding') {
-    return (
-      <Onboarding
-        onComplete={() => setView({ type: 'dashboard' })}
-      />
-    )
+    return <Onboarding onComplete={() => setView({ type: 'dashboard' })} />
   }
 
   if (view.type === 'editor') {

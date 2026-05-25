@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
+import { File, FileText, Image, BookOpen, Folder, FolderOpen } from 'lucide-react'
 
 interface FileNode {
   name: string
@@ -29,26 +30,25 @@ interface Props {
   onSetMainDoc?: (relativePath: string) => void
 }
 
-const FILE_ICONS: Record<string, string> = {
-  tex: '📄',
-  bib: '📚',
-  pdf: '📕',
-  png: '🖼️',
-  jpg: '🖼️',
-  jpeg: '🖼️',
-  svg: '🖼️',
-  md: '📝',
-  txt: '📃',
-  cls: '📋',
-  sty: '📋',
-  bst: '📋',
-}
-
 const BINARY_EXTENSIONS = new Set(['pdf', 'png', 'jpg', 'jpeg', 'gif', 'svg', 'ico', 'webp', 'mp4', 'mp3', 'zip', 'tar', 'gz', 'dmg', 'exe'])
 
+const ICON_SIZE = 13
+
 function FileIcon({ extension }: { extension?: string }) {
-  const icon = extension ? FILE_ICONS[extension.toLowerCase()] : '📄'
-  return <span style={{ fontSize: 12 }}>{icon || '📄'}</span>
+  const ext = extension?.toLowerCase()
+  const props = { size: ICON_SIZE, strokeWidth: 1.5, style: { flexShrink: 0 } }
+
+  const IMAGE_EXTS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'pdf', 'ico', 'bmp', 'tiff', 'tif', 'heic', 'heif', 'eps', 'psd', 'ai', 'raw', 'cr2', 'nef'])
+  if (ext && IMAGE_EXTS.has(ext)) {
+    return <Image {...props} />
+  }
+  if (ext === 'bib') {
+    return <BookOpen {...props} />
+  }
+  if (ext === 'tex' || ext === 'sty' || ext === 'cls' || ext === 'bst' || ext === 'md' || ext === 'txt') {
+    return <FileText {...props} />
+  }
+  return <File {...props} />
 }
 
 // Inline input for new file/folder creation
@@ -70,7 +70,10 @@ function InlineCreate({ type, onConfirm, onCancel }: {
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 8px 3px 22px' }}>
-      <span style={{ fontSize: 12 }}>{type === 'folder' ? '📁' : '📄'}</span>
+      {type === 'folder'
+        ? <Folder size={13} strokeWidth={1.5} style={{ flexShrink: 0, color: '#4CAF50' }} />
+        : <FileText size={13} strokeWidth={1.5} style={{ flexShrink: 0 }} />
+      }
       <input
         ref={inputRef}
         value={name}
@@ -83,10 +86,10 @@ function InlineCreate({ type, onConfirm, onCancel }: {
         placeholder={type === 'folder' ? 'folder name' : 'filename.tex'}
         style={{
           flex: 1,
-          background: 'rgba(255,255,255,0.07)',
+          background: 'var(--color-bg-input)',
           border: '1px solid var(--color-brand)',
           borderRadius: 4,
-          color: '#e2e8f0',
+          color: 'var(--color-text-primary)',
           fontSize: 12,
           padding: '2px 6px',
           outline: 'none',
@@ -165,14 +168,14 @@ function FileTreeNode({
             padding: '3px 8px',
             paddingLeft: 8 + depth * 14,
             cursor: 'pointer',
-            color: isDragOver ? '#4CAF50' : '#94a3b8',
+            color: isDragOver ? 'var(--color-brand)' : 'var(--color-text-secondary)',
             fontSize: 12,
             userSelect: 'none',
             background: isDragOver ? 'rgba(76,175,80,0.1)' : 'transparent',
             borderRadius: isDragOver ? 4 : 0,
             outline: isDragOver ? '1px dashed rgba(76,175,80,0.5)' : 'none',
           }}
-          onMouseEnter={e => { if (!isDragOver) e.currentTarget.style.background = 'rgba(255,255,255,0.05)' }}
+          onMouseEnter={e => { if (!isDragOver) e.currentTarget.style.background = 'var(--color-bg-card-hover)' }}
           onMouseLeave={e => { if (!isDragOver) e.currentTarget.style.background = 'transparent' }}
         >
           <svg
@@ -181,9 +184,10 @@ function FileTreeNode({
           >
             <polyline points="9 18 15 12 9 6"/>
           </svg>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ flexShrink: 0, color: '#4CAF50' }}>
-            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-          </svg>
+          {expanded
+            ? <FolderOpen size={13} strokeWidth={1.5} style={{ flexShrink: 0, color: '#4CAF50' }} />
+            : <Folder size={13} strokeWidth={1.5} style={{ flexShrink: 0, color: '#4CAF50' }} />
+          }
           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{node.name}</span>
         </div>
         {expanded && (
@@ -242,14 +246,14 @@ function FileTreeNode({
         padding: '3px 8px',
         paddingLeft: 8 + depth * 14 + 14,
         cursor: isEditable ? 'pointer' : 'default',
-        color: isActive ? '#e2e8f0' : '#94a3b8',
+        color: isActive ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
         background: isActive ? 'rgba(76,175,80,0.15)' : 'transparent',
         fontSize: 12,
         userSelect: 'none',
-        borderLeft: isActive ? '2px solid #4CAF50' : '2px solid transparent',
+        borderLeft: isActive ? '2px solid var(--color-brand)' : '2px solid transparent',
         opacity: isBeingDragged ? 0.4 : 1,
       }}
-      onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'rgba(255,255,255,0.05)' }}
+      onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'var(--color-bg-card-hover)' }}
       onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent' }}
     >
       <FileIcon extension={node.extension} />
@@ -271,9 +275,9 @@ function FileTreeNode({
         <span
           title="Auto-detected root document — right-click to set explicitly"
           style={{
-            fontSize: 9, fontWeight: 600, color: '#64748b',
+            fontSize: 9, fontWeight: 600, color: 'var(--color-text-muted)',
             background: 'transparent',
-            border: '1px dashed #475569',
+            border: '1px dashed var(--color-border)',
             borderRadius: 3, padding: '1px 4px',
             flexShrink: 0, letterSpacing: 0.3,
           }}
@@ -418,7 +422,7 @@ export default function FileExplorer({ projectPath, activeFile, onOpenFile, main
         justifyContent: 'space-between',
         flexShrink: 0,
       }}>
-        <span style={{ fontSize: 11, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+        <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
           Files
         </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -426,7 +430,7 @@ export default function FileExplorer({ projectPath, activeFile, onOpenFile, main
             className="btn btn-ghost btn-icon"
             onClick={() => { setCreating({ parentPath: projectPath, type: 'file' }) }}
             title="New File"
-            style={{ width: 24, height: 24, color: '#64748b' }}
+            style={{ width: 24, height: 24, color: 'var(--color-text-muted)' }}
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -439,7 +443,7 @@ export default function FileExplorer({ projectPath, activeFile, onOpenFile, main
             className="btn btn-ghost btn-icon"
             onClick={() => { setCreating({ parentPath: projectPath, type: 'folder' }) }}
             title="New Folder"
-            style={{ width: 24, height: 24, color: '#64748b' }}
+            style={{ width: 24, height: 24, color: 'var(--color-text-muted)' }}
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
@@ -451,7 +455,7 @@ export default function FileExplorer({ projectPath, activeFile, onOpenFile, main
             className="btn btn-ghost btn-icon"
             onClick={() => setShowHidden(v => !v)}
             title={showHidden ? 'Hide dotfiles' : 'Show dotfiles'}
-            style={{ width: 24, height: 24, color: showHidden ? '#64748b' : '#334155' }}
+            style={{ width: 24, height: 24, color: showHidden ? 'var(--color-text-muted)' : 'var(--color-text-secondary)' }}
           >
             {showHidden ? (
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -470,7 +474,7 @@ export default function FileExplorer({ projectPath, activeFile, onOpenFile, main
             className="btn btn-ghost btn-icon"
             onClick={refresh}
             title="Refresh"
-            style={{ width: 24, height: 24, color: '#64748b' }}
+            style={{ width: 24, height: 24, color: 'var(--color-text-muted)' }}
           >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <polyline points="23 4 23 10 17 10"/>
@@ -658,13 +662,13 @@ function ContextMenuItem({ label, icon, onClick, disabled, danger }: {
         display: 'flex', alignItems: 'center', gap: 8,
         padding: '7px 10px', borderRadius: 5,
         cursor: disabled ? 'default' : 'pointer',
-        color: disabled ? '#475569' : danger ? '#f87171' : '#e2e8f0',
+        color: disabled ? 'var(--color-text-muted)' : danger ? '#f87171' : 'var(--color-text-primary)',
         fontSize: 12,
       }}
-      onMouseEnter={e => { if (!disabled) e.currentTarget.style.background = danger ? 'rgba(248,113,113,0.1)' : 'rgba(255,255,255,0.08)' }}
+      onMouseEnter={e => { if (!disabled) e.currentTarget.style.background = danger ? 'rgba(248,113,113,0.1)' : 'var(--color-bg-card-hover)' }}
       onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
     >
-      <span style={{ color: disabled ? '#475569' : danger ? '#f87171' : '#64748b', flexShrink: 0 }}>{icon}</span>
+      <span style={{ color: disabled ? 'var(--color-text-muted)' : danger ? '#f87171' : 'var(--color-text-muted)', flexShrink: 0 }}>{icon}</span>
       {label}
     </div>
   )

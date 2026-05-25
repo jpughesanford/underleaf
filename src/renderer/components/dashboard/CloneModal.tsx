@@ -31,7 +31,7 @@ export default function CloneModal({ projectsRoot, onClose, onCloned }: Props) {
     <Modal title="Clone Repository" onClose={onClose}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div>
-          <label style={{ display: 'block', color: '#94a3b8', fontSize: 12, marginBottom: 6 }}>Repository URL</label>
+          <label style={{ display: 'block', color: 'var(--color-text-secondary)', fontSize: 12, marginBottom: 6 }}>Repository URL</label>
           <input
             className="input"
             placeholder="https://git.overleaf.com/... or git@github.com:..."
@@ -40,13 +40,13 @@ export default function CloneModal({ projectsRoot, onClose, onCloned }: Props) {
             onKeyDown={e => e.key === 'Enter' && handleClone()}
             autoFocus
           />
-          <div style={{ fontSize: 12, color: '#475569', marginTop: 6 }}>
+          <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 6 }}>
             Supports Overleaf git bridge, GitHub, GitLab, Bitbucket, and self-hosted repos
           </div>
         </div>
 
         {loading && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#64748b', fontSize: 13 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--color-text-muted)', fontSize: 13 }}>
             <div className="spinner" style={{ color: 'var(--color-brand)' }} />
             Cloning repository... this may take a moment
           </div>

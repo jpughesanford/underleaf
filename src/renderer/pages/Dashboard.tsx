@@ -4,6 +4,8 @@ import NewProjectModal from '../components/dashboard/NewProjectModal'
 import CloneModal from '../components/dashboard/CloneModal'
 import SettingsModal from '../components/dashboard/SettingsModal'
 import AppIcon from '../components/shared/AppIcon'
+import ModeToggle from '../components/shared/ModeToggle'
+import { Folder } from 'lucide-react'
 
 interface ContextMenuState {
   x: number
@@ -161,7 +163,7 @@ export default function Dashboard({ onOpenProject, onResetRoot }: Props) {
           gap: 12,
         }}
       >
-        <span style={{ display: 'flex', alignItems: 'center', gap: 7, fontWeight: 700, fontSize: 15, color: '#e2e8f0' }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 7, fontWeight: 700, fontSize: 15, color: 'var(--color-text-primary)' }}>
           <AppIcon size={22} />
           Underleaf
         </span>
@@ -177,6 +179,7 @@ export default function Dashboard({ onOpenProject, onResetRoot }: Props) {
         </div>
 
         <div className="titlebar-no-drag" style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+          <ModeToggle />
           <button className="btn btn-ghost btn-sm" onClick={() => setShowSettings(true)} title="Settings">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
@@ -242,7 +245,7 @@ export default function Dashboard({ onOpenProject, onResetRoot }: Props) {
       <div style={{ flex: 1, overflow: 'auto', padding: '32px 40px' }}>
         <div style={{ marginBottom: 28 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 4 }}>
-            <h2 style={{ fontSize: 22, fontWeight: 700, color: '#e2e8f0' }}>Projects</h2>
+            <h2 style={{ fontSize: 22, fontWeight: 700, color: 'var(--color-text-primary)' }}>Projects</h2>
             {hasRemoteProjects && (
               <button
                 className={`fetch-all-btn${fetchingAll ? ' fetching' : ''}${fetchSuccess ? ' success' : ''}`}
@@ -268,24 +271,24 @@ export default function Dashboard({ onOpenProject, onResetRoot }: Props) {
               </button>
             )}
           </div>
-          <div style={{ color: '#64748b', fontSize: 13 }}>
-            {projectsRoot && <span>📂 {projectsRoot}</span>}
+          <div style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>
+            {projectsRoot && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Folder size={13} />{projectsRoot}</span>}
           </div>
         </div>
 
         {loading ? (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 64, color: '#64748b' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 64, color: 'var(--color-text-muted)' }}>
             <div className="spinner" style={{ color: 'var(--color-brand)', width: 24, height: 24 }} />
             <span style={{ marginLeft: 12 }}>Scanning projects...</span>
           </div>
         ) : filtered.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '64px 0', color: '#475569' }}>
+          <div style={{ textAlign: 'center', padding: '64px 0', color: 'var(--color-text-secondary)' }}>
             {search ? (
               <p>No projects match &ldquo;{search}&rdquo;</p>
             ) : (
               <>
-                <div style={{ fontSize: 48, marginBottom: 16 }}>📂</div>
-                <p style={{ fontSize: 16, color: '#64748b', marginBottom: 8 }}>No projects yet</p>
+                <div style={{ marginBottom: 16, opacity: 0.35 }}><Folder size={52} strokeWidth={1.25} /></div>
+                <p style={{ fontSize: 16, color: 'var(--color-text-muted)', marginBottom: 8 }}>No projects yet</p>
                 <p style={{ fontSize: 13 }}>
                   Create a new project or clone an existing repository to get started.
                 </p>
@@ -340,7 +343,7 @@ export default function Dashboard({ onOpenProject, onResetRoot }: Props) {
             boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
           }}
         >
-          <div style={{ padding: '4px 12px 6px', fontSize: 11, color: '#475569', fontWeight: 600, borderBottom: '1px solid var(--color-border)', marginBottom: 4 }}>
+          <div style={{ padding: '4px 12px 6px', fontSize: 11, color: 'var(--color-text-muted)', fontWeight: 600, borderBottom: '1px solid var(--color-border)', marginBottom: 4 }}>
             {contextMenu.project.name}
           </div>
 
@@ -426,11 +429,11 @@ export default function Dashboard({ onOpenProject, onResetRoot }: Props) {
                 </svg>
               </div>
               <div>
-                <div style={{ fontWeight: 600, fontSize: 14, color: '#e2e8f0' }}>Reset to Remote</div>
-                <div style={{ fontSize: 12, color: '#64748b', marginTop: 1 }}>{resetConfirm.name}</div>
+                <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--color-text-primary)' }}>Reset to Remote</div>
+                <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 1 }}>{resetConfirm.name}</div>
               </div>
             </div>
-            <p style={{ fontSize: 13, color: '#94a3b8', lineHeight: 1.5, marginBottom: 20 }}>
+            <p style={{ fontSize: 13, color: 'var(--color-text-secondary)', lineHeight: 1.5, marginBottom: 20 }}>
               This will discard all local commits and changes, replacing them with the remote version. This cannot be undone.
             </p>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
@@ -499,7 +502,7 @@ const menuItemStyle: React.CSSProperties = {
   width: '100%',
   background: 'transparent',
   border: 'none',
-  color: '#cbd5e1',
+  color: 'var(--color-text-primary)',
   fontSize: 13,
   padding: '6px 12px',
   cursor: 'pointer',

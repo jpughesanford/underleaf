@@ -37,7 +37,7 @@ export default function NewProjectModal({ projectsRoot, onClose, onCreated }: Pr
     <Modal title="New Project" onClose={onClose}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div>
-          <label style={{ display: 'block', color: '#94a3b8', fontSize: 12, marginBottom: 6 }}>Project Name</label>
+          <label style={{ display: 'block', color: 'var(--color-text-secondary)', fontSize: 12, marginBottom: 6 }}>Project Name</label>
           <input
             className="input"
             placeholder="my-paper"
@@ -49,7 +49,7 @@ export default function NewProjectModal({ projectsRoot, onClose, onCreated }: Pr
         </div>
 
         <div>
-          <label style={{ display: 'block', color: '#94a3b8', fontSize: 12, marginBottom: 6 }}>Template</label>
+          <label style={{ display: 'block', color: 'var(--color-text-secondary)', fontSize: 12, marginBottom: 6 }}>Template</label>
           <div style={{ display: 'flex', gap: 8 }}>
             {TEMPLATES.map(t => (
               <button
@@ -61,7 +61,7 @@ export default function NewProjectModal({ projectsRoot, onClose, onCreated }: Pr
                   borderRadius: 8,
                   border: `1px solid ${template === t.id ? 'var(--color-brand)' : 'var(--color-border)'}`,
                   background: template === t.id ? 'rgba(76,175,80,0.1)' : 'var(--color-bg-input)',
-                  color: template === t.id ? '#4CAF50' : '#94a3b8',
+                  color: template === t.id ? 'var(--color-brand)' : 'var(--color-text-secondary)',
                   cursor: 'pointer',
                   fontFamily: 'inherit',
                   textAlign: 'center',

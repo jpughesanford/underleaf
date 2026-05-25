@@ -1,4 +1,5 @@
 import React from 'react'
+import { AlertTriangle } from 'lucide-react'
 
 export interface ProjectInfo {
   id: string
@@ -54,15 +55,16 @@ function SyncBadge({ project, flashKey }: { project: ProjectInfo; flashKey: numb
 
   if (project.hasConflicts) {
     return (
-      <span key={flashKey} className={cls} style={{ ...badgeBase, color: '#f87171', background: 'rgba(248,113,113,0.12)', border: '1px solid rgba(248,113,113,0.35)' }}>
-        ⚠ Conflict
+      <span key={flashKey} className={cls} style={{ ...badgeBase, color: 'var(--badge-err-color)', background: 'var(--badge-err-bg)', border: '1px solid var(--badge-err-border)' }}>
+        <AlertTriangle size={9} strokeWidth={2.5} />
+        Conflict
       </span>
     )
   }
 
   if (!project.syncStatusKnown) {
     return (
-      <span key={flashKey} className={cls} style={{ ...badgeBase, fontWeight: 500, color: '#64748b', background: 'rgba(100,116,139,0.1)', border: '1px solid rgba(100,116,139,0.25)' }}>
+      <span key={flashKey} className={cls} style={{ ...badgeBase, fontWeight: 500, color: 'var(--badge-muted-color)', background: 'var(--badge-muted-bg)', border: '1px solid var(--badge-muted-border)' }}>
         Not fetched
       </span>
     )
@@ -70,7 +72,7 @@ function SyncBadge({ project, flashKey }: { project: ProjectInfo; flashKey: numb
 
   if (project.behindBy === 0 && project.aheadBy === 0) {
     return (
-      <span key={flashKey} className={cls} style={{ ...badgeBase, fontWeight: 500, color: '#4ade80', background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.25)' }}>
+      <span key={flashKey} className={cls} style={{ ...badgeBase, fontWeight: 500, color: 'var(--badge-sync-color)', background: 'var(--badge-sync-bg)', border: '1px solid var(--badge-sync-border)' }}>
         <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
           <polyline points="20 6 9 17 4 12"/>
         </svg>
@@ -103,7 +105,7 @@ function SyncBadge({ project, flashKey }: { project: ProjectInfo; flashKey: numb
   }
 
   return (
-    <span key={flashKey} className={cls} style={{ ...badgeBase, color: '#fbbf24', background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.3)' }}>
+    <span key={flashKey} className={cls} style={{ ...badgeBase, color: 'var(--badge-warn-color)', background: 'var(--badge-warn-bg)', border: '1px solid var(--badge-warn-border)' }}>
       {parts}
     </span>
   )
@@ -150,12 +152,12 @@ export default function ProjectCard({ project, onOpen, onContextMenu, badgeFlash
           </div>
           <div style={{ minWidth: 0 }}>
             <div style={{
-              fontWeight: 600, fontSize: 14, color: '#e2e8f0',
+              fontWeight: 600, fontSize: 14, color: 'var(--color-text-primary)',
               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
             }}>
               {project.name}
             </div>
-            <div style={{ fontSize: 11, color: '#475569', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', visibility: project.remoteUrl ? 'visible' : 'hidden' }}>
+            <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', visibility: project.remoteUrl ? 'visible' : 'hidden' }}>
               {project.remoteUrl || 'x'}
             </div>
           </div>
@@ -171,7 +173,7 @@ export default function ProjectCard({ project, onOpen, onContextMenu, badgeFlash
 
       {/* Meta */}
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#64748b', fontSize: 12 }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--color-text-muted)', fontSize: 12 }}>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <line x1="6" y1="3" x2="6" y2="15"/>
             <circle cx="18" cy="6" r="3"/>
@@ -182,7 +184,7 @@ export default function ProjectCard({ project, onOpen, onContextMenu, badgeFlash
         </span>
 
         {project.lastCommitDate && (
-          <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#64748b', fontSize: 12 }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--color-text-muted)', fontSize: 12 }}>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
             </svg>
@@ -191,7 +193,7 @@ export default function ProjectCard({ project, onOpen, onContextMenu, badgeFlash
         )}
 
         {!project.hasRemote && (
-          <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#64748b', fontSize: 12 }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--color-text-muted)', fontSize: 12 }}>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <line x1="2" y1="2" x2="22" y2="22"/>
               <path d="M10.59 10.59a2 2 0 1 1 2.83 2.83"/>
@@ -206,7 +208,7 @@ export default function ProjectCard({ project, onOpen, onContextMenu, badgeFlash
       <div style={{
         marginTop: 10, paddingTop: 10,
         borderTop: project.lastCommit ? '1px solid var(--color-border)' : '1px solid transparent',
-        fontSize: 12, color: '#475569',
+        fontSize: 12, color: 'var(--color-text-secondary)',
         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
         visibility: project.lastCommit ? 'visible' : 'hidden',
       }}>

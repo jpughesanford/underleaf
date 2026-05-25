@@ -39,11 +39,11 @@ export default function Modal({ title, onClose, children, width = 440 }: Props) 
           padding: '16px 20px',
           borderBottom: '1px solid var(--color-border)',
         }}>
-          <span style={{ fontWeight: 600, fontSize: 15, color: '#e2e8f0' }}>{title}</span>
+          <span style={{ fontWeight: 600, fontSize: 15, color: 'var(--color-text-primary)' }}>{title}</span>
           <button
             onClick={onClose}
             className="btn btn-ghost btn-icon"
-            style={{ color: '#64748b' }}
+            style={{ color: 'var(--color-text-muted)' }}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>

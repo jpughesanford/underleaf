@@ -489,7 +489,7 @@ function TabItem({ tab, active, onActivate, onClose, onSave }: {
         cursor: 'pointer',
         borderRight: '1px solid var(--color-border)',
         background: active ? 'var(--color-bg-editor)' : 'transparent',
-        color: active ? '#e2e8f0' : '#64748b',
+        color: active ? 'var(--color-text-primary)' : 'var(--color-text-muted)',
         fontSize: 12,
         flexShrink: 0,
         position: 'relative',
@@ -520,19 +520,19 @@ function TabItem({ tab, active, onActivate, onClose, onSave }: {
           borderRadius: 3,
           border: 'none',
           background: 'transparent',
-          color: tab.isDirty && !hovered ? '#e2e8f0' : '#64748b',
+          color: tab.isDirty && !hovered ? 'var(--color-text-primary)' : 'var(--color-text-muted)',
           cursor: 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           padding: 0,
           marginLeft: 2,
           flexShrink: 0,
         }}
-        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = '#e2e8f0' }}
-        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = tab.isDirty ? '#e2e8f0' : '#64748b' }}
+        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(128,128,128,0.15)'; e.currentTarget.style.color = 'var(--color-text-primary)' }}
+        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = tab.isDirty ? 'var(--color-text-primary)' : 'var(--color-text-muted)' }}
       >
         {tab.isDirty && !hovered ? (
           // White dot when dirty and not hovering
-          <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#e2e8f0' }} />
+          <div style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--color-text-primary)' }} />
         ) : (
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>

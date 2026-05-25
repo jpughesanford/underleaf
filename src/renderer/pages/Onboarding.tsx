@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { FolderOpen } from 'lucide-react'
 import AppIcon from '../components/shared/AppIcon'
 
 interface Props {
@@ -91,7 +92,7 @@ export default function Onboarding({ onComplete }: Props) {
             onMouseEnter={e => (e.currentTarget.style.background = 'rgba(76,175,80,0.18)')}
             onMouseLeave={e => (e.currentTarget.style.background = 'rgba(76,175,80,0.1)')}
           >
-            <div style={{ fontSize: 28, marginBottom: 8 }}>📁</div>
+            <div style={{ marginBottom: 8, display: 'flex', justifyContent: 'center' }}><FolderOpen size={28} strokeWidth={1.5} /></div>
             <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>Create New Folder</div>
             <div style={{ fontSize: 12, color: '#64748b' }}>Start fresh with an empty projects folder</div>
           </button>

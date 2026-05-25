@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import AppIcon from '../shared/AppIcon'
+import ModeToggle from '../shared/ModeToggle'
 
 export type CompileTarget = 'root' | 'active'
 export type ViewMode = 'editor' | 'split' | 'pdf'
@@ -56,14 +57,14 @@ export default function Toolbar({
           className="btn btn-ghost btn-sm btn-icon"
           onClick={onBack}
           title="Back to Dashboard"
-          style={{ color: '#64748b' }}
+          style={{ color: 'var(--color-toolbar-fg)' }}
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <polyline points="15 18 9 12 15 6"/>
           </svg>
         </button>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 7, color: '#e2e8f0' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 7, color: 'var(--color-toolbar-fg-active)' }}>
           <AppIcon size={18} />
           <span style={{ fontSize: 13, fontWeight: 600 }}>{projectName}</span>
         </div>
@@ -74,12 +75,16 @@ export default function Toolbar({
 
       {/* Right actions */}
       <div className="titlebar-no-drag" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        {/* Mode toggle */}
+        <ModeToggle style={{ color: 'var(--color-toolbar-fg)' }} />
+
+
         {/* Settings */}
         <button
           className="btn btn-ghost btn-sm btn-icon"
           onClick={onOpenSettings}
           title="Settings"
-          style={{ color: '#64748b' }}
+          style={{ color: 'var(--color-toolbar-fg)' }}
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <circle cx="12" cy="12" r="3"/>
@@ -123,14 +128,14 @@ export default function Toolbar({
                 width: 28, height: 26,
                 border: 'none',
                 borderRight: value !== 'pdf' ? '1px solid var(--color-border)' : 'none',
-                background: viewMode === value ? 'rgba(76,175,80,0.15)' : 'transparent',
-                color: viewMode === value ? '#4CAF50' : '#64748b',
+                background: viewMode === value ? 'var(--color-toolbar-btn-active-bg)' : 'transparent',
+                color: viewMode === value ? 'var(--color-toolbar-fg-active)' : 'var(--color-toolbar-fg)',
                 cursor: 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 transition: 'all 120ms ease',
               }}
-              onMouseEnter={e => { if (viewMode !== value) e.currentTarget.style.color = '#94a3b8' }}
-              onMouseLeave={e => { if (viewMode !== value) e.currentTarget.style.color = '#64748b' }}
+              onMouseEnter={e => { if (viewMode !== value) e.currentTarget.style.color = 'var(--color-toolbar-fg-active)' }}
+              onMouseLeave={e => { if (viewMode !== value) e.currentTarget.style.color = 'var(--color-toolbar-fg)' }}
             >
               {icon}
             </button>
@@ -176,7 +181,7 @@ export default function Toolbar({
                     borderRadius: 4,
                     cursor: 'pointer',
                     fontSize: 12,
-                    color: compileTrigger === opt.value ? '#4CAF50' : '#94a3b8',
+                    color: compileTrigger === opt.value ? 'var(--color-brand)' : 'var(--color-text-secondary)',
                     background: compileTrigger === opt.value ? 'rgba(76,175,80,0.1)' : 'transparent',
                     display: 'flex', alignItems: 'center', gap: 8,
                   }}
@@ -238,7 +243,7 @@ export default function Toolbar({
               }}
               onMouseLeave={() => setShowTargetMenu(false)}
             >
-              <div style={{ fontSize: 10, color: '#475569', padding: '4px 10px 2px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              <div style={{ fontSize: 10, color: 'var(--color-text-muted)', padding: '4px 10px 2px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                 Compile target
               </div>
               {([
@@ -256,14 +261,14 @@ export default function Toolbar({
                 >
                   <div style={{ width: 14, paddingTop: 1, flexShrink: 0 }}>
                     {compileTarget === opt.value && (
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#4CAF50" strokeWidth="2.5">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--color-brand)" strokeWidth="2.5">
                         <polyline points="20 6 9 17 4 12"/>
                       </svg>
                     )}
                   </div>
                   <div>
-                    <div style={{ fontSize: 12, color: compileTarget === opt.value ? '#4CAF50' : '#e2e8f0' }}>{opt.label}</div>
-                    <div style={{ fontSize: 11, color: '#64748b', marginTop: 1 }}>{opt.desc}</div>
+                    <div style={{ fontSize: 12, color: compileTarget === opt.value ? 'var(--color-brand)' : 'var(--color-text-primary)' }}>{opt.label}</div>
+                    <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 1 }}>{opt.desc}</div>
                   </div>
                 </div>
               ))}
