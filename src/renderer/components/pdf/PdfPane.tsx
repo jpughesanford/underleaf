@@ -1,10 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react'
-
-// Dynamically load pdfjs to avoid SSR issues
-declare const pdfjsLib: {
-  getDocument: (src: { data: ArrayBuffer }) => { promise: Promise<PDFDocumentProxy> }
-  GlobalWorkerOptions: { workerSrc: string }
-}
+import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 
 interface PDFDocumentProxy {
   numPages: number
@@ -40,11 +35,7 @@ export default function PdfPane({ pdfPath }: Props) {
       if (!arrayBuffer) { setError('PDF not found'); return }
 
       const { getDocument, GlobalWorkerOptions } = await import('pdfjs-dist')
-      // Use CDN worker to avoid bundling issues
-      GlobalWorkerOptions.workerSrc = new URL(
-        'pdfjs-dist/build/pdf.worker.min.mjs',
-        import.meta.url
-      ).toString()
+      GlobalWorkerOptions.workerSrc = pdfWorkerUrl
 
       const loadingTask = getDocument({ data: arrayBuffer })
       const pdfDoc = await loadingTask.promise

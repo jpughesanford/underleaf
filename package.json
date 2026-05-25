@@ -46,8 +46,17 @@
   "build": {
     "appId": "com.underleaf.app",
     "productName": "Underleaf",
+    "icon": "resources/icon.icns",
+    "files": [
+      "out/**"
+    ],
+    "directories": {
+      "buildResources": "resources",
+      "output": "dist"
+    },
     "mac": {
       "category": "public.app-category.developer-tools",
+      "icon": "resources/icon.icns",
       "target": [
         "dmg",
         "zip"
