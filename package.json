@@ -57,9 +57,13 @@
       "buildResources": "resources",
       "output": "dist"
     },
+    "afterPack": "electron/afterPack.js",
     "mac": {
       "category": "public.app-category.developer-tools",
       "icon": "resources/icon.icns",
+      "identity": null,
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false,
       "target": [
         "dmg",
         "zip"

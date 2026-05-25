@@ -1,10 +1,18 @@
 import React, { useState } from 'react'
-import { FolderOpen } from 'lucide-react'
+import { FolderPlus, FolderSearch } from 'lucide-react'
 import AppIcon from '../components/shared/AppIcon'
 
 interface Props {
   onComplete: () => void
 }
+
+const BRAND_DARK = '#2f6446'
+const BRAND = '#4caf50'
+const BRAND_DEEPER = '#1e4d34'
+const BG = '#f2f2f2'
+const TEXT = '#1a1a1a'
+const TEXT_MUTED = '#6b6b6b'
+const BORDER = '#d0d0d0'
 
 export default function Onboarding({ onComplete }: Props) {
   const [loading, setLoading] = useState(false)
@@ -49,52 +57,78 @@ export default function Onboarding({ onComplete }: Props) {
       alignItems: 'center',
       justifyContent: 'center',
       height: '100vh',
-      background: 'linear-gradient(135deg, #0f172a 0%, #1a2332 60%, #162030 100%)',
+      background: `radial-gradient(ellipse at top, #ffffff 0%, ${BG} 70%)`,
+      color: TEXT,
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif',
       WebkitAppRegion: 'drag' as const,
     }}>
-      <div style={{ WebkitAppRegion: 'no-drag' as const, textAlign: 'center', maxWidth: 480, padding: '0 32px' }}>
-        {/* Logo */}
-        <div style={{ marginBottom: 32 }}>
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
-            <div style={{
-              width: 80, height: 80,
-              borderRadius: 20,
-              background: 'rgba(46,125,50,0.12)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              border: '1px solid rgba(46,125,50,0.25)',
+      <div style={{ WebkitAppRegion: 'no-drag' as const, textAlign: 'center', maxWidth: 520, padding: '0 32px' }}>
+        {/* Hero: logo-as-U + "nderleaf" wordmark */}
+        <div style={{ marginBottom: 40 }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'baseline',
+            justifyContent: 'center',
+            gap: 0,
+            marginBottom: 12,
+            lineHeight: 1,
+          }}>
+            <span style={{ display: 'inline-flex' }}>
+              <AppIcon size={80} color={BRAND_DEEPER} />
+            </span>
+            <span style={{
+              fontSize: 72,
+              fontWeight: 700,
+              color: BRAND_DEEPER,
+              letterSpacing: -2,
+              marginLeft: -24,
+              fontFamily: '"Lato", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
             }}>
-              <AppIcon size={52} />
-            </div>
+            nderleaf
+            </span>
           </div>
-          <h1 style={{ fontSize: 32, fontWeight: 700, color: '#e2e8f0', letterSpacing: -0.5 }}>Underleaf</h1>
-          <p style={{ color: '#64748b', marginTop: 8, fontSize: 15 }}>
-            Offline LaTeX IDE with Overleaf-style editing and git integration
+          <p style={{
+            color: TEXT_MUTED,
+            marginTop: 20,
+            fontSize: 15,
+            letterSpacing: 0.1,
+          }}>
+            Offline Overleaf editor with Git integration
           </p>
         </div>
 
         {/* Action cards */}
-        <div style={{ display: 'flex', gap: 16, marginBottom: 24 }}>
+        <div style={{ display: 'flex', gap: 14, marginBottom: 24 }}>
           <button
             onClick={handleCreateNew}
             disabled={loading}
             style={{
               flex: 1,
-              padding: '20px 16px',
-              background: 'rgba(76,175,80,0.1)',
-              border: '1px solid rgba(76,175,80,0.3)',
-              borderRadius: 12,
-              cursor: 'pointer',
-              color: '#e2e8f0',
+              padding: '22px 18px',
+              background: '#ffffff',
+              border: `1px solid ${BORDER}`,
+              borderRadius: 8,
+              cursor: loading ? 'wait' : 'pointer',
+              color: TEXT,
               textAlign: 'center',
               transition: 'all 150ms ease',
               fontFamily: 'inherit',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
             }}
-            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(76,175,80,0.18)')}
-            onMouseLeave={e => (e.currentTarget.style.background = 'rgba(76,175,80,0.1)')}
+            onMouseEnter={e => {
+              e.currentTarget.style.borderColor = BRAND
+              e.currentTarget.style.boxShadow = '0 2px 8px rgba(47,100,70,0.12)'
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.borderColor = BORDER
+              e.currentTarget.style.boxShadow = '0 1px 2px rgba(0,0,0,0.04)'
+            }}
           >
-            <div style={{ marginBottom: 8, display: 'flex', justifyContent: 'center' }}><FolderOpen size={28} strokeWidth={1.5} /></div>
+            <div style={{ marginBottom: 10, display: 'flex', justifyContent: 'center', color: BRAND_DARK }}>
+              <FolderPlus size={28} strokeWidth={1.5} />
+            </div>
             <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>Create New Folder</div>
-            <div style={{ fontSize: 12, color: '#64748b' }}>Start fresh with an empty projects folder</div>
+            <div style={{ fontSize: 12, color: TEXT_MUTED }}>Start fresh with an empty projects folder</div>
           </button>
 
           <button
@@ -102,37 +136,46 @@ export default function Onboarding({ onComplete }: Props) {
             disabled={loading}
             style={{
               flex: 1,
-              padding: '20px 16px',
-              background: 'rgba(59,130,246,0.1)',
-              border: '1px solid rgba(59,130,246,0.3)',
-              borderRadius: 12,
-              cursor: 'pointer',
-              color: '#e2e8f0',
+              padding: '22px 18px',
+              background: '#ffffff',
+              border: `1px solid ${BORDER}`,
+              borderRadius: 8,
+              cursor: loading ? 'wait' : 'pointer',
+              color: TEXT,
               textAlign: 'center',
               transition: 'all 150ms ease',
               fontFamily: 'inherit',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
             }}
-            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(59,130,246,0.18)')}
-            onMouseLeave={e => (e.currentTarget.style.background = 'rgba(59,130,246,0.1)')}
+            onMouseEnter={e => {
+              e.currentTarget.style.borderColor = BRAND
+              e.currentTarget.style.boxShadow = '0 2px 8px rgba(47,100,70,0.12)'
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.borderColor = BORDER
+              e.currentTarget.style.boxShadow = '0 1px 2px rgba(0,0,0,0.04)'
+            }}
           >
-            <div style={{ fontSize: 28, marginBottom: 8 }}>🔍</div>
+            <div style={{ marginBottom: 10, display: 'flex', justifyContent: 'center', color: BRAND_DARK }}>
+              <FolderSearch size={28} strokeWidth={1.5} />
+            </div>
             <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>Choose Existing</div>
-            <div style={{ fontSize: 12, color: '#64748b' }}>Open a folder with existing git repos</div>
+            <div style={{ fontSize: 12, color: TEXT_MUTED }}>Open a folder with existing git repos</div>
           </button>
         </div>
 
         {loading && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, color: '#64748b' }}>
-            <div className="spinner" style={{ color: 'var(--color-brand)' }} />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, color: TEXT_MUTED }}>
+            <div className="spinner" style={{ color: BRAND_DARK }} />
             <span>Opening folder...</span>
           </div>
         )}
 
         {error && (
-          <div style={{ color: '#f87171', fontSize: 13 }}>{error}</div>
+          <div style={{ color: '#c62828', fontSize: 13 }}>{error}</div>
         )}
 
-        <p style={{ color: '#475569', fontSize: 12, marginTop: 24 }}>
+        <p style={{ color: '#909090', fontSize: 12, marginTop: 28 }}>
           You can change the projects folder later in Settings
         </p>
       </div>
