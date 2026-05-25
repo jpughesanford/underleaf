@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import ProjectCard, { ProjectInfo } from '../components/dashboard/ProjectCard'
 import NewProjectModal from '../components/dashboard/NewProjectModal'
 import CloneModal from '../components/dashboard/CloneModal'
@@ -29,6 +29,9 @@ export default function Dashboard({ onOpenProject, onResetRoot }: Props) {
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
   const [actionProject, setActionProject] = useState<string | null>(null)
   const [resetConfirm, setResetConfirm] = useState<ProjectInfo | null>(null)
+  const [fetchSuccess, setFetchSuccess] = useState(false)
+  const [badgeFlashKeys, setBadgeFlashKeys] = useState<Record<string, number>>({})
+  const fetchSuccessTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -46,6 +49,36 @@ export default function Dashboard({ onOpenProject, onResetRoot }: Props) {
     }
   }, [])
 
+  // Refresh without tearing down the grid — detects badge changes and flashes them
+  const silentLoad = useCallback(async () => {
+    const [projs, root, latex] = await Promise.all([
+      window.api.scanProjects(),
+      window.api.getProjectsRoot(),
+      window.api.checkLatexmk(),
+    ])
+    setProjects(prev => {
+      const changed = (projs as ProjectInfo[]).filter(next => {
+        const old = prev.find(p => p.id === next.id)
+        return old && (
+          old.aheadBy !== next.aheadBy ||
+          old.behindBy !== next.behindBy ||
+          old.syncStatusKnown !== next.syncStatusKnown ||
+          old.hasConflicts !== next.hasConflicts
+        )
+      })
+      if (changed.length > 0) {
+        setBadgeFlashKeys(fk => {
+          const next = { ...fk }
+          for (const p of changed) next[p.id] = (fk[p.id] ?? 0) + 1
+          return next
+        })
+      }
+      return projs as ProjectInfo[]
+    })
+    setProjectsRoot(root || '')
+    setLatexmkAvailable(latex)
+  }, [])
+
   useEffect(() => { load() }, [load])
 
   useEffect(() => {
@@ -56,11 +89,15 @@ export default function Dashboard({ onOpenProject, onResetRoot }: Props) {
   }, [contextMenu])
 
   const handleFetchAll = async () => {
+    if (fetchSuccessTimer.current) clearTimeout(fetchSuccessTimer.current)
     setFetchingAll(true)
+    setFetchSuccess(false)
     const withRemote = projects.filter(p => p.hasRemote)
     await Promise.allSettled(withRemote.map(p => window.api.gitFetch(p.path)))
-    await load()
+    await silentLoad()
     setFetchingAll(false)
+    setFetchSuccess(true)
+    fetchSuccessTimer.current = setTimeout(() => setFetchSuccess(false), 2200)
   }
 
   const handleContextMenu = (e: React.MouseEvent, project: ProjectInfo) => {
@@ -73,7 +110,7 @@ export default function Dashboard({ onOpenProject, onResetRoot }: Props) {
     setContextMenu(null)
     setActionProject(project.id)
     await window.api.gitFetch(project.path)
-    await load()
+    await silentLoad()
     setActionProject(null)
   }
 
@@ -88,7 +125,7 @@ export default function Dashboard({ onOpenProject, onResetRoot }: Props) {
     setResetConfirm(null)
     setActionProject(project.id)
     await window.api.gitResetToRemote(project.path)
-    await load()
+    await silentLoad()
     setActionProject(null)
   }
 
@@ -145,26 +182,6 @@ export default function Dashboard({ onOpenProject, onResetRoot }: Props) {
               <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
             </svg>
           </button>
-
-          {hasRemoteProjects && (
-            <button
-              className="btn btn-ghost btn-sm"
-              onClick={handleFetchAll}
-              disabled={fetchingAll}
-              title="Fetch all repositories"
-              style={{ display: 'flex', alignItems: 'center', gap: 5 }}
-            >
-              {fetchingAll ? (
-                <div className="spinner" style={{ width: 12, height: 12, color: 'var(--color-brand)' }} />
-              ) : (
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                  <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
-                  <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
-                </svg>
-              )}
-              Fetch All
-            </button>
-          )}
 
           <button className="btn btn-secondary btn-sm" onClick={() => setShowClone(true)}>
             Clone Repository
@@ -224,7 +241,33 @@ export default function Dashboard({ onOpenProject, onResetRoot }: Props) {
       {/* Main content */}
       <div style={{ flex: 1, overflow: 'auto', padding: '32px 40px' }}>
         <div style={{ marginBottom: 28 }}>
-          <h2 style={{ fontSize: 22, fontWeight: 700, color: '#e2e8f0', marginBottom: 4 }}>Projects</h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 4 }}>
+            <h2 style={{ fontSize: 22, fontWeight: 700, color: '#e2e8f0' }}>Projects</h2>
+            {hasRemoteProjects && (
+              <button
+                className={`fetch-all-btn${fetchingAll ? ' fetching' : ''}${fetchSuccess ? ' success' : ''}`}
+                onClick={handleFetchAll}
+                disabled={fetchingAll}
+              >
+                {fetchSuccess ? (
+                  <>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                      <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                    All synced
+                  </>
+                ) : (
+                  <>
+                    <svg className="fetch-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ flexShrink: 0 }}>
+                      <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+                      <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                    </svg>
+                    {fetchingAll ? 'Fetching…' : 'Fetch All'}
+                  </>
+                )}
+              </button>
+            )}
+          </div>
           <div style={{ color: '#64748b', fontSize: 13 }}>
             {projectsRoot && <span>📂 {projectsRoot}</span>}
           </div>
@@ -272,6 +315,7 @@ export default function Dashboard({ onOpenProject, onResetRoot }: Props) {
                   project={project}
                   onOpen={() => onOpenProject(project.path, project.name)}
                   onContextMenu={e => handleContextMenu(e, project)}
+                  badgeFlashKey={badgeFlashKeys[project.id] ?? 0}
                 />
               </div>
             ))}

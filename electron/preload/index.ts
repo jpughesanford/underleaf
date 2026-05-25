@@ -35,6 +35,7 @@ const api = {
   copyFile: (srcPath: string, destPath: string) => ipcRenderer.invoke('files:copy', srcPath, destPath),
   getPathForFile: (file: File) => webUtils.getPathForFile(file),
   showInFinder: (filePath: string) => ipcRenderer.invoke('files:showInFinder', filePath),
+  openInTerminal: (dirPath: string) => ipcRenderer.invoke('files:openInTerminal', dirPath),
 
   // Git
   gitStatus: (projectPath: string) => ipcRenderer.invoke('git:status', projectPath),

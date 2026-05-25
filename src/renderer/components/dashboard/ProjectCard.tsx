@@ -20,6 +20,7 @@ interface Props {
   project: ProjectInfo
   onOpen: () => void
   onContextMenu: (e: React.MouseEvent) => void
+  badgeFlashKey?: number
 }
 
 function timeAgo(dateStr: string): string {
@@ -43,14 +44,17 @@ const badgeBase: React.CSSProperties = {
   flexShrink: 0,
 }
 
-function SyncBadge({ project }: { project: ProjectInfo }) {
+function SyncBadge({ project, flashKey }: { project: ProjectInfo; flashKey: number }) {
+  const flash = flashKey > 0
   if (!project.hasRemote) {
     return <span style={{ ...badgeBase, visibility: 'hidden' }}>x</span>
   }
 
+  const cls = flash ? 'sync-badge-flash' : ''
+
   if (project.hasConflicts) {
     return (
-      <span style={{ ...badgeBase, color: '#f87171', background: 'rgba(248,113,113,0.12)', border: '1px solid rgba(248,113,113,0.35)' }}>
+      <span key={flashKey} className={cls} style={{ ...badgeBase, color: '#f87171', background: 'rgba(248,113,113,0.12)', border: '1px solid rgba(248,113,113,0.35)' }}>
         ⚠ Conflict
       </span>
     )
@@ -58,7 +62,7 @@ function SyncBadge({ project }: { project: ProjectInfo }) {
 
   if (!project.syncStatusKnown) {
     return (
-      <span style={{ ...badgeBase, fontWeight: 500, color: '#64748b', background: 'rgba(100,116,139,0.1)', border: '1px solid rgba(100,116,139,0.25)' }}>
+      <span key={flashKey} className={cls} style={{ ...badgeBase, fontWeight: 500, color: '#64748b', background: 'rgba(100,116,139,0.1)', border: '1px solid rgba(100,116,139,0.25)' }}>
         Not fetched
       </span>
     )
@@ -66,7 +70,7 @@ function SyncBadge({ project }: { project: ProjectInfo }) {
 
   if (project.behindBy === 0 && project.aheadBy === 0) {
     return (
-      <span style={{ ...badgeBase, fontWeight: 500, color: '#4ade80', background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.25)' }}>
+      <span key={flashKey} className={cls} style={{ ...badgeBase, fontWeight: 500, color: '#4ade80', background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.25)' }}>
         <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
           <polyline points="20 6 9 17 4 12"/>
         </svg>
@@ -99,13 +103,13 @@ function SyncBadge({ project }: { project: ProjectInfo }) {
   }
 
   return (
-    <span style={{ ...badgeBase, color: '#fbbf24', background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.3)' }}>
+    <span key={flashKey} className={cls} style={{ ...badgeBase, color: '#fbbf24', background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.3)' }}>
       {parts}
     </span>
   )
 }
 
-export default function ProjectCard({ project, onOpen, onContextMenu }: Props) {
+export default function ProjectCard({ project, onOpen, onContextMenu, badgeFlashKey = 0 }: Props) {
   return (
     <div
       onClick={onOpen}
@@ -158,7 +162,7 @@ export default function ProjectCard({ project, onOpen, onContextMenu }: Props) {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 4, flexShrink: 0 }}>
-          <SyncBadge project={project} />
+          <SyncBadge project={project} flashKey={badgeFlashKey} />
           <span className={project.dirtyCount > 0 ? 'badge badge-blue' : ''} style={{ justifyContent: 'center', visibility: project.dirtyCount > 0 ? 'visible' : 'hidden', fontSize: 11, padding: '2px 8px' }}>
             {project.dirtyCount > 0 ? `${project.dirtyCount} change${project.dirtyCount !== 1 ? 's' : ''}` : 'x'}
           </span>

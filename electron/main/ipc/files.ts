@@ -1,4 +1,5 @@
 import { ipcMain, shell } from 'electron'
+import { execSync } from 'child_process'
 import {
   readdirSync, statSync, readFileSync, writeFileSync,
   existsSync, mkdirSync, unlinkSync, renameSync, copyFileSync, rmSync
@@ -95,5 +96,9 @@ export function registerFileIPC(): void {
 
   ipcMain.handle('files:showInFinder', (_, filePath: string) => {
     shell.showItemInFolder(filePath)
+  })
+
+  ipcMain.handle('files:openInTerminal', (_, dirPath: string) => {
+    execSync(`open -a Terminal ${JSON.stringify(dirPath)}`)
   })
 }
