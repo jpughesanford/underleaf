@@ -192,8 +192,23 @@ function ThemeCard({ theme, selected, onClick }: {
   selected: boolean
   onClick: () => void
 }) {
-  const s = theme.editor.syntax
-  const e = theme.editor
+  // Pull preview swatches straight from the Overleaf-shaped theme blocks.
+  // Match by .tok-* class — same mapping the live editor will use.
+  const hs = theme.highlightStyle
+  const colorOf = (cls: string, fallback?: string): string => {
+    const v = hs[cls]?.color
+    return typeof v === 'string' ? v : (fallback ?? '')
+  }
+  const editorBg = (theme.theme['&']?.backgroundColor as string) ?? '#ffffff'
+  const editorFg = (theme.theme['&']?.color as string) ?? '#000000'
+  const tagName       = colorOf('.tok-tagName', editorFg)        // generic \cmd, \begin/\end
+  const keyword       = colorOf('.tok-keyword', tagName)         // \cite \ref \label \usepackage \documentclass
+  const attributeVal  = colorOf('.tok-attributeValue', editorFg) // env names, label/ref/cite key contents
+  const string        = colorOf('.tok-string', editorFg)         // math content, $...$
+  const literal       = colorOf('.tok-literal', editorFg)        // math \left \right, ctrl syms
+  const comment       = colorOf('.tok-comment', editorFg)
+  const commentStyle  = (hs['.tok-comment']?.fontStyle as string) ?? 'normal'
+  const attrValStyle  = (hs['.tok-attributeValue']?.fontStyle as string) ?? 'normal'
 
   return (
     <button
@@ -212,7 +227,8 @@ function ThemeCard({ theme, selected, onClick }: {
     >
       {/* Mini editor preview */}
       <div style={{
-        background: e.bg,
+        background: editorBg,
+        color: editorFg,
         padding: '9px 11px',
         fontFamily: 'monospace',
         fontSize: 8.5,
@@ -221,52 +237,58 @@ function ThemeCard({ theme, selected, onClick }: {
         minHeight: 72,
       }}>
         <div>
-          <span style={{ color: s.beginEnd }}>\begin</span>
-          <span style={{ color: e.fg }}>{'{'}</span>
-          <span style={{ color: s.envName }}>document</span>
-          <span style={{ color: e.fg }}>{'}'}</span>
+          <span style={{ color: tagName }}>\begin</span>
+          <span>{'{'}</span>
+          <span style={{ color: attributeVal, fontStyle: attrValStyle }}>document</span>
+          <span>{'}'}</span>
         </div>
         <div>
-          <span style={{ color: s.commandStructural }}>\section</span>
-          <span style={{ color: e.fg }}>{'{'}</span>
-          <span style={{ color: s.text }}>Introduction</span>
-          <span style={{ color: e.fg }}>{'}'}</span>
+          <span style={{ color: tagName }}>\section</span>
+          <span>{'{'}</span>
+          <span>Introduction</span>
+          <span>{'}'}</span>
         </div>
         <div>
-          <span style={{ color: s.text }}>Prose with </span>
-          <span style={{ color: s.commandCite }}>\cite</span>
-          <span style={{ color: e.fg }}>{'{'}</span>
-          <span style={{ color: s.labelContent }}>ref23</span>
-          <span style={{ color: e.fg }}>{'} '}</span>
-          <span style={{ color: s.comment }}>% note</span>
+          <span>Prose with </span>
+          <span style={{ color: keyword }}>\cite</span>
+          <span>{'{'}</span>
+          <span style={{ color: attributeVal, fontStyle: attrValStyle }}>ref23</span>
+          <span>{'} '}</span>
+          <span style={{ color: comment, fontStyle: commentStyle }}>% note</span>
         </div>
         <div>
-          <span style={{ color: s.mathDelim }}>$</span>
-          <span style={{ color: s.mathCommand }}>\alpha </span>
-          <span style={{ color: s.mathToken }}>+ 1</span>
-          <span style={{ color: s.mathDelim }}>$</span>
+          <span style={{ color: string }}>$</span>
+          <span style={{ color: literal }}>\alpha </span>
+          <span style={{ color: string }}>+ 1</span>
+          <span style={{ color: string }}>$</span>
         </div>
       </div>
 
-      {/* Theme name bar */}
+      {/* Theme name bar — fixed dark bar + off-white label so legibility is
+          consistent across light and dark theme previews. Selection is still
+          signaled by the card border ring and the check icon. */}
       <div style={{
-        padding: '5px 10px',
-        background: theme.chrome.bgToolbar,
-        borderTop: `1px solid ${theme.chrome.border}`,
-        fontSize: 11,
-        color: selected ? theme.chrome.brand : theme.chrome.textSecondary,
-        fontWeight: selected ? 600 : 400,
+        padding: '7px 11px',
+        background: '#1a2332',
+        borderTop: '1px solid rgba(255,255,255,0.06)',
+        fontSize: 13,
+        color: '#e8edf2',
+        fontWeight: selected ? 600 : 500,
+        letterSpacing: '0.005em',
         display: 'flex',
         alignItems: 'center',
-        gap: 5,
+        gap: 6,
         fontFamily: 'inherit',
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
       }}>
         {selected && (
-          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" style={{ flexShrink: 0, color: theme.chrome.brand }}>
             <polyline points="20 6 9 17 4 12"/>
           </svg>
         )}
-        {theme.name}
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{theme.name}</span>
       </div>
     </button>
   )

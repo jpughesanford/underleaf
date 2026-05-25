@@ -101,11 +101,22 @@ export function useTheme() {
   return useContext(ThemeContext)
 }
 
+// Extract editor bg/fg from the Overleaf-shaped `theme` block (the `&` selector
+// sets backgroundColor / color on the editor root element).
+function readBg(theme: UnderleafTheme['theme']): string | undefined {
+  const ampersand = theme['&']
+  const v = ampersand?.backgroundColor
+  return typeof v === 'string' ? v : undefined
+}
+function readFg(theme: UnderleafTheme['theme']): string | undefined {
+  const ampersand = theme['&']
+  const v = ampersand?.color
+  return typeof v === 'string' ? v : undefined
+}
+
 function applyTheme(theme: UnderleafTheme) {
   const root = document.documentElement
   const c = theme.chrome
-  const e = theme.editor
-  const s = e.syntax
 
   root.style.setProperty('--color-brand',          c.brand)
   root.style.setProperty('--color-brand-dark',     c.brandDark)
@@ -135,35 +146,15 @@ function applyTheme(theme: UnderleafTheme) {
   root.style.setProperty('--scrollbar-thumb',      c.scrollbar)
   root.style.setProperty('--scrollbar-thumb-hover',c.scrollbarHover)
 
-  root.style.setProperty('--color-bg-editor',           e.bg)
-  root.style.setProperty('--editor-bg',                 e.bg)
-  root.style.setProperty('--editor-fg',                 e.fg)
-  root.style.setProperty('--editor-cursor',             e.cursor)
-  root.style.setProperty('--editor-selection',          e.selection)
-  root.style.setProperty('--editor-selection-focused',  e.selectionFocused)
-  root.style.setProperty('--editor-active-line',        e.activeLine)
-  root.style.setProperty('--editor-active-line-gutter', e.activeLineGutter)
-  root.style.setProperty('--editor-gutter-bg',          e.gutterBg)
-  root.style.setProperty('--editor-gutter-fg',          e.gutterFg)
-  root.style.setProperty('--editor-gutter-border',      e.gutterBorder)
-  root.style.setProperty('--editor-bracket-match',      e.bracketMatch)
-  root.style.setProperty('--editor-fold-placeholder',   e.foldPlaceholder)
-  root.style.setProperty('--editor-search-match',       e.searchMatch)
-  root.style.setProperty('--editor-search-match-sel',   e.searchMatchSelected)
-  root.style.setProperty('--editor-error-line',         e.errorLine)
-
-  root.style.setProperty('--syntax-text',       s.text)
-  root.style.setProperty('--syntax-command',    s.command)
-  root.style.setProperty('--syntax-structural', s.commandStructural)
-  root.style.setProperty('--syntax-cite',       s.commandCite)
-  root.style.setProperty('--syntax-begin-end',  s.beginEnd)
-  root.style.setProperty('--syntax-env-name',   s.envName)
-  root.style.setProperty('--syntax-label',      s.labelContent)
-  root.style.setProperty('--syntax-comment',    s.comment)
-  root.style.setProperty('--syntax-math-delim', s.mathDelim)
-  root.style.setProperty('--syntax-math-cmd',   s.mathCommand)
-  root.style.setProperty('--syntax-math-token', s.mathToken)
-  root.style.setProperty('--syntax-error',      s.error)
+  // Editor + syntax colors are applied INSIDE CodeMirror via EditorView.theme
+  // (see EditorPane.tsx), driven directly from theme.theme + theme.highlightStyle.
+  // For the rest of the chrome that wants a hint of the editor bg color, expose
+  // bg/fg as CSS vars.
+  const editorBg = readBg(theme.theme)
+  const editorFg = readFg(theme.theme)
+  if (editorBg) root.style.setProperty('--color-bg-editor', editorBg)
+  if (editorBg) root.style.setProperty('--editor-bg',       editorBg)
+  if (editorFg) root.style.setProperty('--editor-fg',       editorFg)
 
   // Toolbar icon colors — must be legible on bgToolbar regardless of theme hue.
   // Dark themes have navy/slate toolbars; brand color works as active accent there.

@@ -25,11 +25,11 @@ interface Props {
 }
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  M: { label: 'M', color: '#fbbf24' },
-  A: { label: 'A', color: '#4ade80' },
-  D: { label: 'D', color: '#f87171' },
-  R: { label: 'R', color: '#60a5fa' },
-  '?': { label: 'U', color: '#94a3b8' },
+  M: { label: 'M', color: 'var(--badge-warn-color)' },
+  A: { label: 'A', color: 'var(--badge-sync-color)' },
+  D: { label: 'D', color: 'var(--badge-err-color)' },
+  R: { label: 'R', color: 'var(--badge-info-color)' },
+  '?': { label: 'U', color: 'var(--badge-muted-color)' },
 }
 
 export default function GitPanel({ projectPath, onOpenFile }: Props) {
@@ -195,10 +195,10 @@ export default function GitPanel({ projectPath, onOpenFile }: Props) {
         justifyContent: 'space-between',
         flexShrink: 0,
       }}>
-        <span style={{ fontSize: 11, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+        <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
           Source Control
         </span>
-        <button className="btn btn-ghost btn-icon" onClick={refresh} title="Refresh" style={{ width: 24, height: 24, color: '#64748b' }}>
+        <button className="btn btn-ghost btn-icon" onClick={refresh} title="Refresh" style={{ width: 24, height: 24, color: 'var(--color-text-muted)' }}>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <polyline points="23 4 23 10 17 10"/>
             <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
@@ -215,8 +215,8 @@ export default function GitPanel({ projectPath, onOpenFile }: Props) {
           <>
             {/* Conflicts */}
             {hasConflicts && (
-              <div style={{ padding: '8px 10px', background: 'rgba(239,68,68,0.08)', borderBottom: '1px solid rgba(239,68,68,0.2)' }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: '#f87171', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
+              <div style={{ padding: '8px 10px', background: 'var(--badge-err-bg)', borderBottom: '1px solid var(--badge-err-border)' }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-text-error)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
                   <AlertTriangle size={11} strokeWidth={2.5} />
                   MERGE CONFLICTS
                 </div>
@@ -224,8 +224,8 @@ export default function GitPanel({ projectPath, onOpenFile }: Props) {
                   <div
                     key={f}
                     onClick={() => onOpenFile(`${projectPath}/${f}`)}
-                    style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 4px', cursor: 'pointer', borderRadius: 4, fontSize: 12, color: '#f87171' }}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.1)' }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 4px', cursor: 'pointer', borderRadius: 4, fontSize: 12, color: 'var(--color-text-error)' }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'var(--badge-err-bg-hover, var(--badge-err-bg))' }}
                     onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
                   >
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -256,7 +256,7 @@ export default function GitPanel({ projectPath, onOpenFile }: Props) {
               />
             ))}
             {status?.staged.length === 0 && (
-              <div style={{ padding: '4px 12px', fontSize: 11, color: '#475569', fontStyle: 'italic' }}>No staged changes</div>
+              <div style={{ padding: '4px 12px', fontSize: 11, color: 'var(--color-text-muted)', fontStyle: 'italic' }}>No staged changes</div>
             )}
 
             {/* Unstaged */}
@@ -277,7 +277,7 @@ export default function GitPanel({ projectPath, onOpenFile }: Props) {
               />
             ))}
             {status?.unstaged.length === 0 && (
-              <div style={{ padding: '4px 12px', fontSize: 11, color: '#475569', fontStyle: 'italic' }}>No unstaged changes</div>
+              <div style={{ padding: '4px 12px', fontSize: 11, color: 'var(--color-text-muted)', fontStyle: 'italic' }}>No unstaged changes</div>
             )}
           </>
         )}
@@ -330,9 +330,9 @@ export default function GitPanel({ projectPath, onOpenFile }: Props) {
         <div style={{
           padding: '8px 12px',
           fontSize: 12,
-          color: message.type === 'success' ? '#4ade80' : '#f87171',
-          background: message.type === 'success' ? 'rgba(74,222,128,0.08)' : 'rgba(248,113,113,0.08)',
-          borderTop: `1px solid ${message.type === 'success' ? 'rgba(74,222,128,0.2)' : 'rgba(248,113,113,0.2)'}`,
+          color: message.type === 'success' ? 'var(--badge-sync-color)' : 'var(--color-text-error)',
+          background: message.type === 'success' ? 'var(--badge-sync-bg)' : 'var(--badge-err-bg)',
+          borderTop: `1px solid ${message.type === 'success' ? 'var(--badge-sync-border)' : 'var(--badge-err-border)'}`,
           flexShrink: 0,
         }}>
           {message.text}
@@ -411,11 +411,11 @@ function SectionHeader({ title, count, onAction, actionLabel }: {
       padding: '6px 10px 3px',
       flexShrink: 0,
     }}>
-      <span style={{ fontSize: 10, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+      <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
         {title} {count !== undefined && count > 0 && `(${count})`}
       </span>
       {onAction && (
-        <button className="btn btn-ghost btn-sm" onClick={onAction} style={{ fontSize: 10, padding: '2px 6px', color: '#64748b' }}>
+        <button className="btn btn-ghost btn-sm" onClick={onAction} style={{ fontSize: 10, padding: '2px 6px', color: 'var(--color-text-muted)' }}>
           {actionLabel}
         </button>
       )}
@@ -430,7 +430,7 @@ function FileRow({ file, action, onAction, onClick, onContextMenu }: {
   onClick: () => void
   onContextMenu: (e: React.MouseEvent) => void
 }) {
-  const meta = STATUS_LABELS[file.status] || { label: '?', color: '#94a3b8' }
+  const meta = STATUS_LABELS[file.status] || { label: '?', color: 'var(--badge-muted-color)' }
 
   return (
     <div
@@ -441,7 +441,7 @@ function FileRow({ file, action, onAction, onClick, onContextMenu }: {
         fontSize: 12,
         cursor: 'pointer',
       }}
-      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
+      onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-bg-card-hover)' }}
       onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
     >
       <span style={{ color: meta.color, fontWeight: 700, fontSize: 11, minWidth: 12, flexShrink: 0 }}>
@@ -449,7 +449,7 @@ function FileRow({ file, action, onAction, onClick, onContextMenu }: {
       </span>
       <span
         onClick={onClick}
-        style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#94a3b8' }}
+        style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--color-text-secondary)' }}
       >
         {file.path}
       </span>
@@ -459,11 +459,11 @@ function FileRow({ file, action, onAction, onClick, onContextMenu }: {
         style={{
           width: 18, height: 18, border: 'none',
           background: 'transparent', cursor: 'pointer',
-          color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center',
           borderRadius: 3, padding: 0, flexShrink: 0,
         }}
-        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = '#e2e8f0' }}
-        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#64748b' }}
+        onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-bg-card-hover)'; e.currentTarget.style.color = 'var(--color-text-primary)' }}
+        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--color-text-muted)' }}
       >
         {action === 'stage' ? (
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -491,12 +491,12 @@ function GitContextMenuItem({ label, icon, onClick, danger }: {
       style={{
         display: 'flex', alignItems: 'center', gap: 8,
         padding: '7px 10px', borderRadius: 5, cursor: 'pointer',
-        color: danger ? '#f87171' : '#e2e8f0', fontSize: 12,
+        color: danger ? 'var(--color-text-error)' : 'var(--color-text-primary)', fontSize: 12,
       }}
-      onMouseEnter={e => { e.currentTarget.style.background = danger ? 'rgba(248,113,113,0.1)' : 'rgba(255,255,255,0.08)' }}
+      onMouseEnter={e => { e.currentTarget.style.background = danger ? 'var(--badge-err-bg)' : 'var(--color-bg-card-hover)' }}
       onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
     >
-      <span style={{ color: danger ? '#f87171' : '#64748b', flexShrink: 0 }}>{icon}</span>
+      <span style={{ color: danger ? 'var(--color-text-error)' : 'var(--color-text-muted)', flexShrink: 0 }}>{icon}</span>
       {label}
     </div>
   )

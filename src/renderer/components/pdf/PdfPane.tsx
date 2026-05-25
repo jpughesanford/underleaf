@@ -80,8 +80,83 @@ export default function PdfPane({ pdfPath, version = 0 }: Props) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [naturalSize, setNaturalSize] = useState<{ width: number; height: number } | null>(null)
+  const [brightness, setBrightness] = useState(1)
+  const [brightnessOpen, setBrightnessOpen] = useState(false)
   const prevDocRef = useRef<PDFDocumentProxy | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const brightnessRef = useRef<HTMLDivElement>(null)
+  const pendingZoomRef = useRef<{
+    contentX: number
+    contentY: number
+    viewportX: number
+    viewportY: number
+    oldScale: number
+  } | null>(null)
+
+  // Brightness goes from 0.35 → 1.0; map to fill percentage for slider track gradient
+  const brightnessFill = ((brightness - 0.35) / (1 - 0.35)) * 100
+
+  useEffect(() => {
+    if (!brightnessOpen) return
+    const handler = (e: MouseEvent) => {
+      if (brightnessRef.current && !brightnessRef.current.contains(e.target as Node)) {
+        setBrightnessOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [brightnessOpen])
+
+  // Pinch-to-zoom: Chromium dispatches trackpad pinch as wheel events with ctrlKey=true.
+  // Cmd/Ctrl + wheel from a regular mouse also lands here, which is the conventional
+  // zoom gesture, so we treat them identically. Compensate scroll so the point under
+  // the cursor stays put across the zoom.
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return
+      e.preventDefault()
+      const rect = el.getBoundingClientRect()
+      const viewportX = e.clientX - rect.left
+      const viewportY = e.clientY - rect.top
+      setScale(prev => {
+        // Exponential mapping so equal pinch deltas at any zoom feel equally strong
+        const factor = Math.exp(-e.deltaY * 0.01)
+        const next = Math.max(0.3, Math.min(5, +(prev * factor).toFixed(2)))
+        if (next !== prev) {
+          pendingZoomRef.current = {
+            contentX: el.scrollLeft + viewportX,
+            contentY: el.scrollTop + viewportY,
+            viewportX,
+            viewportY,
+            oldScale: prev,
+          }
+        }
+        return next
+      })
+    }
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, [])
+
+  // After scale changes from a pinch, restore scroll position so the cursor anchor is stable.
+  // Canvas resizing is async (PDF.js promise) so we set on rAF and again after a short delay
+  // to catch the case where scroll bounds had not yet grown on the first frame.
+  useEffect(() => {
+    const pending = pendingZoomRef.current
+    if (!pending) return
+    pendingZoomRef.current = null
+    const el = scrollRef.current
+    if (!el) return
+    const factor = scale / pending.oldScale
+    const targetLeft = pending.contentX * factor - pending.viewportX
+    const targetTop = pending.contentY * factor - pending.viewportY
+    const apply = () => { el.scrollLeft = targetLeft; el.scrollTop = targetTop }
+    requestAnimationFrame(apply)
+    const t = setTimeout(apply, 80)
+    return () => clearTimeout(t)
+  }, [scale])
 
   const loadPdf = useCallback(async () => {
     if (!pdfPath) return
@@ -141,7 +216,7 @@ export default function PdfPane({ pdfPath, version = 0 }: Props) {
   const pages = doc ? Array.from({ length: numPages }, (_, i) => i + 1) : []
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--color-bg-panel)' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--color-bg-app)' }}>
 
       {/* Toolbar */}
       <div style={{
@@ -150,12 +225,12 @@ export default function PdfPane({ pdfPath, version = 0 }: Props) {
         gap: 4,
         padding: '0 10px',
         borderBottom: '1px solid var(--color-border)',
-        background: 'var(--color-bg-toolbar)',
+        background: 'var(--color-bg-app)',
         flexShrink: 0,
-        height: 36,
+        height: 34,
       }}>
         {/* Page counter */}
-        <span style={{ fontSize: 11, color: 'var(--color-toolbar-fg)', minWidth: 52, textAlign: 'center' }}>
+        <span style={{ fontSize: 11, color: 'var(--color-text-secondary)', minWidth: 52, textAlign: 'center' }}>
           {numPages ? `${currentPage} / ${numPages}` : '—'}
         </span>
 
@@ -226,12 +301,113 @@ export default function PdfPane({ pdfPath, version = 0 }: Props) {
             </svg>
           </button>
         </div>
+
+        <div style={{ width: 1, height: 16, background: 'var(--color-border)', margin: '0 2px' }} />
+
+        {/* Brightness — popover with slider */}
+        <div ref={brightnessRef} style={{ position: 'relative' }}>
+          <button
+            onClick={() => setBrightnessOpen(o => !o)}
+            title="Brightness"
+            disabled={!doc}
+            style={{
+              width: 26, height: 26, border: 'none', borderRadius: 5,
+              background: brightnessOpen ? 'var(--color-bg-card-hover)' : 'transparent',
+              color: !doc
+                ? 'var(--color-text-muted)'
+                : brightness < 1
+                  ? 'var(--color-brand)'
+                  : (brightnessOpen ? 'var(--color-text-primary)' : 'var(--color-text-secondary)'),
+              cursor: !doc ? 'default' : 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              transition: 'background 120ms, color 120ms',
+            }}
+            onMouseEnter={e => { if (doc && !brightnessOpen) { e.currentTarget.style.background = 'var(--color-bg-card-hover)'; if (brightness >= 1) e.currentTarget.style.color = 'var(--color-text-primary)' } }}
+            onMouseLeave={e => { if (!brightnessOpen) { e.currentTarget.style.background = 'transparent'; if (brightness >= 1) e.currentTarget.style.color = doc ? 'var(--color-text-secondary)' : 'var(--color-text-muted)' } }}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="4"/>
+              <path d="M12 2v2"/><path d="M12 20v2"/>
+              <path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/>
+              <path d="M2 12h2"/><path d="M20 12h2"/>
+              <path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>
+            </svg>
+          </button>
+          {brightnessOpen && (
+            <div
+              style={{
+                position: 'absolute', top: 'calc(100% + 8px)', right: 0, zIndex: 20,
+                background: 'var(--color-bg-card)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 8,
+                padding: '12px 14px 10px',
+                minWidth: 220,
+                boxShadow: '0 8px 28px rgba(0,0,0,0.4), 0 2px 6px rgba(0,0,0,0.25)',
+              }}
+            >
+              <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                marginBottom: 10,
+              }}>
+                <span style={{
+                  fontSize: 10, fontWeight: 600, letterSpacing: '0.08em',
+                  textTransform: 'uppercase', color: 'var(--color-text-muted)',
+                }}>
+                  Brightness
+                </span>
+                <button
+                  onClick={() => setBrightness(1)}
+                  disabled={brightness === 1}
+                  title="Reset"
+                  style={{
+                    border: 'none', background: 'transparent',
+                    color: brightness === 1 ? 'var(--color-text-muted)' : 'var(--color-text-accent)',
+                    fontSize: 10, fontWeight: 600, letterSpacing: '0.04em',
+                    cursor: brightness === 1 ? 'default' : 'pointer',
+                    padding: '2px 4px', borderRadius: 3,
+                  }}
+                >
+                  RESET
+                </button>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                </svg>
+                <input
+                  type="range"
+                  min="0.35"
+                  max="1"
+                  step="0.01"
+                  value={brightness}
+                  onChange={e => setBrightness(+e.target.value)}
+                  className="pdf-brightness-slider"
+                  style={{ flex: 1, ['--fill' as string]: `${brightnessFill}%` } as React.CSSProperties}
+                />
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-secondary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="4"/>
+                  <path d="M12 2v2"/><path d="M12 20v2"/>
+                  <path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/>
+                  <path d="M2 12h2"/><path d="M20 12h2"/>
+                  <path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>
+                </svg>
+              </div>
+              <div style={{
+                marginTop: 8, textAlign: 'center',
+                fontSize: 10, color: 'var(--color-text-muted)',
+                fontVariantNumeric: 'tabular-nums', letterSpacing: '0.04em',
+              }}>
+                {Math.round(brightness * 100)}%
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Scroll area */}
       <div
         ref={scrollRef}
-        style={{ flex: 1, overflow: 'auto', padding: '20px 0 20px', background: 'var(--color-bg-app)' }}
+        style={{ flex: 1, overflow: 'auto', background: 'var(--color-bg-app)' }}
       >
         {loading && (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--color-text-muted)', gap: 8 }}>
@@ -263,7 +439,14 @@ export default function PdfPane({ pdfPath, version = 0 }: Props) {
         )}
 
         {!loading && !error && doc && pages.length > 0 && (
-          <div>
+          <div
+            style={{
+              minWidth: 'min-content',
+              padding: '20px',
+              filter: brightness < 1 ? `brightness(${brightness})` : undefined,
+              transition: 'filter 160ms ease-out',
+            }}
+          >
             {pages.map(pageNum => (
               <PdfPage
                 key={`${pdfPath}-${version}-${pageNum}`}
@@ -293,13 +476,13 @@ function PdfToolButton({ onClick, title, disabled, children }: {
       disabled={disabled}
       style={{
         width: 26, height: 26, border: 'none', borderRadius: 5,
-        background: 'transparent', color: disabled ? 'rgba(255,255,255,0.25)' : 'var(--color-toolbar-fg)',
+        background: 'transparent', color: disabled ? 'var(--color-text-muted)' : 'var(--color-text-secondary)',
         cursor: disabled ? 'default' : 'pointer',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         transition: 'background 120ms, color 120ms',
       }}
-      onMouseEnter={e => { if (!disabled) { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = 'var(--color-toolbar-fg-active)' } }}
-      onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = disabled ? 'rgba(255,255,255,0.25)' : 'var(--color-toolbar-fg)' }}
+      onMouseEnter={e => { if (!disabled) { e.currentTarget.style.background = 'var(--color-bg-card-hover)'; e.currentTarget.style.color = 'var(--color-text-primary)' } }}
+      onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = disabled ? 'var(--color-text-muted)' : 'var(--color-text-secondary)' }}
     >
       {children}
     </button>

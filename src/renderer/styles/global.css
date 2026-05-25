@@ -48,38 +48,13 @@
   --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', Menlo, Consolas, monospace;
 
-  /* Editor surface — overridden by ThemeContext; these are the underleaf-dark defaults */
+  /* Editor surface — CodeMirror handles its own colors via EditorView.theme
+     (driven by each theme JSON's `theme` block). We only expose bg/fg as vars
+     so the surrounding chrome can paint matching backgrounds. */
   --editor-bg:                 #1a2332;
   --editor-fg:                 #dde3ed;
-  --editor-cursor:             #4ade80;
-  --editor-selection:          rgba(76,175,80,0.18);
-  --editor-selection-focused:  rgba(76,175,80,0.22);
-  --editor-active-line:        rgba(255,255,255,0.025);
-  --editor-active-line-gutter: rgba(76,175,80,0.1);
-  --editor-gutter-bg:          #16213e;
-  --editor-gutter-fg:          #475569;
-  --editor-gutter-border:      #2d3f55;
-  --editor-bracket-match:      rgba(76,175,80,0.2);
-  --editor-fold-placeholder:   rgba(76,175,80,0.15);
-  --editor-search-match:       rgba(255,200,0,0.3);
-  --editor-search-match-sel:   rgba(255,160,0,0.4);
-  --editor-error-line:         rgba(239,68,68,0.08);
   --scrollbar-thumb:           #2d3f55;
   --scrollbar-thumb-hover:     #3d5070;
-
-  /* LaTeX syntax tokens — overridden by ThemeContext; these are the underleaf-dark defaults */
-  --syntax-text:        #dde3ed;
-  --syntax-command:     #a78bfa;
-  --syntax-structural:  #60a5fa;
-  --syntax-cite:        #34d399;
-  --syntax-begin-end:   #a78bfa;
-  --syntax-env-name:    #34d399;
-  --syntax-label:       #86efac;
-  --syntax-comment:     #475569;
-  --syntax-math-delim:  #f472b6;
-  --syntax-math-cmd:    #fb923c;
-  --syntax-math-token:  #fbbf24;
-  --syntax-error:       #f87171;
 
   /* Toolbar icon colors — dark theme defaults */
   --color-toolbar-fg:            rgba(255,255,255,0.62);
@@ -302,4 +277,52 @@ textarea.input { resize: vertical; font-family: var(--font-mono); }
 }
 .titlebar-no-drag {
   -webkit-app-region: no-drag;
+}
+
+/* PDF brightness slider — themed range input */
+.pdf-brightness-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    var(--color-brand) 0%,
+    var(--color-brand) var(--fill, 0%),
+    var(--color-border) var(--fill, 0%),
+    var(--color-border) 100%
+  );
+  outline: none;
+  cursor: pointer;
+  margin: 0;
+}
+.pdf-brightness-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--color-text-primary);
+  border: 2px solid var(--color-brand);
+  cursor: grab;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.35);
+  transition: transform 120ms, box-shadow 120ms;
+}
+.pdf-brightness-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.45);
+}
+.pdf-brightness-slider:active::-webkit-slider-thumb {
+  cursor: grabbing;
+  transform: scale(1.1);
+}
+.pdf-brightness-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--color-text-primary);
+  border: 2px solid var(--color-brand);
+  cursor: grab;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.35);
 }

@@ -662,13 +662,13 @@ function ContextMenuItem({ label, icon, onClick, disabled, danger }: {
         display: 'flex', alignItems: 'center', gap: 8,
         padding: '7px 10px', borderRadius: 5,
         cursor: disabled ? 'default' : 'pointer',
-        color: disabled ? 'var(--color-text-muted)' : danger ? '#f87171' : 'var(--color-text-primary)',
+        color: disabled ? 'var(--color-text-muted)' : danger ? 'var(--color-text-error)' : 'var(--color-text-primary)',
         fontSize: 12,
       }}
-      onMouseEnter={e => { if (!disabled) e.currentTarget.style.background = danger ? 'rgba(248,113,113,0.1)' : 'var(--color-bg-card-hover)' }}
+      onMouseEnter={e => { if (!disabled) e.currentTarget.style.background = danger ? 'var(--badge-err-bg)' : 'var(--color-bg-card-hover)' }}
       onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
     >
-      <span style={{ color: disabled ? 'var(--color-text-muted)' : danger ? '#f87171' : 'var(--color-text-muted)', flexShrink: 0 }}>{icon}</span>
+      <span style={{ color: disabled ? 'var(--color-text-muted)' : danger ? 'var(--color-text-error)' : 'var(--color-text-muted)', flexShrink: 0 }}>{icon}</span>
       {label}
     </div>
   )

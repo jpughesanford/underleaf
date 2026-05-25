@@ -1,36 +1,6 @@
-export interface SyntaxTokens {
-  text: string
-  command: string
-  commandStructural: string
-  commandCite: string
-  beginEnd: string
-  envName: string
-  labelContent: string
-  comment: string
-  mathDelim: string
-  mathCommand: string
-  mathToken: string
-  error: string
-}
-
-export interface EditorColors {
-  bg: string
-  fg: string
-  cursor: string
-  selection: string
-  selectionFocused: string
-  activeLine: string
-  activeLineGutter: string
-  gutterBg: string
-  gutterFg: string
-  gutterBorder: string
-  bracketMatch: string
-  foldPlaceholder: string
-  searchMatch: string
-  searchMatchSelected: string
-  errorLine: string
-  syntax: SyntaxTokens
-}
+// Theme schema — the `theme` and `highlightStyle` blocks mirror Overleaf's CM6
+// theme JSONs verbatim (see services/web/frontend/js/features/source-editor/themes/cm6/*).
+// `chrome` is Underleaf-specific (app shell colors not present in Overleaf's pure-editor themes).
 
 export interface ChromeColors {
   bgApp: string
@@ -62,10 +32,22 @@ export interface ChromeColors {
   scrollbarHover: string
 }
 
+// CSS selector → CSS-prop-bag, identical to Overleaf's theme JSON shape.
+// Selectors use CodeMirror's EditorView.theme conventions:
+//   '&' = the editor host element
+//   '.cm-gutters' = the line-number gutter
+//   '.cm-activeLine', '.cm-cursor', '.cm-selectionBackground', etc.
+export type ThemeRules = Record<string, Record<string, string | number>>
+
+// .tok-* selector → CSS-prop-bag. Identical to Overleaf's highlightStyle shape.
+// Class names come from the tagHighlighter (see latexStyleTags.ts).
+export type HighlightRules = Record<string, Record<string, string | number>>
+
 export interface UnderleafTheme {
   id: string
   name: string
   dark: boolean
   chrome: ChromeColors
-  editor: EditorColors
+  theme: ThemeRules
+  highlightStyle: HighlightRules
 }

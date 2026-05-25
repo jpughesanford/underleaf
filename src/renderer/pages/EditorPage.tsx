@@ -60,6 +60,7 @@ export default function EditorPage({ projectPath, projectName, onBack }: Props) 
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const tabsRef = useRef<OpenTab[]>([])
   const activeTabRef = useRef<string | null>(null)
+  const autoOpenedRef = useRef<string | null>(null)
 
   useEffect(() => {
     window.api.storeGet('settings').then((s: unknown) => {
@@ -136,6 +137,17 @@ export default function EditorPage({ projectPath, projectName, onBack }: Props) 
       console.error('Failed to open file', e)
     }
   }, [tabs])
+
+  // Auto-open the root document the first time we learn what it is for this project.
+  // Guarded by projectPath so re-mounting onto a different project re-triggers exactly once.
+  useEffect(() => {
+    if (autoOpenedRef.current === projectPath) return
+    const rootDoc = mainDoc ?? detectedMainDoc
+    if (!rootDoc) return
+    autoOpenedRef.current = projectPath
+    const fullPath = rootDoc.startsWith('/') ? rootDoc : `${projectPath}/${rootDoc}`
+    openFile(fullPath)
+  }, [projectPath, mainDoc, detectedMainDoc, openFile])
 
   const closeTab = useCallback(async (filePath: string) => {
     const tab = tabsRef.current.find(t => t.path === filePath)
@@ -267,7 +279,7 @@ export default function EditorPage({ projectPath, projectName, onBack }: Props) 
         {/* Left rail */}
         <div style={{
           width: 44,
-          background: 'var(--color-bg-panel)',
+          background: 'var(--color-bg-app)',
           borderRight: '1px solid var(--color-border)',
           display: 'flex',
           flexDirection: 'column',
@@ -318,7 +330,7 @@ export default function EditorPage({ projectPath, projectName, onBack }: Props) 
         {sidebarOpen && viewMode !== 'pdf' && (
           <div style={{
             width: sidebarWidth,
-            background: 'var(--color-bg-sidebar)',
+            background: 'var(--color-bg-app)',
             borderRight: '1px solid var(--color-border)',
             display: 'flex',
             flexDirection: 'column',
@@ -359,7 +371,7 @@ export default function EditorPage({ projectPath, projectName, onBack }: Props) 
           {tabs.length > 0 && (
             <div style={{
               display: 'flex',
-              background: 'var(--color-bg-toolbar)',
+              background: 'var(--color-bg-app)',
               borderBottom: '1px solid var(--color-border)',
               overflowX: 'auto',
               flexShrink: 0,
@@ -395,7 +407,7 @@ export default function EditorPage({ projectPath, projectName, onBack }: Props) 
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#475569',
+                color: 'var(--color-text-muted)',
                 userSelect: 'none',
               }}>
                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" style={{ marginBottom: 16, opacity: 0.4 }}>
@@ -454,13 +466,13 @@ function RailButton({ active, title, onClick, children }: {
         borderRadius: 8,
         border: 'none',
         background: active ? 'rgba(76,175,80,0.15)' : 'transparent',
-        color: active ? '#4CAF50' : '#64748b',
+        color: active ? 'var(--color-brand)' : 'var(--color-text-muted)',
         cursor: 'pointer',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         transition: 'all 150ms ease',
       }}
-      onMouseEnter={e => { if (!active) e.currentTarget.style.color = '#94a3b8' }}
-      onMouseLeave={e => { if (!active) e.currentTarget.style.color = '#64748b' }}
+      onMouseEnter={e => { if (!active) e.currentTarget.style.color = 'var(--color-text-secondary)' }}
+      onMouseLeave={e => { if (!active) e.currentTarget.style.color = 'var(--color-text-muted)' }}
     >
       {children}
     </button>
@@ -601,14 +613,14 @@ function ResizeHandle({ onDrag, onCollapse, collapseDirection }: {
             border: '1px solid var(--color-border)',
             borderRadius: 4,
             background: 'var(--color-bg-modal)',
-            color: '#94a3b8',
+            color: 'var(--color-text-secondary)',
             cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             padding: 0,
             boxShadow: 'var(--shadow-md)',
           }}
-          onMouseEnter={e => { e.currentTarget.style.color = '#e2e8f0'; e.stopPropagation() }}
-          onMouseLeave={e => { e.currentTarget.style.color = '#94a3b8' }}
+          onMouseEnter={e => { e.currentTarget.style.color = 'var(--color-text-primary)'; e.stopPropagation() }}
+          onMouseLeave={e => { e.currentTarget.style.color = 'var(--color-text-secondary)' }}
         >
           <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             {collapseDirection === 'left'
