@@ -2,13 +2,14 @@
   
 ### Major
 - [x] LiveTex not found in distribution release of app. its only found using npm build dev
-- [ ] the pdf viewer is very difficult to interact with. The pdf pages are stretched, you can continuous scroll. Please make more similar to overleaf. 
-    - [ ] When you run compile, the new pdf doenst automatically show up, you have to reload to show it
-    - [ ] you have to save all documents before you press compile, or else it thinks nothing has changed and doesnt do anything. maybe auto save on compile?
+- [x] the pdf viewer is very difficult to interact with. The pdf pages are stretched, you can continuous scroll. Please make more similar to overleaf. 
+    - [x] When you run compile, the new pdf doenst automatically show up, you have to reload to show it
+    - [x] you have to save all documents before you press compile, or else it thinks nothing has changed and doesnt do anything. maybe auto save on compile?
 - [] there is no settings once inside the project. Nowhere to pick root file etc. 
 
 ### Minor
 - [ ] auto detected root file is not visually specified. "root" only appeared once manually selected. 
+- [] .DS_store and .underleaf show up in git panel as things to push. these should be ignored, no?
 - [ ] logo too close to the red,yellow,green buttons in the top left. give the logo and name "Underleaf" some horizontal room to breath
 - [ ] auxillery files should all be moved to some hidden folder upon compile, and made sure to be ignored for git operations, etc. 
 - [ ] click on compile tab error to jump to error, and hilight erroneous line as red in editor. 

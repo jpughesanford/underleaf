@@ -26,9 +26,9 @@ This is a one-time install. It gives your Mac everything it needs to turn `.tex`
 
 ### Step 2 — Download Underleaf
 
-> **Note:** Underleaf is under active development. Pre-built downloads are not yet available — see the [For developers](#for-developers) section below to build and run from source.
+> **Note:** Underleaf is under active development. See the [For developers](#for-developers) section below to build and run from source.
 
-Once a release is available, you'll download a `.dmg` from the Releases page, open it, drag **Underleaf** into your Applications folder, and launch it.
+Available releases can be found on our [Releases page](https://github.com/jpughesanford/underleaf/releases). To install, download the `.dmg` or your desired release and launch it. For long term use, make sure the file is saved in you applications folder.
 
 > **First launch note:** macOS may warn that Underleaf is from an unidentified developer. To open it anyway, right-click the app icon, choose **Open**, and confirm. You'll only need to do this once.
 

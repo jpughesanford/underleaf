@@ -63,7 +63,7 @@ export default function Dashboard({ onOpenProject, onResetRoot }: Props) {
           height: 44,
           display: 'flex',
           alignItems: 'center',
-          paddingLeft: 76,
+          paddingLeft: 96,
           paddingRight: 16,
           borderBottom: '1px solid var(--color-border)',
           background: 'var(--color-bg-panel)',

@@ -1,6 +1,8 @@
 import React, { useState } from 'react'
 import AppIcon from '../shared/AppIcon'
 
+export type CompileTarget = 'root' | 'active'
+
 interface Props {
   projectName: string
   onBack: () => void
@@ -8,6 +10,8 @@ interface Props {
   compiling: boolean
   compileTrigger: string
   onChangeTrigger: (t: string) => void
+  compileTarget: CompileTarget
+  onChangeTarget: (t: CompileTarget) => void
   projectPath: string
   activeFilePath: string | null
   onSave: () => void
@@ -20,11 +24,14 @@ export default function Toolbar({
   compiling,
   compileTrigger,
   onChangeTrigger,
+  compileTarget,
+  onChangeTarget,
   projectPath,
   activeFilePath,
   onSave,
 }: Props) {
   const [showTriggerMenu, setShowTriggerMenu] = useState(false)
+  const [showTargetMenu, setShowTargetMenu] = useState(false)
 
   return (
     <div
@@ -137,27 +144,82 @@ export default function Toolbar({
           )}
         </div>
 
-        {/* Recompile button */}
-        <button
-          className="btn btn-primary btn-sm"
-          onClick={onCompile}
-          disabled={compiling}
-          style={{ gap: 6, minWidth: 110 }}
-        >
-          {compiling ? (
-            <>
-              <div className="spinner" style={{ width: 12, height: 12 }} />
-              Compiling…
-            </>
-          ) : (
-            <>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <polygon points="5 3 19 12 5 21 5 3"/>
-              </svg>
-              Recompile
-            </>
+        {/* Recompile split button */}
+        <div style={{ display: 'flex', alignItems: 'stretch', position: 'relative' }}>
+          <button
+            className="btn btn-primary btn-sm"
+            onClick={onCompile}
+            disabled={compiling}
+            style={{ gap: 6, borderRadius: '6px 0 0 6px', borderRight: '1px solid rgba(255,255,255,0.15)', minWidth: 110 }}
+          >
+            {compiling ? (
+              <>
+                <div className="spinner" style={{ width: 12, height: 12 }} />
+                Compiling…
+              </>
+            ) : (
+              <>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <polygon points="5 3 19 12 5 21 5 3"/>
+                </svg>
+                {compileTarget === 'active' ? 'Compile File' : 'Recompile'}
+              </>
+            )}
+          </button>
+          <button
+            className="btn btn-primary btn-sm"
+            onClick={() => setShowTargetMenu(v => !v)}
+            disabled={compiling}
+            style={{ borderRadius: '0 6px 6px 0', padding: '0 6px' }}
+            title="Compile target"
+          >
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </button>
+          {showTargetMenu && (
+            <div
+              style={{
+                position: 'absolute', top: 'calc(100% + 4px)', right: 0,
+                background: 'var(--color-bg-modal)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 8, padding: 4, zIndex: 100,
+                minWidth: 190, boxShadow: 'var(--shadow-md)',
+              }}
+              onMouseLeave={() => setShowTargetMenu(false)}
+            >
+              <div style={{ fontSize: 10, color: '#475569', padding: '4px 10px 2px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                Compile target
+              </div>
+              {([
+                { value: 'root' as CompileTarget, label: 'Root document', desc: 'Always compile the main .tex file' },
+                { value: 'active' as CompileTarget, label: 'Active file', desc: 'Compile the currently open file' },
+              ]).map(opt => (
+                <div
+                  key={opt.value}
+                  onClick={() => { onChangeTarget(opt.value); setShowTargetMenu(false) }}
+                  style={{
+                    padding: '7px 10px', borderRadius: 4, cursor: 'pointer',
+                    background: compileTarget === opt.value ? 'rgba(76,175,80,0.1)' : 'transparent',
+                    display: 'flex', alignItems: 'flex-start', gap: 8,
+                  }}
+                >
+                  <div style={{ width: 14, paddingTop: 1, flexShrink: 0 }}>
+                    {compileTarget === opt.value && (
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#4CAF50" strokeWidth="2.5">
+                        <polyline points="20 6 9 17 4 12"/>
+                      </svg>
+                    )}
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 12, color: compileTarget === opt.value ? '#4CAF50' : '#e2e8f0' }}>{opt.label}</div>
+                    <div style={{ fontSize: 11, color: '#64748b', marginTop: 1 }}>{opt.desc}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
-        </button>
+        </div>
       </div>
     </div>
   )

@@ -4,7 +4,7 @@ import EditorPane from '../components/editor/EditorPane'
 import PdfPane from '../components/pdf/PdfPane'
 import GitPanel from '../components/git/GitPanel'
 import CompilePanel from '../components/editor/CompilePanel'
-import Toolbar from '../components/editor/Toolbar'
+import Toolbar, { CompileTarget } from '../components/editor/Toolbar'
 
 export type SidebarTab = 'files' | 'git'
 
@@ -21,6 +21,7 @@ interface CompileResult {
   errors: CompileError[]
   warnings: CompileError[]
   rawLog: string
+  pdfPath?: string
 }
 
 interface CompileError {
@@ -43,12 +44,17 @@ export default function EditorPage({ projectPath, projectName, onBack }: Props) 
   const [compiling, setCompiling] = useState(false)
   const [compileResult, setCompileResult] = useState<CompileResult | null>(null)
   const [pdfPath, setPdfPath] = useState<string | null>(null)
+  const [pdfVersion, setPdfVersion] = useState(0)
   const [showCompilePanel, setShowCompilePanel] = useState(false)
   const [sidebarWidth, setSidebarWidth] = useState(260)
   const [pdfWidth, setPdfWidth] = useState(420)
   const [compileTrigger, setCompileTrigger] = useState('manual')
+  const [compileTarget, setCompileTarget] = useState<CompileTarget>('root')
   const [mainDoc, setMainDoc] = useState<string | null>(null)
+  const [detectedMainDoc, setDetectedMainDoc] = useState<string | null>(null)
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const tabsRef = useRef<OpenTab[]>([])
+  const activeTabRef = useRef<string | null>(null)
 
   useEffect(() => {
     window.api.storeGet('settings').then((s: unknown) => {
@@ -56,35 +62,55 @@ export default function EditorPage({ projectPath, projectName, onBack }: Props) 
       if (settings?.compileTrigger) setCompileTrigger(settings.compileTrigger)
     })
     window.api.getPdfPath(projectPath).then(p => { if (p) setPdfPath(p) })
-    // Load per-project config for main document
-    window.api.getCompileConfig(projectPath).then((cfg: unknown) => {
+    // Load per-project config for main document, then fall back to auto-detection
+    window.api.getCompileConfig(projectPath).then(async (cfg: unknown) => {
       const config = cfg as { rootDocument?: string } | null
-      if (config?.rootDocument) setMainDoc(config.rootDocument)
+      if (config?.rootDocument) {
+        setMainDoc(config.rootDocument)
+      } else {
+        const detected = await window.api.detectMainDoc(projectPath)
+        if (detected) setDetectedMainDoc(detected)
+      }
     })
   }, [projectPath])
+
+  // Keep refs current so compile can access latest state without stale closures
+  tabsRef.current = tabs
+  activeTabRef.current = activeTab
 
   const handleSetMainDoc = useCallback(async (relativePath: string) => {
     const cfg = (await window.api.getCompileConfig(projectPath)) as Record<string, unknown> || {}
     cfg.rootDocument = relativePath
     await window.api.setCompileConfig(projectPath, cfg)
     setMainDoc(relativePath)
+    setDetectedMainDoc(null)
   }, [projectPath])
 
   const compile = useCallback(async () => {
+    // Auto-save all dirty tabs before compiling so latexmk sees latest content
+    const dirty = tabsRef.current.filter(t => t.isDirty)
+    if (dirty.length > 0) {
+      await Promise.all(dirty.map(t => window.api.writeFile(t.path, t.content)))
+      setTabs(prev => prev.map(t => dirty.some(d => d.path === t.path) ? { ...t, isDirty: false } : t))
+    }
+
     setCompiling(true)
     setShowCompilePanel(true)
     setCompileResult(null)
     try {
-      const result = await window.api.compile(projectPath)
+      const activeFile = activeTabRef.current
+      const opts = compileTarget === 'active' && activeFile ? { file: activeFile } : undefined
+      const result = await window.api.compile(projectPath, opts)
       setCompileResult(result)
       if (result.success) {
-        const p = await window.api.getPdfPath(projectPath)
+        const p = result.pdfPath ?? await window.api.getPdfPath(projectPath)
         setPdfPath(p)
+        setPdfVersion(v => v + 1)
       }
     } finally {
       setCompiling(false)
     }
-  }, [projectPath])
+  }, [projectPath, compileTarget])
 
   const openFile = useCallback(async (filePath: string) => {
     // Check if already open
@@ -160,6 +186,8 @@ export default function EditorPage({ projectPath, projectName, onBack }: Props) 
         compiling={compiling}
         compileTrigger={compileTrigger}
         onChangeTrigger={setCompileTrigger}
+        compileTarget={compileTarget}
+        onChangeTarget={setCompileTarget}
         projectPath={projectPath}
         activeFilePath={activeTab}
         onSave={() => activeTab && saveFile(activeTab)}
@@ -219,6 +247,7 @@ export default function EditorPage({ projectPath, projectName, onBack }: Props) 
               activeFile={activeTab}
               onOpenFile={openFile}
               mainDoc={mainDoc}
+              detectedMainDoc={detectedMainDoc}
               onSetMainDoc={handleSetMainDoc}
             />
           ) : (
@@ -308,7 +337,7 @@ export default function EditorPage({ projectPath, projectName, onBack }: Props) 
         {/* PDF pane */}
         {pdfPath && (
           <div style={{ width: pdfWidth, flexShrink: 0, borderLeft: '1px solid var(--color-border)' }}>
-            <PdfPane pdfPath={pdfPath} />
+            <PdfPane pdfPath={pdfPath} version={pdfVersion} />
           </div>
         )}
       </div>

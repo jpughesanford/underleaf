@@ -4,27 +4,84 @@ import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 interface PDFDocumentProxy {
   numPages: number
   getPage: (n: number) => Promise<PDFPageProxy>
+  destroy: () => void
 }
-
 interface PDFPageProxy {
   getViewport: (opts: { scale: number }) => { width: number; height: number }
-  render: (ctx: { canvasContext: CanvasRenderingContext2D; viewport: { width: number; height: number } }) => { promise: Promise<void> }
+  render: (ctx: { canvasContext: CanvasRenderingContext2D; viewport: { width: number; height: number } }) => { promise: Promise<void>; cancel: () => void }
+  cleanup: () => void
 }
 
 interface Props {
   pdfPath: string
+  version?: number
 }
 
-export default function PdfPane({ pdfPath }: Props) {
+function PdfPage({
+  doc, pageNum, scale, onVisible,
+}: {
+  doc: PDFDocumentProxy
+  pageNum: number
+  scale: number
+  onVisible: (n: number) => void
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const wrapRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    let cancelled = false
+    let task: { promise: Promise<void>; cancel: () => void } | null = null
+
+    doc.getPage(pageNum).then(page => {
+      if (cancelled) return
+      const dpr = window.devicePixelRatio || 1
+      const viewport = page.getViewport({ scale: scale * dpr })
+      canvas.width = viewport.width
+      canvas.height = viewport.height
+      canvas.style.width = `${viewport.width / dpr}px`
+      canvas.style.height = `${viewport.height / dpr}px`
+      const ctx = canvas.getContext('2d')
+      if (!ctx || cancelled) return
+      task = page.render({ canvasContext: ctx, viewport })
+      task.promise.catch(() => {})
+    })
+
+    return () => {
+      cancelled = true
+      task?.cancel()
+    }
+  }, [doc, pageNum, scale])
+
+  useEffect(() => {
+    const el = wrapRef.current
+    if (!el) return
+    const observer = new IntersectionObserver(
+      entries => { if (entries[0].isIntersecting) onVisible(pageNum) },
+      { threshold: 0.3 },
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [pageNum, onVisible])
+
+  return (
+    <div ref={wrapRef} style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+      <canvas ref={canvasRef} style={{ display: 'block', boxShadow: '0 2px 24px rgba(0,0,0,0.55)', borderRadius: 2 }} />
+    </div>
+  )
+}
+
+export default function PdfPane({ pdfPath, version = 0 }: Props) {
   const [doc, setDoc] = useState<PDFDocumentProxy | null>(null)
   const [numPages, setNumPages] = useState(0)
   const [currentPage, setCurrentPage] = useState(1)
-  const [scale, setScale] = useState(1.2)
+  const [scale, setScale] = useState(1.3)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const containerRef = useRef<HTMLDivElement>(null)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const renderTaskRef = useRef<{ promise: Promise<void>; cancel?: () => void } | null>(null)
+  const [naturalSize, setNaturalSize] = useState<{ width: number; height: number } | null>(null)
+  const prevDocRef = useRef<PDFDocumentProxy | null>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
 
   const loadPdf = useCallback(async () => {
     if (!pdfPath) return
@@ -39,6 +96,21 @@ export default function PdfPane({ pdfPath }: Props) {
 
       const loadingTask = getDocument({ data: arrayBuffer })
       const pdfDoc = await loadingTask.promise
+
+      // Measure natural page dimensions for fit-to-width / fit-to-height
+      const p1 = await pdfDoc.getPage(1)
+      const vp1 = p1.getViewport({ scale: 1 })
+      setNaturalSize({ width: vp1.width, height: vp1.height })
+
+      // Auto fit-to-width on first load
+      if (scrollRef.current) {
+        const available = scrollRef.current.clientWidth - 40
+        setScale(+(available / vp1.width).toFixed(2))
+      }
+
+      prevDocRef.current?.destroy()
+      prevDocRef.current = pdfDoc as unknown as PDFDocumentProxy
+
       setDoc(pdfDoc as unknown as PDFDocumentProxy)
       setNumPages(pdfDoc.numPages)
       setCurrentPage(1)
@@ -47,152 +119,189 @@ export default function PdfPane({ pdfPath }: Props) {
     } finally {
       setLoading(false)
     }
-  }, [pdfPath])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pdfPath, version])
 
   useEffect(() => { loadPdf() }, [loadPdf])
 
-  useEffect(() => {
-    if (!doc || !canvasRef.current) return
-    const canvas = canvasRef.current
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
+  const handlePageVisible = useCallback((n: number) => setCurrentPage(n), [])
 
-    let cancelled = false
+  const fitToWidth = useCallback(() => {
+    if (!naturalSize || !scrollRef.current) return
+    const available = scrollRef.current.clientWidth - 40 // account for padding
+    setScale(+(available / naturalSize.width).toFixed(2))
+  }, [naturalSize])
 
-    doc.getPage(currentPage).then(page => {
-      if (cancelled) return
-      const viewport = page.getViewport({ scale })
-      canvas.width = viewport.width
-      canvas.height = viewport.height
-      const renderTask = page.render({ canvasContext: ctx, viewport })
-      renderTaskRef.current = renderTask
-      renderTask.promise.catch(() => {/* cancelled */})
-    })
+  const fitToHeight = useCallback(() => {
+    if (!naturalSize || !scrollRef.current) return
+    const available = scrollRef.current.clientHeight - 40
+    setScale(+(available / naturalSize.height).toFixed(2))
+  }, [naturalSize])
 
-    return () => { cancelled = true }
-  }, [doc, currentPage, scale])
+  const pages = doc ? Array.from({ length: numPages }, (_, i) => i + 1) : []
 
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      height: '100%',
-      background: '#0d1117',
-    }}>
-      {/* PDF toolbar */}
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#111827' }}>
+
+      {/* Toolbar */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
-        gap: 8,
-        padding: '6px 10px',
+        gap: 4,
+        padding: '0 10px',
         borderBottom: '1px solid var(--color-border)',
         background: 'var(--color-bg-toolbar)',
         flexShrink: 0,
-        fontSize: 12,
+        height: 36,
       }}>
-        <button
-          className="btn btn-ghost btn-icon"
-          onClick={loadPdf}
-          title="Reload PDF"
-          style={{ width: 24, height: 24, color: '#64748b' }}
-        >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <polyline points="23 4 23 10 17 10"/>
-            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+        {/* Page counter */}
+        <span style={{ fontSize: 11, color: '#94a3b8', minWidth: 52, textAlign: 'center' }}>
+          {numPages ? `${currentPage} / ${numPages}` : '—'}
+        </span>
+
+        <div style={{ flex: 1 }} />
+
+        {/* Fit to width */}
+        <PdfToolButton onClick={fitToWidth} title="Fit to width" disabled={!doc}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M21 11H3"/><path d="M7 7l-4 4 4 4"/><path d="M17 7l4 4-4 4"/>
+            <line x1="3" y1="19" x2="21" y2="19" strokeWidth="1.5" strokeDasharray="2 2"/>
           </svg>
-        </button>
+        </PdfToolButton>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#64748b' }}>
-          <button
-            className="btn btn-ghost btn-icon"
-            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-            disabled={currentPage <= 1}
-            style={{ width: 22, height: 22 }}
-          >
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <polyline points="15 18 9 12 15 6"/>
-            </svg>
-          </button>
-          <span style={{ fontSize: 11, color: '#94a3b8', minWidth: 60, textAlign: 'center' }}>
-            {numPages ? `${currentPage} / ${numPages}` : '—'}
-          </span>
-          <button
-            className="btn btn-ghost btn-icon"
-            onClick={() => setCurrentPage(p => Math.min(numPages, p + 1))}
-            disabled={currentPage >= numPages}
-            style={{ width: 22, height: 22 }}
-          >
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <polyline points="9 18 15 12 9 6"/>
-            </svg>
-          </button>
-        </div>
+        {/* Fit to height */}
+        <PdfToolButton onClick={fitToHeight} title="Fit to height" disabled={!doc}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M13 21V3"/><path d="M17 7l-4-4-4 4"/><path d="M17 17l-4 4-4-4"/>
+            <line x1="5" y1="3" x2="5" y2="21" strokeWidth="1.5" strokeDasharray="2 2"/>
+          </svg>
+        </PdfToolButton>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginLeft: 'auto' }}>
+        <div style={{ width: 1, height: 16, background: 'var(--color-border)', margin: '0 2px' }} />
+
+        {/* Zoom controls — styled as a pill group */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          background: 'rgba(255,255,255,0.06)',
+          borderRadius: 6,
+          border: '1px solid rgba(255,255,255,0.1)',
+          overflow: 'hidden',
+        }}>
           <button
-            className="btn btn-ghost btn-icon"
-            onClick={() => setScale(s => Math.max(0.4, s - 0.2))}
-            style={{ width: 22, height: 22, color: '#64748b' }}
+            onClick={() => setScale(s => Math.max(0.4, +(s - 0.15).toFixed(2)))}
+            title="Zoom out"
+            style={{
+              width: 26, height: 26, border: 'none', background: 'transparent',
+              color: '#cbd5e1', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
           >
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <line x1="5" y1="12" x2="19" y2="12"/>
             </svg>
           </button>
-          <span style={{ fontSize: 11, color: '#64748b', minWidth: 36, textAlign: 'center' }}>
+          <span
+            style={{
+              fontSize: 11, color: '#cbd5e1', minWidth: 40, textAlign: 'center',
+              borderLeft: '1px solid rgba(255,255,255,0.1)', borderRight: '1px solid rgba(255,255,255,0.1)',
+              padding: '0 2px', lineHeight: '26px',
+            }}
+          >
             {Math.round(scale * 100)}%
           </span>
           <button
-            className="btn btn-ghost btn-icon"
-            onClick={() => setScale(s => Math.min(3, s + 0.2))}
-            style={{ width: 22, height: 22, color: '#64748b' }}
+            onClick={() => setScale(s => Math.min(4, +(s + 0.15).toFixed(2)))}
+            title="Zoom in"
+            style={{
+              width: 26, height: 26, border: 'none', background: 'transparent',
+              color: '#cbd5e1', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
           >
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
             </svg>
           </button>
         </div>
       </div>
 
-      {/* PDF canvas */}
+      {/* Scroll area */}
       <div
-        ref={containerRef}
-        style={{ flex: 1, overflow: 'auto', display: 'flex', justifyContent: 'center', padding: 16 }}
+        ref={scrollRef}
+        style={{ flex: 1, overflow: 'auto', padding: '20px 0 20px', background: '#1e2130' }}
       >
         {loading && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, color: '#64748b', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#64748b', gap: 8 }}>
             <div className="spinner" style={{ color: 'var(--color-brand)' }} />
-            Loading PDF...
+            <span style={{ fontSize: 13 }}>Loading PDF…</span>
           </div>
         )}
+
         {error && !loading && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, flexDirection: 'column', gap: 8, color: '#f87171' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', flexDirection: 'column', gap: 8, color: '#f87171' }}>
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
               <circle cx="12" cy="12" r="10"/>
               <line x1="12" y1="8" x2="12" y2="12"/>
               <line x1="12" y1="16" x2="12.01" y2="16"/>
             </svg>
             <span style={{ fontSize: 13 }}>{error}</span>
+            <button className="btn btn-ghost btn-sm" onClick={loadPdf} style={{ marginTop: 4 }}>Retry</button>
           </div>
         )}
-        {!loading && !error && doc && (
-          <canvas
-            ref={canvasRef}
-            style={{
-              boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
-              maxWidth: '100%',
-            }}
-          />
-        )}
+
         {!loading && !error && !doc && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, flexDirection: 'column', gap: 12, color: '#475569' }}>
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" style={{ opacity: 0.4 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', flexDirection: 'column', gap: 12, color: '#475569' }}>
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" style={{ opacity: 0.35 }}>
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
               <polyline points="14 2 14 8 20 8"/>
             </svg>
-            <p style={{ fontSize: 13 }}>PDF preview will appear here after compilation</p>
+            <p style={{ fontSize: 13 }}>PDF will appear here after compilation</p>
+          </div>
+        )}
+
+        {!loading && !error && doc && pages.length > 0 && (
+          <div>
+            {pages.map(pageNum => (
+              <PdfPage
+                key={`${pdfPath}-${version}-${pageNum}`}
+                doc={doc}
+                pageNum={pageNum}
+                scale={scale}
+                onVisible={handlePageVisible}
+              />
+            ))}
           </div>
         )}
       </div>
     </div>
+  )
+}
+
+function PdfToolButton({ onClick, title, disabled, children }: {
+  onClick: () => void
+  title: string
+  disabled?: boolean
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      onClick={onClick}
+      title={title}
+      disabled={disabled}
+      style={{
+        width: 26, height: 26, border: 'none', borderRadius: 5,
+        background: 'transparent', color: disabled ? '#334155' : '#94a3b8',
+        cursor: disabled ? 'default' : 'pointer',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        transition: 'background 120ms, color 120ms',
+      }}
+      onMouseEnter={e => { if (!disabled) { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = '#e2e8f0' } }}
+      onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = disabled ? '#334155' : '#94a3b8' }}
+    >
+      {children}
+    </button>
   )
 }

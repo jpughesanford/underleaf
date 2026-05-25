@@ -12,12 +12,24 @@ export interface FileStatus {
   status: string
 }
 
+// Hide only app-managed paths from the git panel. Everything else (including
+// .DS_Store) is left to the user's .gitignore to control.
+function isHiddenFromPanel(filePath: string): boolean {
+  return (
+    filePath === '.underleaf' ||
+    filePath.startsWith('.underleaf-build') ||
+    filePath.startsWith('.underleaf/')
+  )
+}
+
 function parseStatus(files: { path: string; index: string; working_dir: string }[]): GitStatus {
   const staged: FileStatus[] = []
   const unstaged: FileStatus[] = []
   const conflicted: string[] = []
 
   for (const f of files) {
+    if (isHiddenFromPanel(f.path)) continue
+
     const index = f.index.trim()
     const wd = f.working_dir.trim()
 

@@ -20,6 +20,7 @@ interface Props {
   activeFile: string | null
   onOpenFile: (path: string) => void
   mainDoc?: string | null
+  detectedMainDoc?: string | null
   onSetMainDoc?: (relativePath: string) => void
 }
 
@@ -48,6 +49,8 @@ function FileTreeNode({
   depth,
   activeFile,
   mainDoc,
+  detectedMainDoc,
+  showHidden,
   onOpenFile,
   onContextMenu,
 }: {
@@ -55,12 +58,17 @@ function FileTreeNode({
   depth: number
   activeFile: string | null
   mainDoc?: string | null
+  detectedMainDoc?: string | null
+  showHidden: boolean
   onOpenFile: (path: string) => void
   onContextMenu: (e: React.MouseEvent, node: FileNode) => void
 }) {
   const [expanded, setExpanded] = useState(depth === 0)
   const isActive = node.path === activeFile
-  const isMain = mainDoc && node.relativePath === mainDoc
+  const isMain = !!(mainDoc && node.relativePath === mainDoc)
+  const isDetected = !isMain && !!(detectedMainDoc && node.relativePath === detectedMainDoc)
+
+  if (!showHidden && node.name.startsWith('.')) return null
 
   if (node.isDirectory) {
     return (
@@ -100,6 +108,8 @@ function FileTreeNode({
             depth={depth + 1}
             activeFile={activeFile}
             mainDoc={mainDoc}
+            detectedMainDoc={detectedMainDoc}
+            showHidden={showHidden}
             onOpenFile={onOpenFile}
             onContextMenu={onContextMenu}
           />
@@ -108,7 +118,8 @@ function FileTreeNode({
     )
   }
 
-  const isEditable = ['tex', 'bib', 'cls', 'sty', 'bst', 'txt', 'md'].includes(node.extension?.toLowerCase() || '')
+  const BINARY_EXTENSIONS = new Set(['pdf', 'png', 'jpg', 'jpeg', 'gif', 'svg', 'ico', 'webp', 'mp4', 'mp3', 'zip', 'tar', 'gz', 'dmg', 'exe'])
+  const isEditable = !node.isDirectory && !BINARY_EXTENSIONS.has(node.extension?.toLowerCase() ?? '')
 
   return (
     <div
@@ -139,9 +150,24 @@ function FileTreeNode({
         <span style={{
           fontSize: 9, fontWeight: 700, color: '#4CAF50',
           background: 'rgba(76,175,80,0.15)',
+          border: '1px solid rgba(76,175,80,0.4)',
           borderRadius: 3, padding: '1px 4px',
           flexShrink: 0, letterSpacing: 0.3,
         }}>
+          ROOT
+        </span>
+      )}
+      {isDetected && (
+        <span
+          title="Auto-detected root document — right-click to set explicitly"
+          style={{
+            fontSize: 9, fontWeight: 600, color: '#64748b',
+            background: 'transparent',
+            border: '1px dashed #475569',
+            borderRadius: 3, padding: '1px 4px',
+            flexShrink: 0, letterSpacing: 0.3,
+          }}
+        >
           ROOT
         </span>
       )}
@@ -149,9 +175,10 @@ function FileTreeNode({
   )
 }
 
-export default function FileExplorer({ projectPath, activeFile, onOpenFile, mainDoc, onSetMainDoc }: Props) {
+export default function FileExplorer({ projectPath, activeFile, onOpenFile, mainDoc, detectedMainDoc, onSetMainDoc }: Props) {
   const [tree, setTree] = useState<FileNode[]>([])
   const [loading, setLoading] = useState(true)
+  const [showHidden, setShowHidden] = useState(true)
   const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -198,17 +225,38 @@ export default function FileExplorer({ projectPath, activeFile, onOpenFile, main
         <span style={{ fontSize: 11, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.5 }}>
           Files
         </span>
-        <button
-          className="btn btn-ghost btn-icon"
-          onClick={refresh}
-          title="Refresh"
-          style={{ width: 24, height: 24, color: '#64748b' }}
-        >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <polyline points="23 4 23 10 17 10"/>
-            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
-          </svg>
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <button
+            className="btn btn-ghost btn-icon"
+            onClick={() => setShowHidden(v => !v)}
+            title={showHidden ? 'Hide dotfiles' : 'Show dotfiles'}
+            style={{ width: 24, height: 24, color: showHidden ? '#64748b' : '#334155' }}
+          >
+            {showHidden ? (
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+            ) : (
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+                <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+                <line x1="1" y1="1" x2="23" y2="23"/>
+              </svg>
+            )}
+          </button>
+          <button
+            className="btn btn-ghost btn-icon"
+            onClick={refresh}
+            title="Refresh"
+            style={{ width: 24, height: 24, color: '#64748b' }}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polyline points="23 4 23 10 17 10"/>
+              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+            </svg>
+          </button>
+        </div>
       </div>
 
       {/* Tree */}
@@ -225,6 +273,8 @@ export default function FileExplorer({ projectPath, activeFile, onOpenFile, main
               depth={0}
               activeFile={activeFile}
               mainDoc={mainDoc}
+              detectedMainDoc={detectedMainDoc}
+              showHidden={showHidden}
               onOpenFile={onOpenFile}
               onContextMenu={handleContextMenu}
             />

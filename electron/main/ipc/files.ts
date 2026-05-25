@@ -14,7 +14,8 @@ export interface FileNode {
   extension?: string
 }
 
-const IGNORED = new Set(['.git', 'node_modules', '.underleaf'])
+// Never expose these — .git is internal git state, .underleaf* are app-managed.
+const IGNORED = new Set(['.git', 'node_modules', '.underleaf', '.underleaf-build', '.DS_Store'])
 
 function buildTree(dirPath: string, rootPath: string): FileNode[] {
   const entries = readdirSync(dirPath).sort((a, b) => {
@@ -26,7 +27,7 @@ function buildTree(dirPath: string, rootPath: string): FileNode[] {
 
   const nodes: FileNode[] = []
   for (const entry of entries) {
-    if (IGNORED.has(entry) || entry.startsWith('.')) continue
+    if (IGNORED.has(entry)) continue
     const fullPath = join(dirPath, entry)
     const rel = relative(rootPath, fullPath)
     try {

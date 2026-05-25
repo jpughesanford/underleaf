@@ -164,16 +164,16 @@ export function registerProjectIPC(store: Store): void {
     const templates: Record<string, Record<string, string>> = {
       article: {
         'main.tex': `\\documentclass{article}\n\\title{${name}}\n\\author{Author}\n\\date{\\today}\n\n\\begin{document}\n\\maketitle\n\n\\section{Introduction}\n\n\\end{document}\n`,
-        '.gitignore': '*.aux\n*.log\n*.out\n*.pdf\n*.synctex.gz\n*.fls\n*.fdb_latexmk\n',
+        '.gitignore': '.DS_Store\n.underleaf\n.underleaf-build/\n*.aux\n*.log\n*.out\n*.synctex.gz\n*.fls\n*.fdb_latexmk\n',
       },
       beamer: {
         'main.tex': `\\documentclass{beamer}\n\\title{${name}}\n\\author{Author}\n\\date{\\today}\n\n\\begin{document}\n\\begin{frame}\n\\titlepage\n\\end{frame}\n\n\\begin{frame}{Introduction}\n\n\\end{frame}\n\n\\end{document}\n`,
-        '.gitignore': '*.aux\n*.log\n*.out\n*.pdf\n*.synctex.gz\n*.fls\n*.fdb_latexmk\n*.nav\n*.snm\n*.toc\n',
+        '.gitignore': '.DS_Store\n.underleaf\n.underleaf-build/\n*.aux\n*.log\n*.out\n*.synctex.gz\n*.fls\n*.fdb_latexmk\n*.nav\n*.snm\n*.toc\n',
       },
       thesis: {
         'main.tex': `\\documentclass[12pt]{report}\n\\title{${name}}\n\\author{Author}\n\\date{\\today}\n\n\\begin{document}\n\\maketitle\n\\tableofcontents\n\n\\chapter{Introduction}\n\n\\end{document}\n`,
         'chapters/introduction.tex': `\\chapter{Introduction}\n\n`,
-        '.gitignore': '*.aux\n*.log\n*.out\n*.pdf\n*.synctex.gz\n*.fls\n*.fdb_latexmk\n*.toc\n*.lof\n*.lot\n',
+        '.gitignore': '.DS_Store\n.underleaf\n.underleaf-build/\n*.aux\n*.log\n*.out\n*.synctex.gz\n*.fls\n*.fdb_latexmk\n*.toc\n*.lof\n*.lot\n',
       },
     }
 

@@ -12,11 +12,11 @@ function ensureBuildDir(projectPath: string): string {
   const buildDir = join(projectPath, BUILD_DIR_NAME)
   if (!existsSync(buildDir)) {
     mkdirSync(buildDir, { recursive: true })
-    // Write .gitignore so the build dir is never committed
     writeFileSync(join(buildDir, '.gitignore'), '*\n', 'utf8')
   }
   return buildDir
 }
+
 
 export interface CompileError {
   type: 'error' | 'warning'
@@ -30,6 +30,7 @@ export interface CompileResult {
   errors: CompileError[]
   warnings: CompileError[]
   rawLog: string
+  pdfPath?: string
 }
 
 function findRootDocument(projectPath: string): string | null {
@@ -120,7 +121,7 @@ function parseLog(log: string, projectPath: string): { errors: CompileError[]; w
 const activeCompiles = new Map<string, ReturnType<typeof spawn>>()
 
 export function registerCompileIPC(store: Store): void {
-  ipcMain.handle('compile:run', async (event, projectPath: string): Promise<CompileResult> => {
+  ipcMain.handle('compile:run', async (event, projectPath: string, opts?: { file?: string }): Promise<CompileResult> => {
     const win = BrowserWindow.fromWebContents(event.sender)
 
     const settings = store.get('settings') as { defaultEngine: string }
@@ -135,10 +136,12 @@ export function registerCompileIPC(store: Store): void {
       } catch { /* ignore */ }
     }
 
-    const rootDoc = findRootDocument(projectPath)
-    if (!rootDoc) {
+    // Use explicitly requested file, or auto-detect root document
+    const targetFile = opts?.file ?? findRootDocument(projectPath)
+    if (!targetFile) {
       return { success: false, errors: [{ type: 'error', file: '', line: null, message: 'No root document found (no \\documentclass)' }], warnings: [], rawLog: '' }
     }
+    const rootDoc = targetFile
 
     const rootRel = relative(projectPath, rootDoc)
     const buildDir = ensureBuildDir(projectPath)
@@ -179,7 +182,14 @@ export function registerCompileIPC(store: Store): void {
       proc.on('close', (code) => {
         activeCompiles.delete(projectPath)
         const { errors, warnings } = parseLog(rawLog, projectPath)
-        resolve({ success: code === 0, errors, warnings, rawLog })
+        const success = code === 0
+        let pdfPath: string | undefined
+        if (success) {
+          const pdfName = basename(rootDoc).replace(/\.tex$/, '.pdf')
+          const candidate = join(buildDir, pdfName)
+          if (existsSync(candidate)) pdfPath = candidate
+        }
+        resolve({ success, errors, warnings, rawLog, pdfPath })
       })
 
       proc.on('error', (err) => {
@@ -218,6 +228,12 @@ export function registerCompileIPC(store: Store): void {
     if (!existsSync(pdfPath)) return null
     const buf = readFileSync(pdfPath)
     return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength)
+  })
+
+  ipcMain.handle('compile:detectMainDoc', (_, projectPath: string) => {
+    const doc = findRootDocument(projectPath)
+    if (!doc) return null
+    return relative(projectPath, doc)
   })
 
   ipcMain.handle('compile:getConfig', (_, projectPath: string) => {

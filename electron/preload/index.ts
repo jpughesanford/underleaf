@@ -48,10 +48,11 @@ const api = {
     ipcRenderer.invoke('git:resolveConflict', projectPath, file, resolution),
 
   // Compile
-  compile: (projectPath: string) => ipcRenderer.invoke('compile:run', projectPath),
+  compile: (projectPath: string, opts?: { file?: string }) => ipcRenderer.invoke('compile:run', projectPath, opts),
   stopCompile: (projectPath: string) => ipcRenderer.invoke('compile:stop', projectPath),
   getPdfPath: (projectPath: string) => ipcRenderer.invoke('compile:getPdfPath', projectPath),
   readPdf: (pdfPath: string) => ipcRenderer.invoke('compile:readPdf', pdfPath),
+  detectMainDoc: (projectPath: string) => ipcRenderer.invoke('compile:detectMainDoc', projectPath),
   getCompileConfig: (projectPath: string) => ipcRenderer.invoke('compile:getConfig', projectPath),
   setCompileConfig: (projectPath: string, config: Record<string, unknown>) =>
     ipcRenderer.invoke('compile:setConfig', projectPath, config),
