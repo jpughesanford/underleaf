@@ -1,5 +1,10 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react'
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
+import { useTheme } from '../../context/ThemeContext'
+
+// Per-mode brightness defaults. Dark mode dims the PDF so it doesn't blast white
+// pages at someone editing in a dark room.
+const DEFAULT_BRIGHTNESS = { dark: 0.8, light: 1 } as const
 
 interface PDFDocumentProxy {
   numPages: number
@@ -80,11 +85,37 @@ export default function PdfPane({ pdfPath, version = 0 }: Props) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [naturalSize, setNaturalSize] = useState<{ width: number; height: number } | null>(null)
-  const [brightness, setBrightness] = useState(1)
+  // Brightness is stored per color-mode and persisted. Each toggle of the global
+  // theme mode jumps the slider to the mode's remembered value.
+  const { mode } = useTheme()
+  const [brightnessByMode, setBrightnessByMode] = useState<{ dark: number; light: number }>(DEFAULT_BRIGHTNESS)
+  const brightness = brightnessByMode[mode]
+  const setBrightness = useCallback((v: number) => {
+    setBrightnessByMode(prev => {
+      const next = { ...prev, [mode]: v }
+      window.api.storeGet('settings').then((s: unknown) => {
+        const settings = (s as Record<string, unknown> | null) ?? {}
+        window.api.storeSet('settings', { ...settings, pdfBrightness: next })
+      })
+      return next
+    })
+  }, [mode])
   const [brightnessOpen, setBrightnessOpen] = useState(false)
   const prevDocRef = useRef<PDFDocumentProxy | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const brightnessRef = useRef<HTMLDivElement>(null)
+
+  // Load persisted brightness on mount; fall back to defaults if absent or malformed.
+  useEffect(() => {
+    window.api.storeGet('settings').then((s: unknown) => {
+      const stored = (s as { pdfBrightness?: Partial<{ dark: number; light: number }> } | null)?.pdfBrightness
+      if (!stored) return
+      setBrightnessByMode({
+        dark: typeof stored.dark === 'number' ? stored.dark : DEFAULT_BRIGHTNESS.dark,
+        light: typeof stored.light === 'number' ? stored.light : DEFAULT_BRIGHTNESS.light,
+      })
+    })
+  }, [])
   const pendingZoomRef = useRef<{
     contentX: number
     contentY: number
@@ -315,15 +346,15 @@ export default function PdfPane({ pdfPath, version = 0 }: Props) {
               background: brightnessOpen ? 'var(--color-bg-card-hover)' : 'transparent',
               color: !doc
                 ? 'var(--color-text-muted)'
-                : brightness < 1
+                : brightness !== DEFAULT_BRIGHTNESS[mode]
                   ? 'var(--color-brand)'
                   : (brightnessOpen ? 'var(--color-text-primary)' : 'var(--color-text-secondary)'),
               cursor: !doc ? 'default' : 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               transition: 'background 120ms, color 120ms',
             }}
-            onMouseEnter={e => { if (doc && !brightnessOpen) { e.currentTarget.style.background = 'var(--color-bg-card-hover)'; if (brightness >= 1) e.currentTarget.style.color = 'var(--color-text-primary)' } }}
-            onMouseLeave={e => { if (!brightnessOpen) { e.currentTarget.style.background = 'transparent'; if (brightness >= 1) e.currentTarget.style.color = doc ? 'var(--color-text-secondary)' : 'var(--color-text-muted)' } }}
+            onMouseEnter={e => { if (doc && !brightnessOpen) { e.currentTarget.style.background = 'var(--color-bg-card-hover)'; if (brightness === DEFAULT_BRIGHTNESS[mode]) e.currentTarget.style.color = 'var(--color-text-primary)' } }}
+            onMouseLeave={e => { if (!brightnessOpen) { e.currentTarget.style.background = 'transparent'; if (brightness === DEFAULT_BRIGHTNESS[mode]) e.currentTarget.style.color = doc ? 'var(--color-text-secondary)' : 'var(--color-text-muted)' } }}
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="4"/>
@@ -356,14 +387,14 @@ export default function PdfPane({ pdfPath, version = 0 }: Props) {
                   Brightness
                 </span>
                 <button
-                  onClick={() => setBrightness(1)}
-                  disabled={brightness === 1}
+                  onClick={() => setBrightness(DEFAULT_BRIGHTNESS[mode])}
+                  disabled={brightness === DEFAULT_BRIGHTNESS[mode]}
                   title="Reset"
                   style={{
                     border: 'none', background: 'transparent',
-                    color: brightness === 1 ? 'var(--color-text-muted)' : 'var(--color-text-accent)',
+                    color: brightness === DEFAULT_BRIGHTNESS[mode] ? 'var(--color-text-muted)' : 'var(--color-text-accent)',
                     fontSize: 10, fontWeight: 600, letterSpacing: '0.04em',
-                    cursor: brightness === 1 ? 'default' : 'pointer',
+                    cursor: brightness === DEFAULT_BRIGHTNESS[mode] ? 'default' : 'pointer',
                     padding: '2px 4px', borderRadius: 3,
                   }}
                 >

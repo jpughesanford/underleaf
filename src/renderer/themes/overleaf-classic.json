@@ -53,10 +53,10 @@
       "outline": "1px solid rgba(0, 0, 0, 0.33)"
     },
     ".cm-activeLine": {
-      "background": "rgb(232, 242, 254)"
+      "background": "rgba(99, 158, 230, 0.12)"
     },
     ".cm-activeLineGutter": {
-      "backgroundColor": "rgb(232, 242, 254)"
+      "backgroundColor": "rgba(99, 158, 230, 0.12)"
     },
     ".cm-selectionMatch.cm-selectionMatch, .cm-searchMatch.cm-searchMatch": {
       "outline": "1px solid rgba(100, 5, 208, 0.27)",
