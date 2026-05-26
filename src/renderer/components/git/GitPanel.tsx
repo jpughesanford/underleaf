@@ -327,14 +327,17 @@ export default function GitPanel({ projectPath, onOpenFile }: Props) {
 
       {/* Status message */}
       {message && (
-        <div style={{
-          padding: '8px 12px',
-          fontSize: 12,
-          color: message.type === 'success' ? 'var(--badge-sync-color)' : 'var(--color-text-error)',
-          background: message.type === 'success' ? 'var(--badge-sync-bg)' : 'var(--badge-err-bg)',
-          borderTop: `1px solid ${message.type === 'success' ? 'var(--badge-sync-border)' : 'var(--badge-err-border)'}`,
-          flexShrink: 0,
-        }}>
+        <div
+          className="selectable"
+          style={{
+            padding: '8px 12px',
+            fontSize: 12,
+            color: message.type === 'success' ? 'var(--badge-sync-color)' : 'var(--color-text-error)',
+            background: message.type === 'success' ? 'var(--badge-sync-bg)' : 'var(--badge-err-bg)',
+            borderTop: `1px solid ${message.type === 'success' ? 'var(--badge-sync-border)' : 'var(--badge-err-border)'}`,
+            flexShrink: 0,
+          }}
+        >
           {message.text}
         </div>
       )}

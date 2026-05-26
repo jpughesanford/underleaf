@@ -98,7 +98,26 @@ html, body, #root {
   font-size: 13px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  /* Text labels, error messages, code, headings — all selectable by default.
+     Interactive surfaces (buttons, file tree rows, tab strips, drag regions)
+     opt out via `.unselectable` or component-local rules. */
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* Interactive controls should not be drag-selectable — selecting their label
+   feels broken. */
+.btn,
+button,
+.titlebar-drag,
+.titlebar-drag * {
   user-select: none;
+  -webkit-user-select: none;
+}
+
+.unselectable, .unselectable * {
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 /* Scrollbars */
@@ -127,6 +146,93 @@ html, body, #root {
 .relative { position: relative; }
 .absolute { position: absolute; }
 .inset-0 { inset: 0; }
+
+/* Opt-in helper for blocks that should always be selectable, even inside an
+   `.unselectable` ancestor. Most chrome text is selectable by default now, but
+   this remains useful inside file-tree rows / tab strips. */
+.selectable {
+  user-select: text;
+  -webkit-user-select: text;
+  cursor: text;
+}
+
+/* ---------------------------------------------------------------------------
+   Form fields (modals: NewProject, Clone, Settings)
+   --------------------------------------------------------------------------- */
+.form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.form-field-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+.form-field-hint {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  line-height: 1.45;
+}
+.form-field-hint code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-text-secondary);
+}
+.form-error {
+  font-size: 13px;
+  color: var(--color-text-error);
+}
+.form-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+.form-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  padding-top: 8px;
+}
+
+/* Template chooser cards in NewProjectModal */
+.template-card {
+  flex: 1;
+  padding: 10px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-input);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  font-family: inherit;
+  text-align: center;
+  transition: border-color var(--transition), background var(--transition), color var(--transition);
+}
+.template-card:hover:not(.selected) {
+  border-color: var(--color-border-light);
+  color: var(--color-text-primary);
+}
+.template-card.selected {
+  border-color: var(--color-brand);
+  background: rgba(76, 175, 80, 0.1);
+  color: var(--color-brand);
+}
+.template-card-title {
+  font-weight: 600;
+  font-size: 13px;
+}
+.template-card-desc {
+  font-size: 11px;
+  margin-top: 2px;
+  opacity: 0.7;
+}
 
 /* Buttons */
 .btn {
@@ -325,4 +431,39 @@ textarea.input { resize: vertical; font-family: var(--font-mono); }
   border: 2px solid var(--color-brand);
   cursor: grab;
   box-shadow: 0 1px 4px rgba(0,0,0,0.35);
+}
+
+/* ---------------------------------------------------------------------------
+   PDF annotation layer — overlays the canvas so \ref / \autoref / \url / \href
+   become real clickable links. pdfjs-dist's AnnotationLayer.render() injects
+   <section> elements that position via inline calc(... * var(--scale-factor)),
+   so the parent must expose --scale-factor (we set it per page in PdfPage).
+   --------------------------------------------------------------------------- */
+.annotationLayer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  transform-origin: 0 0;
+  z-index: 3;
+}
+.annotationLayer section {
+  position: absolute;
+  text-align: initial;
+  pointer-events: auto;
+  box-sizing: border-box;
+  margin: 0;
+  transform-origin: 0 0;
+}
+.annotationLayer .linkAnnotation > a {
+  position: absolute;
+  inset: 0;
+  display: block;
+  font-size: 1em;
+  cursor: pointer;
+}
+.annotationLayer .linkAnnotation > a:hover {
+  background: rgba(76, 175, 80, 0.18);
+  box-shadow: 0 0 0 1px rgba(76, 175, 80, 0.5);
+  border-radius: 1px;
 }

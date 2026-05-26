@@ -1,6 +1,7 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react'
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 import { useTheme } from '../../context/ThemeContext'
+import { UnderleafLinkService } from './pdfLinkService'
 
 // Per-mode brightness defaults. Dark mode dims the PDF so it doesn't blast white
 // pages at someone editing in a dark room.
@@ -9,11 +10,19 @@ const DEFAULT_BRIGHTNESS = { dark: 0.8, light: 1 } as const
 interface PDFDocumentProxy {
   numPages: number
   getPage: (n: number) => Promise<PDFPageProxy>
+  getDestination: (id: string) => Promise<unknown[] | null>
+  getPageIndex: (ref: unknown) => Promise<number>
   destroy: () => void
 }
+interface PageViewport {
+  width: number
+  height: number
+  clone: (opts?: { scale?: number; rotation?: number; offsetX?: number; offsetY?: number; dontFlip?: boolean }) => PageViewport
+}
 interface PDFPageProxy {
-  getViewport: (opts: { scale: number }) => { width: number; height: number }
-  render: (ctx: { canvasContext: CanvasRenderingContext2D; viewport: { width: number; height: number } }) => { promise: Promise<void>; cancel: () => void }
+  getViewport: (opts: { scale: number }) => PageViewport
+  getAnnotations: (opts?: { intent?: string }) => Promise<unknown[]>
+  render: (ctx: { canvasContext: CanvasRenderingContext2D; viewport: PageViewport }) => { promise: Promise<void>; cancel: () => void }
   cleanup: () => void
 }
 
@@ -23,41 +32,85 @@ interface Props {
 }
 
 function PdfPage({
-  doc, pageNum, scale, onVisible,
+  doc, pageNum, scale, onVisible, linkService,
 }: {
   doc: PDFDocumentProxy
   pageNum: number
   scale: number
   onVisible: (n: number) => void
+  linkService: UnderleafLinkService
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const annotationRef = useRef<HTMLDivElement>(null)
   const wrapRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const canvas = canvasRef.current
+    const annoDiv = annotationRef.current
     if (!canvas) return
     let cancelled = false
-    let task: { promise: Promise<void>; cancel: () => void } | null = null
+    let renderTask: { promise: Promise<void>; cancel: () => void } | null = null
 
-    doc.getPage(pageNum).then(page => {
+    ;(async () => {
+      const page = await doc.getPage(pageNum)
       if (cancelled) return
+
       const dpr = window.devicePixelRatio || 1
-      const viewport = page.getViewport({ scale: scale * dpr })
-      canvas.width = viewport.width
-      canvas.height = viewport.height
-      canvas.style.width = `${viewport.width / dpr}px`
-      canvas.style.height = `${viewport.height / dpr}px`
+      const cssViewport = page.getViewport({ scale })
+      const hiResViewport = page.getViewport({ scale: scale * dpr })
+
+      canvas.width = hiResViewport.width
+      canvas.height = hiResViewport.height
+      canvas.style.width = `${cssViewport.width}px`
+      canvas.style.height = `${cssViewport.height}px`
       const ctx = canvas.getContext('2d')
       if (!ctx || cancelled) return
-      task = page.render({ canvasContext: ctx, viewport })
-      task.promise.catch(() => {})
-    })
+      renderTask = page.render({ canvasContext: ctx, viewport: hiResViewport })
+      try { await renderTask.promise } catch { /* cancelled */ }
+      if (cancelled || !annoDiv) return
+
+      // Render the annotation layer overlay so PDF hyperlinks (\ref, \autoref,
+      // \cite-with-hyperref, \url, \href) become clickable.
+      const annotations = await page.getAnnotations({ intent: 'display' })
+      if (cancelled) return
+
+      const { AnnotationLayer } = await import('pdfjs-dist')
+
+      annoDiv.style.width = `${cssViewport.width}px`
+      annoDiv.style.height = `${cssViewport.height}px`
+      annoDiv.style.setProperty('--scale-factor', String(scale))
+      annoDiv.replaceChildren()
+
+      const annoViewport = cssViewport.clone({ dontFlip: true })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const layer = new (AnnotationLayer as any)({
+        div: annoDiv,
+        page,
+        viewport: annoViewport,
+        accessibilityManager: null,
+        annotationCanvasMap: null,
+        annotationEditorUIManager: null,
+        structTreeLayer: null,
+      })
+      try {
+        await layer.render({
+          annotations,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          linkService: linkService as any,
+          page,
+          viewport: annoViewport,
+          renderForms: false,
+        })
+      } catch (err) {
+        console.error('[PdfPage] annotation layer render failed', err)
+      }
+    })()
 
     return () => {
       cancelled = true
-      task?.cancel()
+      renderTask?.cancel()
     }
-  }, [doc, pageNum, scale])
+  }, [doc, pageNum, scale, linkService])
 
   useEffect(() => {
     const el = wrapRef.current
@@ -71,8 +124,15 @@ function PdfPage({
   }, [pageNum, onVisible])
 
   return (
-    <div ref={wrapRef} style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
-      <canvas ref={canvasRef} style={{ display: 'block', boxShadow: '0 2px 24px rgba(0,0,0,0.55)', borderRadius: 2 }} />
+    <div
+      ref={wrapRef}
+      data-page={pageNum}
+      style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}
+    >
+      <div style={{ position: 'relative', boxShadow: '0 2px 24px rgba(0,0,0,0.55)', borderRadius: 2 }}>
+        <canvas ref={canvasRef} style={{ display: 'block', borderRadius: 2 }} />
+        <div ref={annotationRef} className="annotationLayer" />
+      </div>
     </div>
   )
 }
@@ -104,6 +164,13 @@ export default function PdfPane({ pdfPath, version = 0 }: Props) {
   const prevDocRef = useRef<PDFDocumentProxy | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const brightnessRef = useRef<HTMLDivElement>(null)
+  // One link service per PdfPane instance, used by every page's annotation layer.
+  // The scroll-el getter is a function so the service always sees the current ref.
+  const linkService = useMemo(() => new UnderleafLinkService(() => scrollRef.current), [])
+  // For preserving scroll across recompiles: snapshot the page index + offset
+  // within that page before reloading, then restore once the new pages render.
+  const lastPathRef = useRef<string | null>(null)
+  const restoreRef = useRef<{ pageIdx: number; pageOffset: number } | null>(null)
 
   // Load persisted brightness on mount; fall back to defaults if absent or malformed.
   useEffect(() => {
@@ -191,6 +258,25 @@ export default function PdfPane({ pdfPath, version = 0 }: Props) {
 
   const loadPdf = useCallback(async () => {
     if (!pdfPath) return
+    const scrollEl = scrollRef.current
+    const isRecompile = lastPathRef.current === pdfPath
+
+    // Snapshot scroll state on recompile so the new doc reopens at the same place.
+    // We anchor to (page index, pixel offset into that page) — robust to page-count
+    // changes for pages above the anchor.
+    if (isRecompile && scrollEl) {
+      const wrappers = scrollEl.querySelectorAll<HTMLElement>('[data-page]')
+      for (let i = 0; i < wrappers.length; i++) {
+        const w = wrappers[i]
+        if (scrollEl.scrollTop < w.offsetTop + w.offsetHeight) {
+          restoreRef.current = { pageIdx: i, pageOffset: scrollEl.scrollTop - w.offsetTop }
+          break
+        }
+      }
+    } else {
+      restoreRef.current = null
+    }
+
     setLoading(true)
     setError(null)
     try {
@@ -208,9 +294,10 @@ export default function PdfPane({ pdfPath, version = 0 }: Props) {
       const vp1 = p1.getViewport({ scale: 1 })
       setNaturalSize({ width: vp1.width, height: vp1.height })
 
-      // Auto fit-to-width on first load
-      if (scrollRef.current) {
-        const available = scrollRef.current.clientWidth - 40
+      // Auto fit-to-width only on the FIRST load of a given PDF path. Recompiles
+      // keep the user's current scale + scroll position.
+      if (!isRecompile && scrollEl) {
+        const available = scrollEl.clientWidth - 40
         setScale(+(available / vp1.width).toFixed(2))
       }
 
@@ -219,7 +306,9 @@ export default function PdfPane({ pdfPath, version = 0 }: Props) {
 
       setDoc(pdfDoc as unknown as PDFDocumentProxy)
       setNumPages(pdfDoc.numPages)
-      setCurrentPage(1)
+      linkService.setDocument(pdfDoc as unknown as Parameters<typeof linkService.setDocument>[0])
+      if (!isRecompile) setCurrentPage(1)
+      lastPathRef.current = pdfPath
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load PDF')
     } finally {
@@ -229,6 +318,34 @@ export default function PdfPane({ pdfPath, version = 0 }: Props) {
   }, [pdfPath, version])
 
   useEffect(() => { loadPdf() }, [loadPdf])
+
+  // After a recompile re-renders pages, restore the snapshotted scroll position.
+  // Pages render async via PDF.js promises, so poll on rAF until the target page
+  // has measurable height — or give up after ~1s of attempts.
+  useEffect(() => {
+    if (!doc) return
+    const snapshot = restoreRef.current
+    if (!snapshot) return
+    restoreRef.current = null
+    const scrollEl = scrollRef.current
+    if (!scrollEl) return
+
+    let cancelled = false
+    let attempts = 0
+    const tryRestore = () => {
+      if (cancelled) return
+      attempts++
+      const wrappers = scrollEl.querySelectorAll<HTMLElement>('[data-page]')
+      const target = wrappers[snapshot.pageIdx]
+      if (target && target.offsetHeight > 0) {
+        scrollEl.scrollTop = target.offsetTop + snapshot.pageOffset
+        return
+      }
+      if (attempts < 60) requestAnimationFrame(tryRestore)
+    }
+    requestAnimationFrame(tryRestore)
+    return () => { cancelled = true }
+  }, [doc])
 
   const handlePageVisible = useCallback((n: number) => setCurrentPage(n), [])
 
@@ -253,108 +370,40 @@ export default function PdfPane({ pdfPath, version = 0 }: Props) {
       <div style={{
         display: 'flex',
         alignItems: 'center',
-        gap: 4,
         padding: '0 10px',
         borderBottom: '1px solid var(--color-border)',
         background: 'var(--color-bg-app)',
         flexShrink: 0,
         height: 34,
       }}>
+        {/* Left group — tightly grouped, left-justified */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
         {/* Page counter */}
         <span style={{ fontSize: 11, color: 'var(--color-text-secondary)', minWidth: 52, textAlign: 'center' }}>
           {numPages ? `${currentPage} / ${numPages}` : '—'}
         </span>
 
-        <div style={{ flex: 1 }} />
-
-        {/* Fit to width */}
-        <PdfToolButton onClick={fitToWidth} title="Fit to width" disabled={!doc}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M21 11H3"/><path d="M7 7l-4 4 4 4"/><path d="M17 7l4 4-4 4"/>
-            <line x1="3" y1="19" x2="21" y2="19" strokeWidth="1.5" strokeDasharray="2 2"/>
+        {/* Open the compiled PDF in the OS default app (Preview on macOS). */}
+        <PdfToolButton
+          onClick={() => window.api.openPath(pdfPath)}
+          title="Open in default PDF app"
+          disabled={!doc}
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+            <polyline points="15 3 21 3 21 9"/>
+            <line x1="10" y1="14" x2="21" y2="3"/>
           </svg>
         </PdfToolButton>
 
-        {/* Fit to height */}
-        <PdfToolButton onClick={fitToHeight} title="Fit to height" disabled={!doc}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M13 21V3"/><path d="M17 7l-4-4-4 4"/><path d="M17 17l-4 4-4-4"/>
-            <line x1="5" y1="3" x2="5" y2="21" strokeWidth="1.5" strokeDasharray="2 2"/>
-          </svg>
-        </PdfToolButton>
-
-        <div style={{ width: 1, height: 16, background: 'var(--color-border)', margin: '0 2px' }} />
-
-        {/* Zoom controls — styled as a pill group */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          background: 'var(--color-bg-input)',
-          borderRadius: 6,
-          border: '1px solid var(--color-border)',
-          overflow: 'hidden',
-        }}>
-          <button
-            onClick={() => setScale(s => Math.max(0.4, +(s - 0.15).toFixed(2)))}
-            title="Zoom out"
-            style={{
-              width: 26, height: 26, border: 'none', background: 'transparent',
-              color: 'var(--color-text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-bg-card-hover)'; e.currentTarget.style.color = 'var(--color-text-primary)' }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--color-text-secondary)' }}
-          >
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <line x1="5" y1="12" x2="19" y2="12"/>
-            </svg>
-          </button>
-          <span
-            style={{
-              fontSize: 11, color: 'var(--color-text-secondary)', minWidth: 40, textAlign: 'center',
-              borderLeft: '1px solid var(--color-border)', borderRight: '1px solid var(--color-border)',
-              padding: '0 2px', lineHeight: '26px',
-            }}
-          >
-            {Math.round(scale * 100)}%
-          </span>
-          <button
-            onClick={() => setScale(s => Math.min(4, +(s + 0.15).toFixed(2)))}
-            title="Zoom in"
-            style={{
-              width: 26, height: 26, border: 'none', background: 'transparent',
-              color: 'var(--color-text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-bg-card-hover)'; e.currentTarget.style.color = 'var(--color-text-primary)' }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--color-text-secondary)' }}
-          >
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-            </svg>
-          </button>
-        </div>
-
-        <div style={{ width: 1, height: 16, background: 'var(--color-border)', margin: '0 2px' }} />
-
-        {/* Brightness — popover with slider */}
+        {/* Brightness — popover with slider. Uses PdfToolButton so its color
+           matches the other tool buttons; the popover handles "modified" state. */}
         <div ref={brightnessRef} style={{ position: 'relative' }}>
-          <button
+          <PdfToolButton
             onClick={() => setBrightnessOpen(o => !o)}
             title="Brightness"
             disabled={!doc}
-            style={{
-              width: 26, height: 26, border: 'none', borderRadius: 5,
-              background: brightnessOpen ? 'var(--color-bg-card-hover)' : 'transparent',
-              color: !doc
-                ? 'var(--color-text-muted)'
-                : brightness !== DEFAULT_BRIGHTNESS[mode]
-                  ? 'var(--color-brand)'
-                  : (brightnessOpen ? 'var(--color-text-primary)' : 'var(--color-text-secondary)'),
-              cursor: !doc ? 'default' : 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              transition: 'background 120ms, color 120ms',
-            }}
-            onMouseEnter={e => { if (doc && !brightnessOpen) { e.currentTarget.style.background = 'var(--color-bg-card-hover)'; if (brightness === DEFAULT_BRIGHTNESS[mode]) e.currentTarget.style.color = 'var(--color-text-primary)' } }}
-            onMouseLeave={e => { if (!brightnessOpen) { e.currentTarget.style.background = 'transparent'; if (brightness === DEFAULT_BRIGHTNESS[mode]) e.currentTarget.style.color = doc ? 'var(--color-text-secondary)' : 'var(--color-text-muted)' } }}
+            active={brightnessOpen}
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="4"/>
@@ -363,7 +412,7 @@ export default function PdfPane({ pdfPath, version = 0 }: Props) {
               <path d="M2 12h2"/><path d="M20 12h2"/>
               <path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>
             </svg>
-          </button>
+          </PdfToolButton>
           {brightnessOpen && (
             <div
               style={{
@@ -433,6 +482,79 @@ export default function PdfPane({ pdfPath, version = 0 }: Props) {
             </div>
           )}
         </div>
+
+        </div>
+
+        {/* Spacer between left and right groups */}
+        <div style={{ flex: 1 }} />
+
+        {/* Right group — tightly grouped, right-justified */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          {/* Fit to width */}
+          <PdfToolButton onClick={fitToWidth} title="Fit to width" disabled={!doc}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21 11H3"/><path d="M7 7l-4 4 4 4"/><path d="M17 7l4 4-4 4"/>
+              <line x1="3" y1="19" x2="21" y2="19" strokeWidth="1.5" strokeDasharray="2 2"/>
+            </svg>
+          </PdfToolButton>
+
+          {/* Fit to height */}
+          <PdfToolButton onClick={fitToHeight} title="Fit to height" disabled={!doc}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M13 21V3"/><path d="M17 7l-4-4-4 4"/><path d="M17 17l-4 4-4-4"/>
+              <line x1="5" y1="3" x2="5" y2="21" strokeWidth="1.5" strokeDasharray="2 2"/>
+            </svg>
+          </PdfToolButton>
+
+          {/* Zoom controls — pill group with - <pct> + */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            background: 'var(--color-bg-input)',
+            borderRadius: 6,
+            border: '1px solid var(--color-border)',
+            overflow: 'hidden',
+            marginLeft: 4,
+          }}>
+            <button
+              onClick={() => setScale(s => Math.max(0.4, +(s - 0.15).toFixed(2)))}
+              title="Zoom out"
+              style={{
+                width: 26, height: 26, border: 'none', background: 'transparent',
+                color: 'var(--color-text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-bg-card-hover)'; e.currentTarget.style.color = 'var(--color-text-primary)' }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--color-text-secondary)' }}
+            >
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <line x1="5" y1="12" x2="19" y2="12"/>
+              </svg>
+            </button>
+            <span
+              style={{
+                fontSize: 11, color: 'var(--color-text-secondary)', minWidth: 40, textAlign: 'center',
+                borderLeft: '1px solid var(--color-border)', borderRight: '1px solid var(--color-border)',
+                padding: '0 2px', lineHeight: '26px',
+              }}
+            >
+              {Math.round(scale * 100)}%
+            </span>
+            <button
+              onClick={() => setScale(s => Math.min(4, +(s + 0.15).toFixed(2)))}
+              title="Zoom in"
+              style={{
+                width: 26, height: 26, border: 'none', background: 'transparent',
+                color: 'var(--color-text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-bg-card-hover)'; e.currentTarget.style.color = 'var(--color-text-primary)' }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--color-text-secondary)' }}
+            >
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+              </svg>
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Scroll area */}
@@ -480,11 +602,16 @@ export default function PdfPane({ pdfPath, version = 0 }: Props) {
           >
             {pages.map(pageNum => (
               <PdfPage
-                key={`${pdfPath}-${version}-${pageNum}`}
+                // Intentionally omits `version`: the canvas re-renders via its own
+                // [doc, …] effect, and remounting would zero out the wrapper height
+                // for a frame, causing the scroll container to clamp scrollTop to 0
+                // before our restore logic can run.
+                key={`${pdfPath}-${pageNum}`}
                 doc={doc}
                 pageNum={pageNum}
                 scale={scale}
                 onVisible={handlePageVisible}
+                linkService={linkService}
               />
             ))}
           </div>
@@ -494,12 +621,15 @@ export default function PdfPane({ pdfPath, version = 0 }: Props) {
   )
 }
 
-function PdfToolButton({ onClick, title, disabled, children }: {
+function PdfToolButton({ onClick, title, disabled, active, children }: {
   onClick: () => void
   title: string
   disabled?: boolean
+  active?: boolean
   children: React.ReactNode
 }) {
+  const baseColor = disabled ? 'var(--color-text-muted)' : 'var(--color-text-secondary)'
+  const activeColor = 'var(--color-text-primary)'
   return (
     <button
       onClick={onClick}
@@ -507,13 +637,14 @@ function PdfToolButton({ onClick, title, disabled, children }: {
       disabled={disabled}
       style={{
         width: 26, height: 26, border: 'none', borderRadius: 5,
-        background: 'transparent', color: disabled ? 'var(--color-text-muted)' : 'var(--color-text-secondary)',
+        background: active ? 'var(--color-bg-card-hover)' : 'transparent',
+        color: active ? activeColor : baseColor,
         cursor: disabled ? 'default' : 'pointer',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         transition: 'background 120ms, color 120ms',
       }}
-      onMouseEnter={e => { if (!disabled) { e.currentTarget.style.background = 'var(--color-bg-card-hover)'; e.currentTarget.style.color = 'var(--color-text-primary)' } }}
-      onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = disabled ? 'var(--color-text-muted)' : 'var(--color-text-secondary)' }}
+      onMouseEnter={e => { if (!disabled && !active) { e.currentTarget.style.background = 'var(--color-bg-card-hover)'; e.currentTarget.style.color = activeColor } }}
+      onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = baseColor } }}
     >
       {children}
     </button>

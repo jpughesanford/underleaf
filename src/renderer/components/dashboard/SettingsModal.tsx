@@ -10,7 +10,7 @@ interface Props {
 
 export default function SettingsModal({ onClose, onChangeRoot }: Props) {
   const [engine, setEngine] = useState('pdflatex')
-  const [trigger, setTrigger] = useState('manual')
+  const [compileOnSave, setCompileOnSave] = useState(true)
   const [root, setRoot] = useState('')
   const { themes, mode, darkThemeId, lightThemeId, setDarkThemeId, setLightThemeId } = useTheme()
 
@@ -23,8 +23,9 @@ export default function SettingsModal({ onClose, onChangeRoot }: Props) {
       window.api.getProjectsRoot(),
     ]).then(([settings, r]) => {
       if (settings) {
-        setEngine((settings as { defaultEngine: string }).defaultEngine || 'pdflatex')
-        setTrigger((settings as { compileTrigger: string }).compileTrigger || 'manual')
+        const s = settings as { defaultEngine?: string; compileOnSave?: boolean }
+        setEngine(s.defaultEngine || 'pdflatex')
+        setCompileOnSave(s.compileOnSave !== false)
       }
       setRoot(r || '')
     })
@@ -32,7 +33,7 @@ export default function SettingsModal({ onClose, onChangeRoot }: Props) {
 
   async function save() {
     const existing = (await window.api.storeGet('settings')) as Record<string, unknown> | null ?? {}
-    await window.api.storeSet('settings', { ...existing, defaultEngine: engine, compileTrigger: trigger })
+    await window.api.storeSet('settings', { ...existing, defaultEngine: engine, compileOnSave })
     onClose()
   }
 
@@ -103,21 +104,21 @@ export default function SettingsModal({ onClose, onChangeRoot }: Props) {
                 <option value="lualatex">lualatex</option>
               </select>
             </div>
-            <div>
-              <label style={{ display: 'block', color: 'var(--color-text-secondary)', fontSize: 12, marginBottom: 6 }}>
-                Compilation Trigger
-              </label>
-              <select
-                className="input"
-                value={trigger}
-                onChange={e => setTrigger(e.target.value)}
-                style={{ cursor: 'pointer' }}
-              >
-                <option value="manual">Manual (Recompile button)</option>
-                <option value="onsave">On Save</option>
-                <option value="auto">Auto (debounced)</option>
-              </select>
-            </div>
+            <label
+              style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                cursor: 'pointer', padding: '4px 0',
+                fontSize: 13, color: 'var(--color-text-primary)',
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={compileOnSave}
+                onChange={e => setCompileOnSave(e.target.checked)}
+                style={{ accentColor: 'var(--color-brand)', cursor: 'pointer' }}
+              />
+              Auto-compile on save
+            </label>
           </div>
         </section>
 

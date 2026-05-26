@@ -130,15 +130,18 @@ export default function CompilePanel({ result, compiling, onClose, onJumpToError
         )}
 
         {result && tab === 'raw' && (
-          <pre style={{
-            padding: '8px 12px',
-            color: 'var(--color-text-secondary)',
-            fontSize: 11,
-            fontFamily: 'var(--font-mono)',
-            margin: 0,
-            whiteSpace: 'pre-wrap',
-            wordBreak: 'break-all',
-          }}>
+          <pre
+            className="selectable"
+            style={{
+              padding: '8px 12px',
+              color: 'var(--color-text-secondary)',
+              fontSize: 11,
+              fontFamily: 'var(--font-mono)',
+              margin: 0,
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-all',
+            }}
+          >
             {result.rawLog}
           </pre>
         )}
@@ -226,13 +229,18 @@ function ErrorRow({ item, onClick }: { item: CompileError; onClick: () => void }
               {item.line && <span>:{item.line}</span>}
             </span>
           )}
-          <span style={{
-            color: jumpable
-              ? (hovered ? 'var(--color-text-primary)' : 'var(--color-text-secondary)')
-              : 'var(--color-text-muted)',
-            transition: 'color 140ms',
-            fontSize: 12,
-          }}>
+          <span
+            className="selectable"
+            onMouseDown={e => e.stopPropagation()}
+            onClick={e => e.stopPropagation()}
+            style={{
+              color: jumpable
+                ? (hovered ? 'var(--color-text-primary)' : 'var(--color-text-secondary)')
+                : 'var(--color-text-muted)',
+              transition: 'color 140ms',
+              fontSize: 12,
+            }}
+          >
             {item.message}
           </span>
         </div>

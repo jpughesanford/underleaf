@@ -142,14 +142,16 @@ function FileTreeNode({
   const isDetected = !isMain && !!(detectedMainDoc && node.relativePath === detectedMainDoc)
   const isDragOver = dragOverPath === node.path
 
+  // Hook must be at top level — calling it inside `if (node.isDirectory)` after
+  // an early return below would change the hook count when showHidden toggles
+  // for a dotfolder, crashing React with "Rendered more hooks than previously."
+  useEffect(() => {
+    if (node.isDirectory && isDragOver) setExpanded(true)
+  }, [isDragOver, node.isDirectory])
+
   if (!showHidden && node.name.startsWith('.')) return null
 
   if (node.isDirectory) {
-    // Auto-expand when it's the drag target
-    useEffect(() => {
-      if (isDragOver) setExpanded(true)
-    }, [isDragOver])
-
     return (
       <div>
         <div
@@ -454,7 +456,7 @@ export default function FileExplorer({ projectPath, activeFile, onOpenFile, main
           <button
             className="btn btn-ghost btn-icon"
             onClick={() => setShowHidden(v => !v)}
-            title={showHidden ? 'Hide dotfiles' : 'Show dotfiles'}
+            title={showHidden ? 'Hide hidden files & folders' : 'Show hidden files & folders'}
             style={{ width: 24, height: 24, color: showHidden ? 'var(--color-text-muted)' : 'var(--color-text-secondary)' }}
           >
             {showHidden ? (

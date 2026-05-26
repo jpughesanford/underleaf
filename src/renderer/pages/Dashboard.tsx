@@ -30,6 +30,7 @@ export default function Dashboard({ onOpenProject, onResetRoot }: Props) {
   const [search, setSearch] = useState('')
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
   const [actionProject, setActionProject] = useState<string | null>(null)
+  const [renamingId, setRenamingId] = useState<string | null>(null)
   const [resetConfirm, setResetConfirm] = useState<ProjectInfo | null>(null)
   const [fetchSuccess, setFetchSuccess] = useState(false)
   const [badgeFlashKeys, setBadgeFlashKeys] = useState<Record<string, number>>({})
@@ -137,6 +138,22 @@ export default function Dashboard({ onOpenProject, onResetRoot }: Props) {
     if (deleted) await load()
   }
 
+  const handleRename = (project: ProjectInfo) => {
+    setContextMenu(null)
+    setRenamingId(project.id)
+  }
+
+  const commitRename = async (project: ProjectInfo, newName: string) => {
+    try {
+      await window.api.renameProject({ oldPath: project.path, newName })
+      setRenamingId(null)
+      await load()
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : 'Rename failed')
+      setRenamingId(null)
+    }
+  }
+
   const filtered = search
     ? projects.filter(p => p.name.toLowerCase().includes(search.toLowerCase()))
     : projects
@@ -186,11 +203,11 @@ export default function Dashboard({ onOpenProject, onResetRoot }: Props) {
             </svg>
           </button>
 
-          <button className="btn btn-secondary btn-sm" onClick={() => setShowClone(true)}>
-            Clone Repository
-          </button>
-          <button className="btn btn-primary btn-sm" onClick={() => setShowNew(true)}>
+          <button className="btn btn-secondary btn-sm" onClick={() => setShowNew(true)}>
             + New Project
+          </button>
+          <button className="btn btn-primary btn-sm" onClick={() => setShowClone(true)}>
+            Clone Repository
           </button>
         </div>
       </div>
@@ -319,6 +336,9 @@ export default function Dashboard({ onOpenProject, onResetRoot }: Props) {
                   onOpen={() => onOpenProject(project.path, project.name)}
                   onContextMenu={e => handleContextMenu(e, project)}
                   badgeFlashKey={badgeFlashKeys[project.id] ?? 0}
+                  isRenaming={renamingId === project.id}
+                  onRenameCommit={name => commitRename(project, name)}
+                  onRenameCancel={() => setRenamingId(null)}
                 />
               </div>
             ))}
@@ -346,6 +366,23 @@ export default function Dashboard({ onOpenProject, onResetRoot }: Props) {
           <div style={{ padding: '4px 12px 6px', fontSize: 11, color: 'var(--color-text-muted)', fontWeight: 600, borderBottom: '1px solid var(--color-border)', marginBottom: 4 }}>
             {contextMenu.project.name}
           </div>
+
+          <button
+            onClick={() => handleRename(contextMenu.project)}
+            style={menuItemStyle}
+            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.06)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+              <path d="M12 20h9"/>
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+            </svg>
+            Rename…
+          </button>
+
+          {contextMenu.project.hasRemote && (
+            <div style={{ height: 1, background: 'var(--color-border)', margin: '4px 0' }} />
+          )}
 
           {contextMenu.project.hasRemote && (
             <button

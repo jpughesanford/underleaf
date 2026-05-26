@@ -1,6 +1,7 @@
-import { CompletionContext, CompletionResult } from '@codemirror/autocomplete'
+import { CompletionContext, CompletionResult, Completion, snippetCompletion } from '@codemirror/autocomplete'
 
-const LATEX_COMMANDS = [
+// Plain command completions — no `type` so CodeMirror won't render an icon glyph.
+const PLAIN_COMMANDS: string[] = [
   // Document structure
   '\\documentclass', '\\usepackage', '\\begin', '\\end',
   '\\title', '\\author', '\\date', '\\maketitle',
@@ -27,10 +28,6 @@ const LATEX_COMMANDS = [
   '\\forall', '\\exists', '\\rightarrow', '\\leftarrow', '\\Rightarrow',
   '\\mathbb', '\\mathcal', '\\mathbf', '\\mathrm',
 
-  // References
-  '\\label', '\\ref', '\\eqref', '\\pageref',
-  '\\cite', '\\nocite', '\\bibliography', '\\bibliographystyle',
-
   // Lists
   '\\item',
 
@@ -50,6 +47,31 @@ const LATEX_COMMANDS = [
   '\\verb', '\\verbatim',
 ]
 
+// Snippet completions: pressing Enter/Tab inserts the template with cursor at #{}.
+// Boosted above plain commands so cross-reference snippets win when names overlap.
+const SNIPPETS: Completion[] = [
+  snippetCompletion('\\label{#{key}}',          { label: '\\label',          boost: 5 }),
+  snippetCompletion('\\ref{#{key}}',            { label: '\\ref',            boost: 5 }),
+  snippetCompletion('\\eqref{#{key}}',          { label: '\\eqref',          boost: 5 }),
+  snippetCompletion('\\pageref{#{key}}',        { label: '\\pageref',        boost: 5 }),
+  snippetCompletion('\\autoref{#{key}}',        { label: '\\autoref',        boost: 5 }),
+  snippetCompletion('\\cref{#{key}}',           { label: '\\cref',           boost: 5 }),
+  snippetCompletion('\\Cref{#{key}}',           { label: '\\Cref',           boost: 5 }),
+  snippetCompletion('\\cite{#{key}}',           { label: '\\cite',           boost: 5 }),
+  snippetCompletion('\\nocite{#{key}}',         { label: '\\nocite',         boost: 5 }),
+  snippetCompletion('\\hyperref[#{key}]{#{text}}', { label: '\\hyperref',    boost: 5 }),
+  snippetCompletion('\\url{#{url}}',            { label: '\\url',            boost: 5 }),
+  snippetCompletion('\\href{#{url}}{#{text}}',  { label: '\\href',           boost: 5 }),
+  snippetCompletion('\\bibliography{#{file}}',  { label: '\\bibliography',   boost: 4 }),
+  snippetCompletion('\\bibliographystyle{#{style}}', { label: '\\bibliographystyle', boost: 4 }),
+  snippetCompletion('\\begin{#{env}}\n\t#{}\n\\end{#{env}}', { label: '\\begin…\\end', boost: 4 }),
+]
+
+const COMMAND_COMPLETIONS: Completion[] = [
+  ...SNIPPETS,
+  ...PLAIN_COMMANDS.map(cmd => ({ label: cmd })),
+]
+
 const ENVIRONMENTS = [
   'document', 'abstract', 'equation', 'equation*',
   'align', 'align*', 'gather', 'gather*',
@@ -67,10 +89,7 @@ export function latexCompletions(context: CompletionContext): CompletionResult |
   if (cmdMatch) {
     return {
       from: cmdMatch.from,
-      options: LATEX_COMMANDS.map(cmd => ({
-        label: cmd,
-        type: 'keyword',
-      })),
+      options: COMMAND_COMPLETIONS,
       validFor: /^\\[a-zA-Z]*$/,
     }
   }
@@ -82,10 +101,7 @@ export function latexCompletions(context: CompletionContext): CompletionResult |
     const from = envMatch.from + braceIdx + 1
     return {
       from,
-      options: ENVIRONMENTS.map(env => ({
-        label: env,
-        type: 'class',
-      })),
+      options: ENVIRONMENTS.map(env => ({ label: env })),
       validFor: /^[a-zA-Z*]*$/,
     }
   }

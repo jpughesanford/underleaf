@@ -36,9 +36,10 @@ interface Props {
   projectPath: string
   projectName: string
   onBack: () => void
+  onRename: (newPath: string, newName: string) => void
 }
 
-export default function EditorPage({ projectPath, projectName, onBack }: Props) {
+export default function EditorPage({ projectPath, projectName, onBack, onRename }: Props) {
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>('files')
   const [tabs, setTabs] = useState<OpenTab[]>([])
   const [activeTab, setActiveTab] = useState<string | null>(null)
@@ -49,7 +50,7 @@ export default function EditorPage({ projectPath, projectName, onBack }: Props) 
   const [showCompilePanel, setShowCompilePanel] = useState(false)
   const [sidebarWidth, setSidebarWidth] = useState(260)
   const [pdfWidth, setPdfWidth] = useState(420)
-  const [compileTrigger, setCompileTrigger] = useState('manual')
+  const [compileOnSave, setCompileOnSave] = useState(true)
   const [compileTarget, setCompileTarget] = useState<CompileTarget>('root')
   const [viewMode, setViewMode] = useState<ViewMode>('split')
   const [sidebarOpen, setSidebarOpen] = useState(true)
@@ -57,15 +58,14 @@ export default function EditorPage({ projectPath, projectName, onBack }: Props) 
   const [mainDoc, setMainDoc] = useState<string | null>(null)
   const [detectedMainDoc, setDetectedMainDoc] = useState<string | null>(null)
   const editorRef = useRef<EditorPaneHandle>(null)
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const tabsRef = useRef<OpenTab[]>([])
   const activeTabRef = useRef<string | null>(null)
   const autoOpenedRef = useRef<string | null>(null)
 
   useEffect(() => {
     window.api.storeGet('settings').then((s: unknown) => {
-      const settings = s as { compileTrigger?: string } | null
-      if (settings?.compileTrigger) setCompileTrigger(settings.compileTrigger)
+      const settings = s as { compileOnSave?: boolean } | null
+      if (settings && settings.compileOnSave !== undefined) setCompileOnSave(settings.compileOnSave)
     })
     window.api.getPdfPath(projectPath).then(p => { if (p) setPdfPath(p) })
     // Load per-project config for main document, then fall back to auto-detection
@@ -91,6 +91,22 @@ export default function EditorPage({ projectPath, projectName, onBack }: Props) 
     setMainDoc(relativePath)
     setDetectedMainDoc(null)
   }, [projectPath])
+
+  const handleProjectRename = useCallback(async (newName: string) => {
+    if (!newName || newName === projectName) return
+    // Save dirty tabs before renaming the enclosing folder so no edits are lost.
+    const dirty = tabsRef.current.filter(t => t.isDirty)
+    if (dirty.length > 0) {
+      await Promise.all(dirty.map(t => window.api.writeFile(t.path, t.content)))
+    }
+    try {
+      const newPath = await window.api.renameProject({ oldPath: projectPath, newName })
+      // App.tsx re-keys EditorPage on projectPath, so we'll get a clean remount.
+      onRename(newPath, newName)
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : 'Rename failed')
+    }
+  }, [projectPath, projectName, onRename])
 
   const compile = useCallback(async () => {
     // Auto-save all dirty tabs before compiling so latexmk sees latest content
@@ -175,25 +191,19 @@ export default function EditorPage({ projectPath, projectName, onBack }: Props) 
     setTabs(prev => prev.map(t =>
       t.path === filePath ? { ...t, content, isDirty: true } : t
     ))
-
-    // Trigger auto-compile if set
-    if (compileTrigger === 'auto') {
-      if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
-      saveTimerRef.current = setTimeout(() => compile(), 1500)
-    }
-  }, [compileTrigger, compile])
+  }, [])
 
   const saveFile = useCallback(async (filePath: string) => {
     const tab = tabs.find(t => t.path === filePath)
-    if (!tab || !tab.isDirty) return
-    await window.api.writeFile(filePath, tab.content)
-    setTabs(prev => prev.map(t =>
-      t.path === filePath ? { ...t, isDirty: false } : t
-    ))
-    if (compileTrigger === 'onsave') {
-      compile()
+    if (!tab) return
+    if (tab.isDirty) {
+      await window.api.writeFile(filePath, tab.content)
+      setTabs(prev => prev.map(t =>
+        t.path === filePath ? { ...t, isDirty: false } : t
+      ))
     }
-  }, [tabs, compileTrigger, compile])
+    if (compileOnSave) compile()
+  }, [tabs, compileOnSave, compile])
 
   const jumpToError = useCallback(async (file: string, line: number | null) => {
     if (!line) return
@@ -221,17 +231,26 @@ export default function EditorPage({ projectPath, projectName, onBack }: Props) 
   }, [projectPath, openFile])
 
   // Menu bar actions — must come after all callbacks/refs are defined.
-  // Uses tabsRef/activeTabRef (always current) and stable setState setters so deps stay empty.
+  // compileOnSaveRef + compileRef stay live across renders so the menu listener
+  // can use the latest values without re-binding.
+  const compileRef = useRef(compile)
+  compileRef.current = compile
+  const compileOnSaveRef = useRef(compileOnSave)
+  compileOnSaveRef.current = compileOnSave
   useEffect(() => {
     return window.api.onMenuAction((action) => {
       if (action === 'menu:save') {
         const active = activeTabRef.current
-        if (!active) return
-        const tab = tabsRef.current.find(t => t.path === active)
-        if (!tab || !tab.isDirty) return
-        window.api.writeFile(tab.path, tab.content).then(() => {
-          setTabs(prev => prev.map(t => t.path === active ? { ...t, isDirty: false } : t))
-        })
+        const tab = active ? tabsRef.current.find(t => t.path === active) : null
+        const shouldCompile = compileOnSaveRef.current
+        if (tab?.isDirty) {
+          window.api.writeFile(tab.path, tab.content).then(() => {
+            setTabs(prev => prev.map(t => t.path === active ? { ...t, isDirty: false } : t))
+            if (shouldCompile) compileRef.current()
+          })
+        } else if (shouldCompile) {
+          compileRef.current()
+        }
       } else if (action === 'menu:openSettings') {
         setShowSettings(true)
       } else if (action === 'menu:viewEditor') {
@@ -261,11 +280,10 @@ export default function EditorPage({ projectPath, projectName, onBack }: Props) 
       {/* Toolbar */}
       <Toolbar
         projectName={projectName}
+        onRenameProject={handleProjectRename}
         onBack={onBack}
         onCompile={compile}
         compiling={compiling}
-        compileTrigger={compileTrigger}
-        onChangeTrigger={setCompileTrigger}
         compileTarget={compileTarget}
         onChangeTarget={setCompileTarget}
         viewMode={viewMode}

@@ -1,6 +1,6 @@
 import { ipcMain, BrowserWindow, dialog } from 'electron'
-import { readdirSync, statSync, existsSync, mkdirSync, rmSync } from 'fs'
-import { join } from 'path'
+import { readdirSync, statSync, existsSync, mkdirSync, rmSync, renameSync } from 'fs'
+import { join, dirname, basename } from 'path'
 import { execSync } from 'child_process'
 import type Store from 'electron-store'
 
@@ -209,13 +209,32 @@ export function registerProjectIPC(store: Store): void {
     return projectPath
   })
 
-  ipcMain.handle('projects:clone', async (_, opts: { root: string; url: string }) => {
+  ipcMain.handle('projects:clone', async (_, opts: { root: string; url: string; name?: string }) => {
     const { root, url } = opts
-    const name = url.replace(/\.git$/, '').split('/').pop() || 'project'
+    const fallback = url.replace(/\.git$/, '').split('/').pop() || 'project'
+    const rawName = (opts.name ?? '').trim() || fallback
+    // Sanitize: strip path separators and leading dots so a bad name can't escape the projects root
+    const name = rawName.replace(/[/\\]/g, '-').replace(/^\.+/, '') || fallback
     const dest = join(root, name)
+
+    if (existsSync(dest)) {
+      throw new Error(`Folder "${name}" already exists`)
+    }
 
     execSync(`git clone "${url}" "${dest}"`, { encoding: 'utf8' })
     return dest
+  })
+
+  ipcMain.handle('projects:rename', async (_, opts: { oldPath: string; newName: string }): Promise<string> => {
+    const { oldPath, newName } = opts
+    if (!existsSync(oldPath)) throw new Error('Project no longer exists')
+    const sanitized = newName.replace(/[/\\]/g, '-').replace(/^\.+/, '').trim()
+    if (!sanitized) throw new Error('Name is required')
+    if (sanitized === basename(oldPath)) return oldPath
+    const newPath = join(dirname(oldPath), sanitized)
+    if (existsSync(newPath)) throw new Error(`Folder "${sanitized}" already exists`)
+    renameSync(oldPath, newPath)
+    return newPath
   })
 
   ipcMain.handle('projects:delete', async (_, projectPath: string): Promise<boolean> => {

@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { AlertTriangle } from 'lucide-react'
 
 export interface ProjectInfo {
@@ -22,6 +22,9 @@ interface Props {
   onOpen: () => void
   onContextMenu: (e: React.MouseEvent) => void
   badgeFlashKey?: number
+  isRenaming?: boolean
+  onRenameCommit?: (newName: string) => void
+  onRenameCancel?: () => void
 }
 
 function timeAgo(dateStr: string): string {
@@ -111,24 +114,34 @@ function SyncBadge({ project, flashKey }: { project: ProjectInfo; flashKey: numb
   )
 }
 
-export default function ProjectCard({ project, onOpen, onContextMenu, badgeFlashKey = 0 }: Props) {
+export default function ProjectCard({
+  project,
+  onOpen,
+  onContextMenu,
+  badgeFlashKey = 0,
+  isRenaming = false,
+  onRenameCommit,
+  onRenameCancel,
+}: Props) {
   return (
     <div
-      onClick={onOpen}
+      onClick={isRenaming ? undefined : onOpen}
       onContextMenu={onContextMenu}
       style={{
-        background: 'var(--color-bg-card)',
-        border: '1px solid var(--color-border)',
+        background: isRenaming ? 'var(--color-bg-card-hover)' : 'var(--color-bg-card)',
+        border: `1px solid ${isRenaming ? 'var(--color-brand)' : 'var(--color-border)'}`,
         borderRadius: 10,
         padding: 20,
-        cursor: 'pointer',
+        cursor: isRenaming ? 'default' : 'pointer',
         transition: 'all 150ms ease',
       }}
       onMouseEnter={e => {
+        if (isRenaming) return
         e.currentTarget.style.background = 'var(--color-bg-card-hover)'
         e.currentTarget.style.borderColor = 'rgba(76,175,80,0.4)'
       }}
       onMouseLeave={e => {
+        if (isRenaming) return
         e.currentTarget.style.background = 'var(--color-bg-card)'
         e.currentTarget.style.borderColor = 'var(--color-border)'
       }}
@@ -150,13 +163,21 @@ export default function ProjectCard({ project, onOpen, onContextMenu, badgeFlash
               <polyline points="10 9 9 9 8 9"/>
             </svg>
           </div>
-          <div style={{ minWidth: 0 }}>
-            <div style={{
-              fontWeight: 600, fontSize: 14, color: 'var(--color-text-primary)',
-              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-            }}>
-              {project.name}
-            </div>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            {isRenaming ? (
+              <RenameInput
+                initial={project.name}
+                onCommit={name => onRenameCommit?.(name)}
+                onCancel={() => onRenameCancel?.()}
+              />
+            ) : (
+              <div style={{
+                fontWeight: 600, fontSize: 14, color: 'var(--color-text-primary)',
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}>
+                {project.name}
+              </div>
+            )}
             <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', visibility: project.remoteUrl ? 'visible' : 'hidden' }}>
               {project.remoteUrl || 'x'}
             </div>
@@ -215,5 +236,54 @@ export default function ProjectCard({ project, onOpen, onContextMenu, badgeFlash
         {project.lastCommit || 'x'}
       </div>
     </div>
+  )
+}
+
+function RenameInput({ initial, onCommit, onCancel }: {
+  initial: string
+  onCommit: (name: string) => void
+  onCancel: () => void
+}) {
+  const [value, setValue] = useState(initial)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    const input = inputRef.current
+    if (!input) return
+    input.focus()
+    input.select()
+  }, [])
+
+  function commit() {
+    const trimmed = value.trim()
+    if (!trimmed || trimmed === initial) onCancel()
+    else onCommit(trimmed)
+  }
+
+  return (
+    <input
+      ref={inputRef}
+      value={value}
+      onChange={e => setValue(e.target.value)}
+      onClick={e => e.stopPropagation()}
+      onKeyDown={e => {
+        e.stopPropagation()
+        if (e.key === 'Enter') commit()
+        if (e.key === 'Escape') onCancel()
+      }}
+      onBlur={commit}
+      style={{
+        width: '100%',
+        background: 'var(--color-bg-input)',
+        border: '1px solid var(--color-brand)',
+        borderRadius: 5,
+        color: 'var(--color-text-primary)',
+        fontSize: 14,
+        fontWeight: 600,
+        padding: '3px 7px',
+        outline: 'none',
+        fontFamily: 'inherit',
+      }}
+    />
   )
 }

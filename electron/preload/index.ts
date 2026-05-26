@@ -11,6 +11,10 @@ const api = {
     ipcRenderer.invoke('dialog:openFile', opts),
   showSaveDialog: (fileName: string) => ipcRenderer.invoke('dialog:showSave', fileName) as Promise<'save' | 'discard' | 'cancel'>,
 
+  // External
+  openExternal: (url: string) => ipcRenderer.invoke('app:openExternal', url),
+  openPath: (filePath: string) => ipcRenderer.invoke('app:openPath', filePath) as Promise<string>,
+
   // Projects
   scanProjects: () => ipcRenderer.invoke('projects:scan'),
   setProjectsRoot: (path: string) => ipcRenderer.invoke('projects:setRoot', path),
@@ -21,8 +25,10 @@ const api = {
   getLatexmkPath: () => ipcRenderer.invoke('projects:getLatexmkPath'),
   newProject: (opts: { root: string; name: string; template: string }) =>
     ipcRenderer.invoke('projects:newProject', opts),
-  cloneProject: (opts: { root: string; url: string }) =>
+  cloneProject: (opts: { root: string; url: string; name?: string }) =>
     ipcRenderer.invoke('projects:clone', opts),
+  renameProject: (opts: { oldPath: string; newName: string }) =>
+    ipcRenderer.invoke('projects:rename', opts) as Promise<string>,
   deleteProject: (projectPath: string) => ipcRenderer.invoke('projects:delete', projectPath) as Promise<boolean>,
 
   // Files

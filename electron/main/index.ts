@@ -11,14 +11,14 @@ const store = new Store<{
   projectsRoot: string | null
   settings: {
     defaultEngine: string
-    compileTrigger: string
+    compileOnSave: boolean
   }
 }>({
   defaults: {
     projectsRoot: null,
     settings: {
       defaultEngine: 'pdflatex',
-      compileTrigger: 'manual',
+      compileOnSave: true,
     }
   }
 })
@@ -102,6 +102,20 @@ app.whenReady().then(() => {
       filters: opts?.filters,
     })
     return result.canceled ? null : result.filePaths[0]
+  })
+
+  // Open an http(s) URL in the OS default browser. Reject anything else so a
+  // malicious .tex file can't open file:// or javascript: URIs.
+  ipcMain.handle('app:openExternal', (_, url: string) => {
+    if (typeof url !== 'string') return
+    if (!/^https?:\/\//i.test(url)) return
+    shell.openExternal(url)
+  })
+
+  // Open a local file path in the OS default app (Preview for PDFs on macOS).
+  ipcMain.handle('app:openPath', async (_, filePath: string) => {
+    if (typeof filePath !== 'string' || !filePath) return ''
+    return shell.openPath(filePath)
   })
 
   mainWindow = createWindow()

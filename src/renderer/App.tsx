@@ -41,11 +41,16 @@ function AppInner() {
   }
 
   if (view.type === 'editor') {
+    // Re-key on projectPath so a rename triggers a clean remount with fresh
+    // tabs / pdfPath state — every file path tracked by EditorPage embeds the
+    // old project path and would otherwise go stale.
     return (
       <EditorPage
+        key={view.projectPath}
         projectPath={view.projectPath}
         projectName={view.projectName}
         onBack={() => setView({ type: 'dashboard' })}
+        onRename={(newPath, newName) => setView({ type: 'editor', projectPath: newPath, projectName: newName })}
       />
     )
   }

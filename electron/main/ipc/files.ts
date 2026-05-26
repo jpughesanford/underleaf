@@ -15,8 +15,11 @@ export interface FileNode {
   extension?: string
 }
 
-// Never expose these — .git is internal git state, .underleaf* are app-managed.
-const IGNORED = new Set(['.git', 'node_modules', '.underleaf', '.underleaf-build', '.DS_Store'])
+// Always hidden — these would either dwarf the tree or are pure noise that no
+// user ever wants to browse. Everything else (incl. dotfiles/dotfolders like
+// .underleaf, .vscode, .github) flows through and is gated by the renderer's
+// "show hidden" toggle in FileExplorer.
+const IGNORED = new Set(['.git', 'node_modules'])
 
 function buildTree(dirPath: string, rootPath: string): FileNode[] {
   const entries = readdirSync(dirPath).sort((a, b) => {
