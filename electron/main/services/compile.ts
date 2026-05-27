@@ -29,23 +29,30 @@ export function findRootDocument(projectPath: string): string | null {
   const config = readConfig(projectPath)
   if (config.rootDocument) return join(projectPath, config.rootDocument)
 
-  function search(dir: string): string | null {
+  // Bounded recursion so an unusually deep tree (vendored deps, large
+  // dataset directories) can't lock up the IPC handler. Real LaTeX project
+  // layouts are flat — main.tex at the root or one folder deep. 5 levels is
+  // generous and still fast enough to scan synchronously.
+  const MAX_DEPTH = 5
+
+  function search(dir: string, depth: number): string | null {
+    if (depth > MAX_DEPTH) return null
     for (const entry of readdirSync(dir)) {
       if (entry.startsWith('.') || entry === 'node_modules') continue
       const fullPath = join(dir, entry)
-      const stat = statSync(fullPath)
-      if (stat.isDirectory()) {
-        const found = search(fullPath)
-        if (found) return found
-      } else if (entry.endsWith('.tex')) {
-        try {
+      try {
+        const stat = statSync(fullPath)
+        if (stat.isDirectory()) {
+          const found = search(fullPath, depth + 1)
+          if (found) return found
+        } else if (entry.endsWith('.tex')) {
           if (readFileSync(fullPath, 'utf8').includes('\\documentclass')) return fullPath
-        } catch { /* ignore unreadable file */ }
-      }
+        }
+      } catch { /* skip unreadable */ }
     }
     return null
   }
-  return search(projectPath)
+  return search(projectPath, 0)
 }
 
 // ─── Per-project config ───────────────────────────────────────────────────

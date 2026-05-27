@@ -1,19 +1,37 @@
-import { existsSync } from 'fs'
+import { existsSync, readdirSync, statSync } from 'fs'
 import { execSync } from 'child_process'
+import { join } from 'path'
 
-// Common TeX Live installation paths on macOS — these aren't on the default
-// app PATH when the user launches via Finder, so we search them explicitly.
-const TEX_EXTRA_DIRS = [
+// Fixed paths that don't change between TeX Live versions.
+const FIXED_TEX_DIRS = [
   '/Library/TeX/texbin',
-  '/usr/local/texlive/2024/bin/universal-darwin',
-  '/usr/local/texlive/2024/bin/x86_64-darwin',
-  '/usr/local/texlive/2024/bin/aarch64-darwin',
-  '/usr/local/texlive/2023/bin/universal-darwin',
-  '/usr/local/texlive/2023/bin/x86_64-darwin',
-  '/usr/local/texlive/2023/bin/aarch64-darwin',
   '/opt/homebrew/bin',
   '/usr/local/bin',
 ]
+
+// Discover /usr/local/texlive/<YEAR>/bin/<arch> directories at runtime so new
+// TeX Live releases work without code changes.
+function discoverTexLiveBinDirs(): string[] {
+  const root = '/usr/local/texlive'
+  if (!existsSync(root)) return []
+  const dirs: string[] = []
+  try {
+    for (const entry of readdirSync(root)) {
+      // Only look at year-named subdirs; skip aliases like "current" symlinks.
+      if (!/^\d{4}$/.test(entry)) continue
+      const binDir = join(root, entry, 'bin')
+      if (!existsSync(binDir)) continue
+      for (const arch of readdirSync(binDir)) {
+        const archDir = join(binDir, arch)
+        try {
+          if (statSync(archDir).isDirectory()) dirs.push(archDir)
+        } catch { /* skip */ }
+      }
+    }
+  } catch { /* /usr/local/texlive isn't readable */ }
+  // Newest year first so the latest TeX Live wins.
+  return dirs.sort().reverse()
+}
 
 /**
  * Find the latexmk binary. Prefers a user-specified override, otherwise probes
@@ -25,7 +43,7 @@ const TEX_EXTRA_DIRS = [
 export function resolveLatexmkPath(customPath?: string | null): string | null {
   if (customPath && existsSync(customPath)) return customPath
 
-  const augmentedPath = [...TEX_EXTRA_DIRS, process.env.PATH ?? ''].join(':')
+  const augmentedPath = [...discoverTexLiveBinDirs(), ...FIXED_TEX_DIRS, process.env.PATH ?? ''].join(':')
   try {
     const found = execSync('which latexmk', {
       encoding: 'utf8',

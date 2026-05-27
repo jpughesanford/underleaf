@@ -3,33 +3,44 @@ import {
   existsSync, mkdirSync, readdirSync, renameSync, rmSync, statSync, writeFileSync,
 } from 'fs'
 import { basename, dirname, join } from 'path'
+import simpleGit, { type SimpleGit } from 'simple-git'
 import type { ProjectInfo, ProjectTemplate } from '@shared/types'
 
 // ─── Project discovery ────────────────────────────────────────────────────
 
-function execAt(cwd: string, cmd: string): string {
-  try {
-    return execSync(cmd, { cwd, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }).trim()
-  } catch {
-    return ''
-  }
+// Run a git command and return stdout, or '' on failure. simple-git's API
+// doesn't return strings directly, so wrap each call individually.
+async function safe<T>(p: Promise<T>, fallback: T): Promise<T> {
+  try { return await p } catch { return fallback }
 }
 
-function getGitInfo(repoPath: string): Omit<ProjectInfo, 'id' | 'name' | 'path'> {
-  const branch = execAt(repoPath, 'git rev-parse --abbrev-ref HEAD') || 'main'
-  const lastCommit = execAt(repoPath, 'git log -1 --format=%s') || null
-  const lastCommitDate = execAt(repoPath, 'git log -1 --format=%ci') || null
-  const dirtyStr = execAt(repoPath, 'git status --porcelain')
-  const dirtyCount = dirtyStr ? dirtyStr.split('\n').filter(Boolean).length : 0
-  const remoteUrl = execAt(repoPath, 'git remote get-url origin') || null
-  const hasRemote = !!remoteUrl
-  const hasConflicts = dirtyStr.split('\n').some(l => /^(UU|AA|DD|AU|UA|DU|UD)/.test(l))
+async function getGitInfo(repoPath: string): Promise<Omit<ProjectInfo, 'id' | 'name' | 'path'>> {
+  const git: SimpleGit = simpleGit(repoPath)
 
+  // Probe the cheap, always-safe metadata in parallel.
+  const [branchRaw, lastCommit, lastCommitDate, status, remoteRaw] = await Promise.all([
+    safe(git.revparse(['--abbrev-ref', 'HEAD']), 'main'),
+    safe(git.raw(['log', '-1', '--format=%s']).then(s => s.trim() || null), null),
+    safe(git.raw(['log', '-1', '--format=%ci']).then(s => s.trim() || null), null),
+    safe(git.status(), null),
+    safe(git.raw(['remote', 'get-url', 'origin']).then(s => s.trim() || null), null),
+  ])
+
+  const branch = branchRaw.trim() || 'main'
+  const remoteUrl = remoteRaw
+  const hasRemote = !!remoteUrl
+
+  const dirtyCount = status?.files.length ?? 0
+  const hasConflicts = (status?.conflicted.length ?? 0) > 0
+
+  // Ahead/behind requires an upstream — fails if there isn't one set, so wrap.
   let aheadBy = 0, behindBy = 0, syncStatusKnown = false
   if (hasRemote) {
-    const aheadStr = execAt(repoPath, 'git rev-list --count @{u}..HEAD')
-    const behindStr = execAt(repoPath, 'git rev-list --count HEAD..@{u}')
-    if (aheadStr !== '' && behindStr !== '') {
+    const [aheadStr, behindStr] = await Promise.all([
+      safe(git.raw(['rev-list', '--count', '@{u}..HEAD']), ''),
+      safe(git.raw(['rev-list', '--count', 'HEAD..@{u}']), ''),
+    ])
+    if (aheadStr.trim() !== '' && behindStr.trim() !== '') {
       aheadBy = parseInt(aheadStr) || 0
       behindBy = parseInt(behindStr) || 0
       syncStatusKnown = true
@@ -51,29 +62,46 @@ function deriveName(repoPath: string, remoteUrl: string | null): string {
   return dirName
 }
 
-/** Scan a root folder for git repositories; returns one ProjectInfo per repo. */
-export function scanProjects(rootPath: string): ProjectInfo[] {
+/**
+ * Scan a root folder for git repositories; returns one ProjectInfo per repo.
+ *
+ * Each repo's git probe runs in parallel — for a directory of N project clones,
+ * total wallclock is roughly the slowest single probe, not N × probe time.
+ */
+export async function scanProjects(rootPath: string): Promise<ProjectInfo[]> {
   if (!existsSync(rootPath)) return []
 
-  const projects: ProjectInfo[] = []
+  // Synchronous pre-filter: only paths that look like git repos make it to the
+  // async git probe. statSync is cheap relative to spawning git.
+  const candidates: string[] = []
   for (const entry of readdirSync(rootPath)) {
     const fullPath = join(rootPath, entry)
     try {
       if (!statSync(fullPath).isDirectory()) continue
       if (!existsSync(join(fullPath, '.git'))) continue
-
-      const gitInfo = getGitInfo(fullPath)
-      projects.push({
-        id: fullPath,
-        name: deriveName(fullPath, gitInfo.remoteUrl),
-        path: fullPath,
-        ...gitInfo,
-      })
+      candidates.push(fullPath)
     } catch {
-      // skip unreadable dirs
+      // skip unreadable
     }
   }
 
+  const results = await Promise.all(
+    candidates.map(async (fullPath): Promise<ProjectInfo | null> => {
+      try {
+        const gitInfo = await getGitInfo(fullPath)
+        return {
+          id: fullPath,
+          name: deriveName(fullPath, gitInfo.remoteUrl),
+          path: fullPath,
+          ...gitInfo,
+        }
+      } catch {
+        return null
+      }
+    }),
+  )
+
+  const projects = results.filter((p): p is ProjectInfo => p !== null)
   return projects.sort((a, b) => {
     if (a.lastCommitDate && b.lastCommitDate) {
       return new Date(b.lastCommitDate).getTime() - new Date(a.lastCommitDate).getTime()
