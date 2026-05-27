@@ -417,7 +417,8 @@ export default function FileExplorer({ projectPath, activeFile, onOpenFile, main
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       {/* Header */}
       <div style={{
-        padding: '8px 10px',
+        height: 'var(--header-h)',
+        padding: '0 10px',
         borderBottom: '1px solid var(--color-border)',
         display: 'flex',
         alignItems: 'center',

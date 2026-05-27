@@ -374,7 +374,7 @@ export default function PdfPane({ pdfPath, version = 0 }: Props) {
         borderBottom: '1px solid var(--color-border)',
         background: 'var(--color-bg-app)',
         flexShrink: 0,
-        height: 34,
+        height: 'var(--header-h)',
       }}>
         {/* Left group — tightly grouped, left-justified */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>

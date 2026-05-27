@@ -69,9 +69,18 @@ export function registerGitIPC(): void {
     await git.reset(['HEAD', filePath])
   })
 
-  ipcMain.handle('git:commit', async (_, projectPath: string, message: string) => {
+  ipcMain.handle('git:commit', async (_, projectPath: string, message: string, opts?: { amend?: boolean }) => {
     const git = simpleGit(projectPath)
-    await git.commit(message)
+    if (opts?.amend) {
+      // Use raw so we don't fight simple-git's commit(message, files, opts) signature —
+      // passing flags as the second arg silently interpreted them as filenames.
+      const args = ['commit', '--amend']
+      if (message) args.push('-m', message)
+      else args.push('--no-edit')  // keep the previous commit's message verbatim
+      await git.raw(args)
+    } else {
+      await git.commit(message)
+    }
   })
 
   ipcMain.handle('git:push', async (_, projectPath: string): Promise<{ success: boolean; error?: string }> => {

@@ -3,7 +3,7 @@ import { EditorView, ViewUpdate } from '@codemirror/view'
 import type { Panel } from '@codemirror/view'
 import {
   findNext, findPrevious, replaceNext, replaceAll, closeSearchPanel,
-  getSearchQuery, setSearchQuery, SearchQuery,
+  getSearchQuery, setSearchQuery, SearchQuery, searchPanelOpen,
 } from '@codemirror/search'
 
 // ─── Inline SVG icons ─────────────────────────────────────────────────────
@@ -201,24 +201,28 @@ export function createUnderleafSearchPanel(view: EditorView): Panel {
 // can't reuse `&light/&dark` here — `EditorView.theme` rejects them (only
 // `baseTheme` accepts the scope map). We win the cascade with `!important`
 // from a plain selector instead.
-export const underleafSearchPanelTheme = EditorView.theme({
+const searchPanelStyles = EditorView.theme({
   // ── Container reset ────────────────────────────────────────────────────
   '.cm-panels': {
     backgroundColor: 'transparent !important',
     color: 'var(--color-text-primary) !important',
     borderColor: 'transparent !important',
   },
-  '.cm-panels.cm-panels-top':    { borderBottom: 'none !important' },
-  '.cm-panels.cm-panels-bottom': { borderTop: 'none !important' },
-
-  // While the search panel is mounted, neutralize the editor content's own
-  // top padding (`.cm-content { padding: 8px 0 }`) so the visual gap below
-  // our card equals the visual gap above it — keeps the card's outer
-  // breathing room truly symmetric on all four sides. `:has()` scopes this
-  // to only when the panel is actually open.
-  '&:has(.underleaf-search) .cm-content': {
-    paddingTop: '0',
+  // Float the top-panel container OVER the editor instead of stacking it
+  // in the layout flow. `.cm-editor` is `position: relative` by default, so
+  // the absolute positioning anchors to the editor frame. The container
+  // itself is `pointer-events: none` so clicks anywhere outside the panel
+  // body still reach the editor; the panel re-enables them.
+  '.cm-panels.cm-panels-top': {
+    position:      'absolute',
+    top:           0,
+    left:          0,
+    right:         0,
+    zIndex:        5,
+    pointerEvents: 'none',
+    borderBottom:  'none !important',
   },
+  '.cm-panels.cm-panels-bottom': { borderTop: 'none !important' },
 
   // ── Card shell + design tokens ─────────────────────────────────────────
   '.underleaf-search': {
@@ -285,7 +289,24 @@ export const underleafSearchPanelTheme = EditorView.theme({
     color:               'var(--color-text-primary)',
     position:            'relative',
     isolation:           'isolate',
+    // Re-enable pointer events inside the panel body — the surrounding
+    // `.cm-panels-top` container is `pointer-events: none` so editor
+    // clicks outside the card pass through to the editor below.
+    pointerEvents:       'auto',
+    // Establish a size container so the panel can hide non-essential
+    // controls as the editor pane gets narrow, without depending on the
+    // viewport width.
+    containerType:       'inline-size',
+    containerName:       'us-panel',
     animation:           'underleaf-search-in 240ms cubic-bezier(.2, .7, .2, 1)',
+  },
+  // Below 480px of panel width the find input gets squeezed by the trio
+  // of modifier toggles; hide them so the input has room. The count chip
+  // is preserved — it carries information no other control can replace.
+  '@container us-panel (max-width: 480px)': {
+    '.underleaf-search .us-mod': {
+      display: 'none',
+    },
   },
   // A second-row reveal that trails the card a touch — feels like the
   // panel unfolds into shape rather than landing all at once.
@@ -587,3 +608,20 @@ export const underleafSearchPanelTheme = EditorView.theme({
     display: 'block',
   },
 })
+
+// With the panel floating over the editor, programmatic scrolls (jump to
+// match, cursor-into-view, …) must keep their target visible *below* the
+// panel rather than under it. We measure the panel on demand so layout
+// tweaks to the card don't require updating a hardcoded number; the +11
+// is the panel's own outer margin, included so the match doesn't kiss
+// the card's lower edge.
+const searchPanelScrollMargin = EditorView.scrollMargins.of(view => {
+  if (!searchPanelOpen(view.state)) return null
+  const panel = view.dom.querySelector('.underleaf-search') as HTMLElement | null
+  return { top: panel ? panel.offsetHeight + 11 : 110 }
+})
+
+export const underleafSearchPanelTheme = [
+  searchPanelStyles,
+  searchPanelScrollMargin,
+]

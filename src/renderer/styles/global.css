@@ -42,6 +42,7 @@
   --sidebar-width: 280px;
   --rail-width: 44px;
   --toolbar-height: 48px;
+  --header-h: 34px;
   --panel-resize-handle: 4px;
 
   /* Typography */
@@ -83,6 +84,12 @@
   --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
   --shadow-md: 0 4px 12px rgba(0,0,0,0.4);
   --shadow-lg: 0 8px 24px rgba(0,0,0,0.5);
+
+  /* PyCharm-style focused-row highlight used by GitPanel — muted indigo bar
+     matching Darcula's "focused selection" treatment. Translucent so it sits
+     correctly on any panel background; the text color in here flips to white. */
+  --gitpanel-sel-bg: rgba(75, 110, 175, 0.38);
+  --gitpanel-sel-fg: #ffffff;
 
   /* Transitions */
   --transition: 150ms ease;

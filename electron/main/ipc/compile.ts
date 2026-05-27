@@ -73,21 +73,61 @@ function parseLog(log: string, projectPath: string): { errors: CompileError[]; w
 
   const errorRe = /^!\s+(.+)$/
   const lineRe = /^l\.(\d+)/
-  const fileRe = /\(([^()]+\.tex)/
   const warnRe = /^(LaTeX Warning|Package \w+ Warning|Class \w+ Warning):\s*(.+)/i
   const overfullRe = /^(Overfull|Underfull) \\[hv]box/
 
-  let i = 0
-  let currentFile = 'main.tex'
+  // LaTeX log uses balanced parens to delimit file scope:
+  //   (./main.tex (./chapter.tex Some content) (/usr/.../tcb.code.tex …) )
+  // We maintain a stack of currently-open files. The "current file" at any
+  // point is the top of the stack. Errors/warnings are tagged using the stack
+  // state at the START of the line they appear on.
+  const fileStack: string[] = []
+  const projectFileStack: string[] = []  // same depth as fileStack, but tracks deepest *project* file
 
-  while (i < lines.length) {
+  const normalize = (p: string): { display: string; isProject: boolean } => {
+    const rel = relative(projectPath, p)
+    const isProject = !!rel && !rel.startsWith('..') && !rel.startsWith('/')
+    return { display: isProject ? rel : p, isProject }
+  }
+
+  // Heuristic: pick the most user-relevant file for attribution.
+  // Prefer the deepest file inside the project; fall back to top of stack.
+  const currentFile = (): string => projectFileStack[projectFileStack.length - 1]
+    ?? fileStack[fileStack.length - 1]
+    ?? 'main.tex'
+
+  // Tokenize a single line, updating the file stack as we encounter ( and ).
+  // Paths in LaTeX logs run until whitespace or another ( / ) — they look like
+  // (./main.tex   or   (/usr/local/texlive/.../foo.sty
+  function updateStack(line: string) {
+    let p = 0
+    while (p < line.length) {
+      const c = line[p]
+      if (c === '(') {
+        const m = line.slice(p + 1).match(/^([^\s()]+)/)
+        if (m && /\.(tex|sty|cls|def|cfg|ldf|fd|aux|out)$/.test(m[1])) {
+          const { display, isProject } = normalize(m[1])
+          fileStack.push(display)
+          if (isProject) projectFileStack.push(display)
+          else projectFileStack.push(projectFileStack[projectFileStack.length - 1] ?? '')
+          p += 1 + m[0].length
+          continue
+        }
+      } else if (c === ')') {
+        fileStack.pop()
+        projectFileStack.pop()
+        p++
+        continue
+      }
+      p++
+    }
+  }
+
+  for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
 
-    const fileMatch = line.match(fileRe)
-    if (fileMatch) {
-      currentFile = relative(projectPath, fileMatch[1]) || fileMatch[1]
-    }
-
+    // Detect errors/warnings using the stack state BEFORE this line's parens
+    // are processed — that's where the message logically belongs.
     const errMatch = line.match(errorRe)
     if (errMatch) {
       let lineNum: number | null = null
@@ -95,24 +135,18 @@ function parseLog(log: string, projectPath: string): { errors: CompileError[]; w
         const lm = lines[j].match(lineRe)
         if (lm) { lineNum = parseInt(lm[1]); break }
       }
-      errors.push({ type: 'error', file: currentFile, line: lineNum, message: errMatch[1] })
-      i++
-      continue
+      errors.push({ type: 'error', file: currentFile(), line: lineNum, message: errMatch[1] })
+    } else {
+      const warnMatch = line.match(warnRe)
+      if (warnMatch) {
+        warnings.push({ type: 'warning', file: currentFile(), line: null, message: warnMatch[2] })
+      } else if (overfullRe.test(line)) {
+        const lm = line.match(/lines? (\d+)/)
+        warnings.push({ type: 'warning', file: currentFile(), line: lm ? parseInt(lm[1]) : null, message: line.trim() })
+      }
     }
 
-    const warnMatch = line.match(warnRe)
-    if (warnMatch) {
-      warnings.push({ type: 'warning', file: currentFile, line: null, message: warnMatch[2] })
-      i++
-      continue
-    }
-
-    if (overfullRe.test(line)) {
-      const lm = line.match(/lines? (\d+)/)
-      warnings.push({ type: 'warning', file: currentFile, line: lm ? parseInt(lm[1]) : null, message: line.trim() })
-    }
-
-    i++
+    updateStack(line)
   }
 
   return { errors, warnings }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
-import { AlertTriangle } from 'lucide-react'
+import { AlertTriangle, FileText, BookOpen, Image, File, ChevronRight, ChevronDown, TerminalSquare } from 'lucide-react'
 import AddRemoteModal from './AddRemoteModal'
 
 interface FileStatus {
@@ -24,26 +24,64 @@ interface Props {
   onOpenFile: (path: string) => void
 }
 
-const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  M: { label: 'M', color: 'var(--badge-warn-color)' },
-  A: { label: 'A', color: 'var(--badge-sync-color)' },
-  D: { label: 'D', color: 'var(--badge-err-color)' },
-  R: { label: 'R', color: 'var(--badge-info-color)' },
-  '?': { label: 'U', color: 'var(--badge-muted-color)' },
+// PyCharm file-status palette. Modified=blue, Added=green, Deleted/Untracked=red,
+// Renamed=blue. The filename takes this color; the path stays muted.
+const STATUS_COLOR: Record<string, string> = {
+  M: 'var(--badge-info-color)',
+  A: 'var(--badge-sync-color)',
+  D: 'var(--badge-err-color)',
+  R: 'var(--badge-info-color)',
+  '?': 'var(--badge-err-color)',
 }
+
+type SectionKey = 'staged' | 'changes' | 'unversioned' | 'conflicts'
 
 export default function GitPanel({ projectPath, onOpenFile }: Props) {
   const [status, setStatus] = useState<GitStatus | null>(null)
   const [loading, setLoading] = useState(true)
   const [commitMsg, setCommitMsg] = useState('')
+  const [amend, setAmend] = useState(false)
   const [pushing, setPushing] = useState(false)
   const [pulling, setPulling] = useState(false)
   const [fetching, setFetching] = useState(false)
   const [committing, setCommitting] = useState(false)
-  const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
+  const [statusMsg, setStatusMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
   const [showAddRemote, setShowAddRemote] = useState(false)
   const [hasRemote, setHasRemote] = useState(true)
   const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null)
+  const [collapsed, setCollapsed] = useState<Record<SectionKey, boolean>>({
+    staged: false, changes: false, unversioned: false, conflicts: false,
+  })
+  // PyCharm always has exactly one focused row; we follow the same model so the
+  // indigo highlight bar has a single home. Defaults to the first non-empty section.
+  const [selected, setSelected] = useState<string>('section:changes')
+  // Height of the commit area (textarea + amend row + action row). Dragging the
+  // divider above resizes this; the tree body fills whatever is left.
+  const [commitHeight, setCommitHeight] = useState(180)
+  const panelRef = useRef<HTMLDivElement>(null)
+
+  function startCommitResize(e: React.MouseEvent) {
+    e.preventDefault()
+    const startY = e.clientY
+    const startH = commitHeight
+    const panelH = panelRef.current?.clientHeight ?? 600
+    const onMove = (ev: MouseEvent) => {
+      // Cap so the tree always keeps at least ~100px and the commit area never
+      // collapses below the height of its own contents (~140px).
+      const next = Math.max(140, Math.min(panelH - 140, startH - (ev.clientY - startY)))
+      setCommitHeight(next)
+    }
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+    document.body.style.cursor = 'row-resize'
+    document.body.style.userSelect = 'none'
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }
 
   const refresh = useCallback(async () => {
     setLoading(true)
@@ -59,49 +97,56 @@ export default function GitPanel({ projectPath, onOpenFile }: Props) {
 
   useEffect(() => { refresh() }, [refresh])
 
-  function showMsg(text: string, type: 'success' | 'error') {
-    setMessage({ text, type })
-    setTimeout(() => setMessage(null), 4000)
+  function flash(text: string, type: 'success' | 'error') {
+    setStatusMsg({ text, type })
+    setTimeout(() => setStatusMsg(null), 4000)
   }
 
-  async function stage(file: string) {
-    await window.api.gitStage(projectPath, file)
+  async function stage(file: string) { await window.api.gitStage(projectPath, file); refresh() }
+  async function unstage(file: string) { await window.api.gitUnstage(projectPath, file); refresh() }
+
+  async function stageMany(files: string[]) {
+    for (const f of files) await window.api.gitStage(projectPath, f)
     refresh()
   }
-
-  async function unstage(file: string) {
-    await window.api.gitUnstage(projectPath, file)
-    refresh()
-  }
-
-  async function stageAll() {
-    if (!status) return
-    for (const f of status.unstaged) {
-      await window.api.gitStage(projectPath, f.path)
-    }
-    refresh()
-  }
-
-  async function unstageAll() {
-    if (!status) return
-    for (const f of status.staged) {
-      await window.api.gitUnstage(projectPath, f.path)
-    }
+  async function unstageMany(files: string[]) {
+    for (const f of files) await window.api.gitUnstage(projectPath, f)
     refresh()
   }
 
   async function commit() {
-    if (!commitMsg.trim()) return
+    if (!commitMsg.trim() && !amend) return
     setCommitting(true)
     try {
-      await window.api.gitCommit(projectPath, commitMsg.trim())
+      await window.api.gitCommit(projectPath, commitMsg.trim(), { amend })
       setCommitMsg('')
-      showMsg('Commit successful', 'success')
+      setAmend(false)
+      flash(amend ? 'Commit amended' : 'Commit successful', 'success')
       refresh()
     } catch (e) {
-      showMsg(`Commit failed: ${e instanceof Error ? e.message : e}`, 'error')
+      flash(`Commit failed: ${e instanceof Error ? e.message : e}`, 'error')
     } finally {
       setCommitting(false)
+    }
+  }
+
+  async function commitAndPush() {
+    if (!commitMsg.trim() && !amend) return
+    setCommitting(true)
+    try {
+      await window.api.gitCommit(projectPath, commitMsg.trim(), { amend })
+      setCommitMsg('')
+      setAmend(false)
+      setPushing(true)
+      const result = await window.api.gitPush(projectPath)
+      if (result.success) flash('Commit pushed', 'success')
+      else flash(result.error || 'Commit succeeded but push failed', 'error')
+      refresh()
+    } catch (e) {
+      flash(`Commit failed: ${e instanceof Error ? e.message : e}`, 'error')
+    } finally {
+      setCommitting(false)
+      setPushing(false)
     }
   }
 
@@ -110,52 +155,37 @@ export default function GitPanel({ projectPath, onOpenFile }: Props) {
     try {
       const result = await window.api.gitPush(projectPath)
       if (result.success) {
-        showMsg('Pushed successfully', 'success')
+        flash('Pushed successfully', 'success')
       } else {
-        const isAuthFail = result.error?.includes('Authentication') || result.error?.includes('403') || result.error?.includes('Permission')
-        showMsg(isAuthFail ? 'Auth failed — check SSH keys or credentials in system git' : result.error || 'Push failed', 'error')
+        const authFail = result.error?.includes('Authentication') || result.error?.includes('403') || result.error?.includes('Permission')
+        flash(authFail ? 'Auth failed — check SSH keys or credentials in system git' : result.error || 'Push failed', 'error')
       }
-    } finally {
-      setPushing(false)
-    }
+    } finally { setPushing(false) }
   }
 
   async function pull() {
     setPulling(true)
     try {
       const result = await window.api.gitPull(projectPath)
-      if (result.success) {
-        showMsg('Pulled successfully', 'success')
-        refresh()
-      } else if (result.hasConflicts) {
-        showMsg('Pull succeeded with conflicts — resolve them in the editor', 'error')
-        refresh()
-      } else {
-        showMsg(result.error || 'Pull failed', 'error')
-      }
-    } finally {
-      setPulling(false)
-    }
+      if (result.success) { flash('Pulled successfully', 'success'); refresh() }
+      else if (result.hasConflicts) { flash('Pull succeeded with conflicts — resolve them in the editor', 'error'); refresh() }
+      else flash(result.error || 'Pull failed', 'error')
+    } finally { setPulling(false) }
   }
 
   async function fetch_() {
     setFetching(true)
     try {
       const result = await window.api.gitFetch(projectPath)
-      if (result.success) {
-        showMsg('Fetched successfully', 'success')
-      } else {
-        showMsg(result.error || 'Fetch failed', 'error')
-      }
-    } finally {
-      setFetching(false)
-    }
+      if (result.success) flash('Fetched successfully', 'success')
+      else flash(result.error || 'Fetch failed', 'error')
+    } finally { setFetching(false) }
   }
 
   async function addToGitignore(pattern: string) {
     const gitignorePath = `${projectPath}/.gitignore`
     const content = (await window.api.readFile(gitignorePath)) ?? ''
-    const lines = content.split('\n').map(l => l.trim())
+    const lines = content.split('\n').map((l: string) => l.trim())
     if (!lines.includes(pattern)) {
       const sep = content.length > 0 && !content.endsWith('\n') ? '\n' : ''
       await window.api.writeFile(gitignorePath, content + sep + pattern + '\n')
@@ -164,12 +194,8 @@ export default function GitPanel({ projectPath, onOpenFile }: Props) {
   }
 
   async function deleteFile(filePath: string) {
-    try {
-      await window.api.deleteFile(`${projectPath}/${filePath}`)
-      refresh()
-    } catch (e) {
-      showMsg(`Delete failed: ${e instanceof Error ? e.message : e}`, 'error')
-    }
+    try { await window.api.deleteFile(`${projectPath}/${filePath}`); refresh() }
+    catch (e) { flash(`Delete failed: ${e instanceof Error ? e.message : e}`, 'error') }
   }
 
   useEffect(() => {
@@ -180,15 +206,60 @@ export default function GitPanel({ projectPath, onOpenFile }: Props) {
     return () => { window.removeEventListener('click', close); window.removeEventListener('contextmenu', close) }
   }, [contextMenu])
 
-  const hasStaged = (status?.staged.length ?? 0) > 0
-  const hasUnstaged = (status?.unstaged.length ?? 0) > 0
-  const hasConflicts = (status?.conflicted.length ?? 0) > 0
+  // Split unstaged into "tracked changes" vs "unversioned" (PyCharm convention).
+  const changes = (status?.unstaged ?? []).filter(f => f.status !== '?')
+  const unversioned = (status?.unstaged ?? []).filter(f => f.status === '?')
+  const staged = status?.staged ?? []
+  const conflicts = status?.conflicted ?? []
+
+  const hasStaged = staged.length > 0
+  const hasChanges = changes.length > 0
+  const hasUnversioned = unversioned.length > 0
+  const hasConflicts = conflicts.length > 0
+  const canCommit = (hasStaged && commitMsg.trim().length > 0) || amend
+
+  function renderSection(key: SectionKey, title: string, files: FileStatus[], staged: boolean) {
+    if (files.length === 0) return null
+    const sectionId = `section:${key}`
+    const isCollapsed = collapsed[key]
+    return (
+      <>
+        <SectionRow
+          title={title}
+          count={files.length}
+          collapsed={isCollapsed}
+          checkState={staged ? 'all' : 'none'}
+          selected={selected === sectionId}
+          onToggleCollapse={() => setCollapsed(c => ({ ...c, [key]: !c[key] }))}
+          onToggleCheck={() => staged ? unstageMany(files.map(f => f.path)) : stageMany(files.map(f => f.path))}
+          onSelect={() => setSelected(sectionId)}
+        />
+        {!isCollapsed && files.map(f => {
+          const rowId = `${key}:${f.path}`
+          return (
+            <FileRow
+              key={rowId}
+              file={f}
+              checked={staged}
+              selected={selected === rowId}
+              onSelect={() => setSelected(rowId)}
+              onToggleCheck={() => staged ? unstage(f.path) : stage(f.path)}
+              onOpen={() => onOpenFile(`${projectPath}/${f.path}`)}
+              onContextMenu={e => { e.preventDefault(); e.stopPropagation(); setContextMenu({ x: e.clientX, y: e.clientY, file: f }) }}
+            />
+          )
+        })}
+      </>
+    )
+  }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      {/* Header */}
+    <div ref={panelRef} style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      {/* Header — PyCharm-style icon-driven toolbar. Fetch/Pull/Push live here instead of
+          the commit area so the bottom can be dedicated to writing the message. */}
       <div style={{
-        padding: '8px 10px',
+        height: 'var(--header-h)',
+        padding: '0 6px 0 10px',
         borderBottom: '1px solid var(--color-border)',
         display: 'flex',
         alignItems: 'center',
@@ -198,14 +269,38 @@ export default function GitPanel({ projectPath, onOpenFile }: Props) {
         <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
           Source Control
         </span>
-        <button className="btn btn-ghost btn-icon" onClick={refresh} title="Refresh" style={{ width: 24, height: 24, color: 'var(--color-text-muted)' }}>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <polyline points="23 4 23 10 17 10"/>
-            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
-          </svg>
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          {hasRemote && (
+            <>
+              <IconButton title="Fetch" onClick={fetch_} disabled={fetching} spin={fetching}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+                  <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                </svg>
+              </IconButton>
+              <IconButton title="Pull" onClick={pull} disabled={pulling} spin={pulling}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 19V5"/><polyline points="5 12 12 19 19 12"/>
+                </svg>
+              </IconButton>
+              <IconButton title="Push" onClick={push} disabled={pushing} spin={pushing}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 5v14"/><polyline points="5 12 12 5 19 12"/>
+                </svg>
+              </IconButton>
+              <div style={{ width: 1, height: 14, background: 'var(--color-border)', margin: '0 4px' }} />
+            </>
+          )}
+          <IconButton title="Refresh" onClick={refresh}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polyline points="23 4 23 10 17 10"/>
+              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+            </svg>
+          </IconButton>
+        </div>
       </div>
 
+      {/* Tree body */}
       <div style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
         {loading ? (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
@@ -213,14 +308,13 @@ export default function GitPanel({ projectPath, onOpenFile }: Props) {
           </div>
         ) : (
           <>
-            {/* Conflicts */}
             {hasConflicts && (
               <div style={{ padding: '8px 10px', background: 'var(--badge-err-bg)', borderBottom: '1px solid var(--badge-err-border)' }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-text-error)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-error)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5, letterSpacing: 0.4 }}>
                   <AlertTriangle size={11} strokeWidth={2.5} />
                   MERGE CONFLICTS
                 </div>
-                {status!.conflicted.map(f => (
+                {conflicts.map(f => (
                   <div
                     key={f}
                     onClick={() => onOpenFile(`${projectPath}/${f}`)}
@@ -228,117 +322,155 @@ export default function GitPanel({ projectPath, onOpenFile }: Props) {
                     onMouseEnter={e => { e.currentTarget.style.background = 'var(--badge-err-bg-hover, var(--badge-err-bg))' }}
                     onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
                   >
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-                      <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
-                    </svg>
+                    <AlertTriangle size={10} strokeWidth={2} />
                     {f}
                   </div>
                 ))}
               </div>
             )}
 
-            {/* Staged */}
-            <SectionHeader
-              title="Staged Changes"
-              count={status?.staged.length}
-              onAction={hasStaged ? unstageAll : undefined}
-              actionLabel="Unstage All"
-            />
-            {status?.staged.map(f => (
-              <FileRow
-                key={`s_${f.path}`}
-                file={f}
-                action="unstage"
-                onAction={() => unstage(f.path)}
-                onClick={() => onOpenFile(`${projectPath}/${f.path}`)}
-                onContextMenu={e => { e.preventDefault(); e.stopPropagation(); setContextMenu({ x: e.clientX, y: e.clientY, file: f }) }}
-              />
-            ))}
-            {status?.staged.length === 0 && (
-              <div style={{ padding: '4px 12px', fontSize: 11, color: 'var(--color-text-muted)', fontStyle: 'italic' }}>No staged changes</div>
-            )}
+            {renderSection('staged', 'Staged Changes', staged, true)}
+            {renderSection('changes', 'Changes', changes, false)}
+            {renderSection('unversioned', 'Unversioned Files', unversioned, false)}
 
-            {/* Unstaged */}
-            <SectionHeader
-              title="Changes"
-              count={status?.unstaged.length}
-              onAction={hasUnstaged ? stageAll : undefined}
-              actionLabel="Stage All"
-            />
-            {status?.unstaged.map(f => (
-              <FileRow
-                key={`u_${f.path}`}
-                file={f}
-                action="stage"
-                onAction={() => stage(f.path)}
-                onClick={() => onOpenFile(`${projectPath}/${f.path}`)}
-                onContextMenu={e => { e.preventDefault(); e.stopPropagation(); setContextMenu({ x: e.clientX, y: e.clientY, file: f }) }}
-              />
-            ))}
-            {status?.unstaged.length === 0 && (
-              <div style={{ padding: '4px 12px', fontSize: 11, color: 'var(--color-text-muted)', fontStyle: 'italic' }}>No unstaged changes</div>
+            {!hasStaged && !hasChanges && !hasUnversioned && !hasConflicts && (
+              <div style={{ padding: '20px 12px', fontSize: 12, color: 'var(--color-text-muted)', fontStyle: 'italic', textAlign: 'center' }}>
+                No changes
+              </div>
             )}
           </>
         )}
       </div>
 
-      {/* Commit area */}
-      <div style={{ borderTop: '1px solid var(--color-border)', padding: 10, flexShrink: 0 }}>
+      {/* Drag handle — the visible top border of the commit panel doubles as the
+          resize grip. Hit area is taller than the border so it's easy to grab. */}
+      <div
+        onMouseDown={startCommitResize}
+        title="Drag to resize"
+        style={{
+          height: 6,
+          marginTop: -3,
+          marginBottom: -3,
+          cursor: 'row-resize',
+          flexShrink: 0,
+          position: 'relative',
+          zIndex: 2,
+          background: 'transparent',
+        }}
+      />
+
+      {/* Commit panel — PyCharm-style: Amend + auxiliary icons on top, monospace message,
+          primary + secondary commit actions at the bottom. */}
+      <div style={{
+        height: commitHeight,
+        borderTop: '1px solid var(--color-border)',
+        padding: '8px 10px 10px',
+        flexShrink: 0,
+        background: 'var(--color-bg-panel)',
+        display: 'flex',
+        flexDirection: 'column',
+      }}>
+        {/* Amend row — Amend toggle on the left, "Open in Terminal" right-justified */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+          <div
+            onClick={() => setAmend(v => !v)}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer', userSelect: 'none' }}
+          >
+            <PyCheckbox checked={amend} onChange={() => setAmend(v => !v)} />
+            <span style={{ fontSize: 12, color: 'var(--color-text-primary)' }}>Amend</span>
+          </div>
+          <button
+            onClick={() => window.api.openInTerminal(projectPath)}
+            title="Open this repository in your terminal"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 5,
+              height: 22,
+              padding: '0 8px',
+              fontSize: 11,
+              fontFamily: 'inherit',
+              color: 'var(--color-text-secondary)',
+              background: 'transparent',
+              border: 'none',
+              borderRadius: 4,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              transition: 'background 120ms ease, color 120ms ease',
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.background = 'var(--color-bg-card-hover)'
+              e.currentTarget.style.color = 'var(--color-text-primary)'
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.background = 'transparent'
+              e.currentTarget.style.color = 'var(--color-text-secondary)'
+            }}
+          >
+            <TerminalSquare size={12} strokeWidth={1.75} />
+            Open in Terminal
+          </button>
+        </div>
+
+        {/* Message input — monospace, flex-grows to fill the resizable commit area.
+            resize: none because the whole panel is resized via the top divider above. */}
         <textarea
-          className="input"
-          placeholder="Commit message…"
+          placeholder="Commit message"
           value={commitMsg}
           onChange={e => setCommitMsg(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter' && e.metaKey) commit() }}
-          style={{ marginBottom: 8, minHeight: 60, fontSize: 12, resize: 'vertical' }}
+          spellCheck
+          style={{
+            flex: 1,
+            width: '100%',
+            padding: '8px 10px',
+            background: 'var(--color-bg-input)',
+            border: '1px solid var(--color-border)',
+            borderRadius: 6,
+            color: 'var(--color-text-primary)',
+            fontFamily: 'var(--font-mono)',
+            fontSize: 12,
+            lineHeight: 1.45,
+            resize: 'none',
+            outline: 'none',
+            marginBottom: 8,
+          }}
+          onFocus={e => { e.currentTarget.style.borderColor = 'var(--color-border-focus)' }}
+          onBlur={e => { e.currentTarget.style.borderColor = 'var(--color-border)' }}
         />
-        <button
-          className="btn btn-primary w-full"
-          onClick={commit}
-          disabled={!hasStaged || !commitMsg.trim() || committing}
-          style={{ marginBottom: 6 }}
-        >
-          {committing ? <><div className="spinner" style={{ width: 12, height: 12 }} /> Committing...</> : 'Commit'}
-        </button>
 
-        {/* Remote actions */}
-        {!hasRemote ? (
-          <button
-            className="btn btn-secondary w-full btn-sm"
-            onClick={() => setShowAddRemote(true)}
-          >
-            Connect to Remote
-          </button>
-        ) : (
-          <div style={{ display: 'flex', gap: 4 }}>
-            <button className="btn btn-secondary btn-sm" style={{ flex: 1 }} onClick={fetch_} disabled={fetching}>
-              {fetching ? '...' : 'Fetch'}
+        {/* Action row */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {!hasRemote ? (
+            <button className="btn btn-secondary w-full btn-sm" onClick={() => setShowAddRemote(true)}>
+              Connect to Remote
             </button>
-            <button className="btn btn-secondary btn-sm" style={{ flex: 1 }} onClick={pull} disabled={pulling}>
-              {pulling ? '...' : 'Pull'}
-            </button>
-            <button className="btn btn-secondary btn-sm" style={{ flex: 1 }} onClick={push} disabled={pushing}>
-              {pushing ? '...' : 'Push'}
-            </button>
-          </div>
-        )}
+          ) : (
+            <>
+              <CommitButton primary onClick={commit} disabled={!canCommit || committing}>
+                {committing ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><div className="spinner" style={{ width: 11, height: 11 }} /> Committing…</span> : amend ? 'Amend' : 'Commit'}
+              </CommitButton>
+              <CommitButton onClick={commitAndPush} disabled={!canCommit || committing || pushing}>
+                Commit and Push…
+              </CommitButton>
+            </>
+          )}
+        </div>
       </div>
 
-      {/* Status message */}
-      {message && (
+      {statusMsg && (
         <div
           className="selectable"
           style={{
             padding: '8px 12px',
             fontSize: 12,
-            color: message.type === 'success' ? 'var(--badge-sync-color)' : 'var(--color-text-error)',
-            background: message.type === 'success' ? 'var(--badge-sync-bg)' : 'var(--badge-err-bg)',
-            borderTop: `1px solid ${message.type === 'success' ? 'var(--badge-sync-border)' : 'var(--badge-err-border)'}`,
+            color: statusMsg.type === 'success' ? 'var(--badge-sync-color)' : 'var(--color-text-error)',
+            background: statusMsg.type === 'success' ? 'var(--badge-sync-bg)' : 'var(--badge-err-bg)',
+            borderTop: `1px solid ${statusMsg.type === 'success' ? 'var(--badge-sync-border)' : 'var(--badge-err-border)'}`,
             flexShrink: 0,
           }}
         >
-          {message.text}
+          {statusMsg.text}
         </div>
       )}
 
@@ -369,32 +501,15 @@ export default function GitPanel({ projectPath, onOpenFile }: Props) {
               minWidth: 210, boxShadow: 'var(--shadow-md)',
             }}
           >
-            <GitContextMenuItem
-              label="Add file to .gitignore"
-              icon={ignoreIcon}
-              onClick={() => { addToGitignore(filePath); setContextMenu(null) }}
-            />
+            <GitContextMenuItem label="Add file to .gitignore" icon={ignoreIcon} onClick={() => { addToGitignore(filePath); setContextMenu(null) }} />
             {ext && (
-              <GitContextMenuItem
-                label={`Add *.${ext} to .gitignore`}
-                icon={ignoreIcon}
-                onClick={() => { addToGitignore(`*.${ext}`); setContextMenu(null) }}
-              />
+              <GitContextMenuItem label={`Add *.${ext} to .gitignore`} icon={ignoreIcon} onClick={() => { addToGitignore(`*.${ext}`); setContextMenu(null) }} />
             )}
             {enclosingDir && (
-              <GitContextMenuItem
-                label="Add enclosing folder to .gitignore"
-                icon={ignoreIcon}
-                onClick={() => { addToGitignore(enclosingDir); setContextMenu(null) }}
-              />
+              <GitContextMenuItem label="Add enclosing folder to .gitignore" icon={ignoreIcon} onClick={() => { addToGitignore(enclosingDir); setContextMenu(null) }} />
             )}
             <div style={{ height: 1, background: 'var(--color-border)', margin: '3px 6px' }} />
-            <GitContextMenuItem
-              label="Delete file"
-              icon={trashIcon}
-              onClick={() => { deleteFile(filePath); setContextMenu(null) }}
-              danger
-            />
+            <GitContextMenuItem label="Delete file" icon={trashIcon} onClick={() => { deleteFile(filePath); setContextMenu(null) }} danger />
           </div>
         )
       })()}
@@ -402,83 +517,228 @@ export default function GitPanel({ projectPath, onOpenFile }: Props) {
   )
 }
 
-function SectionHeader({ title, count, onAction, actionLabel }: {
+function SectionRow({ title, count, collapsed, checkState, selected, onToggleCollapse, onToggleCheck, onSelect }: {
   title: string
-  count?: number
-  onAction?: () => void
-  actionLabel?: string
+  count: number
+  collapsed: boolean
+  checkState: 'all' | 'none' | 'some'
+  selected: boolean
+  onToggleCollapse: () => void
+  onToggleCheck: () => void
+  onSelect: () => void
 }) {
   return (
-    <div style={{
-      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      padding: '6px 10px 3px',
-      flexShrink: 0,
-    }}>
-      <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-        {title} {count !== undefined && count > 0 && `(${count})`}
+    <div
+      onClick={onSelect}
+      onDoubleClick={onToggleCollapse}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 6,
+        padding: '4px 10px 4px 6px',
+        cursor: 'pointer',
+        userSelect: 'none',
+        background: selected ? 'var(--gitpanel-sel-bg)' : 'transparent',
+        color: selected ? 'var(--gitpanel-sel-fg)' : 'var(--color-text-primary)',
+      }}
+    >
+      <button
+        onClick={e => { e.stopPropagation(); onToggleCollapse() }}
+        title={collapsed ? 'Expand' : 'Collapse'}
+        style={{
+          width: 16, height: 16, border: 'none', background: 'transparent', padding: 0,
+          cursor: 'pointer', color: 'inherit', opacity: 0.7,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+        }}
+      >
+        {collapsed ? <ChevronRight size={12} strokeWidth={2.25} /> : <ChevronDown size={12} strokeWidth={2.25} />}
+      </button>
+      <PyCheckbox checked={checkState === 'all'} indeterminate={checkState === 'some'} onChange={onToggleCheck} />
+      <span style={{ fontSize: 12, fontWeight: 700 }}>{title}</span>
+      <span style={{ fontSize: 11, color: selected ? 'rgba(255,255,255,0.65)' : 'var(--color-text-muted)' }}>
+        {count} file{count === 1 ? '' : 's'}
       </span>
-      {onAction && (
-        <button className="btn btn-ghost btn-sm" onClick={onAction} style={{ fontSize: 10, padding: '2px 6px', color: 'var(--color-text-muted)' }}>
-          {actionLabel}
-        </button>
+    </div>
+  )
+}
+
+function FileRow({ file, checked, selected, onSelect, onToggleCheck, onOpen, onContextMenu }: {
+  file: FileStatus
+  checked: boolean
+  selected: boolean
+  onSelect: () => void
+  onToggleCheck: () => void
+  onOpen: () => void
+  onContextMenu: (e: React.MouseEvent) => void
+}) {
+  const color = STATUS_COLOR[file.status] ?? 'var(--color-text-secondary)'
+  const fileName = file.path.split('/').pop() ?? file.path
+  const dir = file.path.includes('/') ? file.path.slice(0, file.path.length - fileName.length - 1) : ''
+  const isDeleted = file.status === 'D'
+
+  return (
+    <div
+      onClick={onSelect}
+      onDoubleClick={onOpen}
+      onContextMenu={onContextMenu}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 6,
+        // Indent under section: chevron(16) + section gap(6) + 10px header padding ≈ left 32
+        padding: '2px 10px 2px 32px',
+        fontSize: 12,
+        cursor: 'pointer',
+        background: selected ? 'var(--gitpanel-sel-bg)' : 'transparent',
+      }}
+      onMouseEnter={e => { if (!selected) e.currentTarget.style.background = 'var(--color-bg-card-hover)' }}
+      onMouseLeave={e => { if (!selected) e.currentTarget.style.background = 'transparent' }}
+    >
+      <PyCheckbox checked={checked} onChange={onToggleCheck} />
+      <FileTypeIcon name={fileName} color={color} />
+      <span
+        style={{
+          color: selected ? 'var(--gitpanel-sel-fg)' : color,
+          fontWeight: 500,
+          textDecoration: isDeleted ? 'line-through' : 'none',
+          flexShrink: 0,
+          maxWidth: '55%',
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        }}
+      >
+        {fileName}
+      </span>
+      {dir && (
+        <span
+          style={{
+            color: selected ? 'rgba(255,255,255,0.55)' : 'var(--color-text-muted)',
+            fontSize: 11,
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          }}
+        >
+          {dir}
+        </span>
       )}
     </div>
   )
 }
 
-function FileRow({ file, action, onAction, onClick, onContextMenu }: {
-  file: FileStatus
-  action: 'stage' | 'unstage'
-  onAction: () => void
-  onClick: () => void
-  onContextMenu: (e: React.MouseEvent) => void
-}) {
-  const meta = STATUS_LABELS[file.status] || { label: '?', color: 'var(--badge-muted-color)' }
+function FileTypeIcon({ name, color }: { name: string; color: string }) {
+  const ext = name.includes('.') ? name.split('.').pop()?.toLowerCase() : undefined
+  const IMG = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'pdf', 'ico', 'bmp', 'tiff'])
+  const props = { size: 13, strokeWidth: 1.75, style: { flexShrink: 0, color } }
+  if (ext && IMG.has(ext)) return <Image {...props} />
+  if (ext === 'bib') return <BookOpen {...props} />
+  if (ext === 'tex' || ext === 'sty' || ext === 'cls' || ext === 'bst' || ext === 'md' || ext === 'txt') return <FileText {...props} />
+  return <File {...props} />
+}
 
+function PyCheckbox({ checked, indeterminate, onChange }: {
+  checked: boolean
+  indeterminate?: boolean
+  onChange: () => void
+}) {
   return (
-    <div
-      onContextMenu={onContextMenu}
+    <button
+      onClick={e => { e.stopPropagation(); onChange() }}
+      role="checkbox"
+      aria-checked={indeterminate ? 'mixed' : checked}
       style={{
-        display: 'flex', alignItems: 'center', gap: 6,
-        padding: '3px 10px',
-        fontSize: 12,
+        width: 14, height: 14,
+        flexShrink: 0,
+        border: `1.5px solid ${checked || indeterminate ? 'var(--color-brand)' : 'var(--color-border-light)'}`,
+        background: checked || indeterminate ? 'var(--color-brand)' : 'transparent',
+        borderRadius: 3,
+        padding: 0,
         cursor: 'pointer',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        transition: 'background 120ms ease, border-color 120ms ease',
       }}
-      onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-bg-card-hover)' }}
-      onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+      onMouseEnter={e => { if (!checked && !indeterminate) e.currentTarget.style.borderColor = 'var(--color-brand)' }}
+      onMouseLeave={e => { if (!checked && !indeterminate) e.currentTarget.style.borderColor = 'var(--color-border-light)' }}
     >
-      <span style={{ color: meta.color, fontWeight: 700, fontSize: 11, minWidth: 12, flexShrink: 0 }}>
-        {meta.label}
-      </span>
-      <span
-        onClick={onClick}
-        style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--color-text-secondary)' }}
-      >
-        {file.path}
-      </span>
-      <button
-        onClick={e => { e.stopPropagation(); onAction() }}
-        title={action === 'stage' ? 'Stage' : 'Unstage'}
-        style={{
-          width: 18, height: 18, border: 'none',
-          background: 'transparent', cursor: 'pointer',
-          color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          borderRadius: 3, padding: 0, flexShrink: 0,
-        }}
-        onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-bg-card-hover)'; e.currentTarget.style.color = 'var(--color-text-primary)' }}
-        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--color-text-muted)' }}
-      >
-        {action === 'stage' ? (
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-          </svg>
-        ) : (
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <line x1="5" y1="12" x2="19" y2="12"/>
-          </svg>
-        )}
-      </button>
-    </div>
+      {indeterminate ? (
+        <div style={{ width: 7, height: 2, background: 'white' }} />
+      ) : checked ? (
+        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg>
+      ) : null}
+    </button>
+  )
+}
+
+function IconButton({ children, title, onClick, disabled, spin }: {
+  children: React.ReactNode
+  title: string
+  onClick?: () => void
+  disabled?: boolean
+  spin?: boolean
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+      style={{
+        width: 24, height: 24,
+        border: 'none', background: 'transparent',
+        color: disabled ? 'var(--color-text-muted)' : 'var(--color-text-secondary)',
+        cursor: disabled ? 'default' : 'pointer',
+        borderRadius: 4,
+        padding: 0,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        opacity: disabled ? 0.5 : 1,
+        animation: spin ? 'spin 0.9s linear infinite' : undefined,
+        transition: 'background 100ms ease, color 100ms ease',
+      }}
+      onMouseEnter={e => { if (!disabled) { e.currentTarget.style.background = 'var(--color-bg-card-hover)'; e.currentTarget.style.color = 'var(--color-text-primary)' } }}
+      onMouseLeave={e => { if (!disabled) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--color-text-secondary)' } }}
+    >
+      {children}
+    </button>
+  )
+}
+
+function CommitButton({ children, primary, onClick, disabled }: {
+  children: React.ReactNode
+  primary?: boolean
+  onClick: () => void
+  disabled?: boolean
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      style={{
+        height: 28,
+        padding: '0 14px',
+        fontSize: 12,
+        fontWeight: 600,
+        borderRadius: 5,
+        cursor: disabled ? 'default' : 'pointer',
+        border: primary ? 'none' : '1px solid var(--color-border-light)',
+        background: primary ? 'var(--color-brand)' : 'transparent',
+        color: primary ? 'white' : 'var(--color-text-primary)',
+        opacity: disabled ? 0.45 : 1,
+        fontFamily: 'inherit',
+        whiteSpace: 'nowrap',
+        flexShrink: 0,
+        transition: 'background 120ms ease, border-color 120ms ease',
+      }}
+      onMouseEnter={e => {
+        if (disabled) return
+        if (primary) e.currentTarget.style.background = 'var(--color-brand-hover)'
+        else e.currentTarget.style.background = 'var(--color-bg-card-hover)'
+      }}
+      onMouseLeave={e => {
+        if (disabled) return
+        if (primary) e.currentTarget.style.background = 'var(--color-brand)'
+        else e.currentTarget.style.background = 'transparent'
+      }}
+    >
+      {children}
+    </button>
   )
 }
 

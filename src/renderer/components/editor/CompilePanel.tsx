@@ -17,11 +17,10 @@ interface CompileResult {
 interface Props {
   result: CompileResult | null
   compiling: boolean
-  onClose: () => void
   onJumpToError: (file: string, line: number | null) => void
 }
 
-export default function CompilePanel({ result, compiling, onClose, onJumpToError }: Props) {
+export default function CompilePanel({ result, compiling, onJumpToError }: Props) {
   const [tab, setTab] = useState<'parsed' | 'raw'>('parsed')
 
   const totalErrors = result?.errors.length ?? 0
@@ -29,84 +28,85 @@ export default function CompilePanel({ result, compiling, onClose, onJumpToError
 
   return (
     <div style={{
-      height: 200,
-      borderTop: '1px solid var(--color-border)',
-      background: 'var(--color-bg-panel)',
+      height: '100%',
       display: 'flex',
       flexDirection: 'column',
       flexShrink: 0,
     }}>
-      {/* Panel header */}
+      {/* Section header — matches the "Files" and "Source Control" headers
+          on the other sidebar tabs so all three panels share one chrome.
+          Status (Compiling / Successful / Failed) sits right-justified here. */}
       <div style={{
+        height: 'var(--header-h)',
+        padding: '0 10px',
+        borderBottom: '1px solid var(--color-border)',
         display: 'flex',
         alignItems: 'center',
-        gap: 8,
-        padding: '6px 12px',
-        borderBottom: '1px solid var(--color-border)',
-        background: 'var(--color-bg-panel)',
+        justifyContent: 'space-between',
         flexShrink: 0,
       }}>
+        <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+          Compilation
+        </span>
         {compiling ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--color-text-secondary)', fontSize: 12 }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: 'var(--color-text-secondary)', fontSize: 12 }}>
             <div className="spinner" style={{ width: 12, height: 12, color: 'var(--color-brand)' }} />
-            Compiling...
-          </div>
+            Compiling…
+          </span>
         ) : result ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'nowrap', overflow: 'hidden' }}>
-            {result.success ? (
-              <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--color-success)', fontSize: 12, whiteSpace: 'nowrap', flexShrink: 0 }}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <polyline points="20 6 9 17 4 12"/>
-                </svg>
-                Successful
-              </span>
-            ) : (
-              <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--color-error)', fontSize: 12, whiteSpace: 'nowrap', flexShrink: 0 }}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                </svg>
-                Failed
-              </span>
-            )}
+          result.success ? (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: 'var(--color-success)', fontSize: 12 }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+              Successful
+            </span>
+          ) : (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: 'var(--color-error)', fontSize: 12 }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+              Failed
+            </span>
+          )
+        ) : null}
+      </div>
+
+      {/* Counts + view toggle — no divider, sits flush against the error list */}
+      {result && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          padding: '6px 10px',
+          flexShrink: 0,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'nowrap' }}>
             {totalErrors > 0 && (
-              <span className="badge badge-red" style={{ whiteSpace: 'nowrap', flexShrink: 0 }}>{totalErrors} error{totalErrors !== 1 ? 's' : ''}</span>
+              <span className="badge badge-red" style={{ whiteSpace: 'nowrap' }}>{totalErrors} error{totalErrors !== 1 ? 's' : ''}</span>
             )}
             {totalWarnings > 0 && (
-              <span className="badge badge-yellow" style={{ whiteSpace: 'nowrap', flexShrink: 0 }}>{totalWarnings} warning{totalWarnings !== 1 ? 's' : ''}</span>
+              <span className="badge badge-yellow" style={{ whiteSpace: 'nowrap' }}>{totalWarnings} warning{totalWarnings !== 1 ? 's' : ''}</span>
             )}
           </div>
-        ) : null}
-
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}>
-          {result && (
-            <>
-              <button
-                onClick={() => setTab('parsed')}
-                className="btn btn-ghost btn-sm"
-                style={{ fontSize: 11, color: tab === 'parsed' ? 'var(--color-text-primary)' : 'var(--color-text-muted)' }}
-              >
-                Parsed
-              </button>
-              <button
-                onClick={() => setTab('raw')}
-                className="btn btn-ghost btn-sm"
-                style={{ fontSize: 11, color: tab === 'raw' ? 'var(--color-text-primary)' : 'var(--color-text-muted)' }}
-              >
-                Raw Log
-              </button>
-            </>
-          )}
-          <button
-            onClick={onClose}
-            className="btn btn-ghost btn-icon"
-            style={{ color: 'var(--color-text-muted)', width: 22, height: 22 }}
-          >
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-            </svg>
-          </button>
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}>
+            <button
+              onClick={() => setTab('parsed')}
+              className="btn btn-ghost btn-sm"
+              style={{ fontSize: 11, color: tab === 'parsed' ? 'var(--color-text-primary)' : 'var(--color-text-muted)' }}
+            >
+              Parsed
+            </button>
+            <button
+              onClick={() => setTab('raw')}
+              className="btn btn-ghost btn-sm"
+              style={{ fontSize: 11, color: tab === 'raw' ? 'var(--color-text-primary)' : 'var(--color-text-muted)' }}
+            >
+              Raw Log
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Panel content */}
       <div style={{ flex: 1, overflow: 'auto', padding: '4px 0' }}>
@@ -175,7 +175,6 @@ function ErrorRow({ item, onClick }: { item: CompileError; onClick: () => void }
       style={{
         display: 'flex',
         alignItems: 'stretch',
-        borderBottom: '1px solid var(--color-border)',
         cursor: jumpable ? 'pointer' : 'default',
         background: hovered ? accentGlow : 'transparent',
         transition: 'background 140ms ease',

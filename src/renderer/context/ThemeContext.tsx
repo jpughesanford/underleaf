@@ -187,6 +187,8 @@ function applyTheme(theme: UnderleafTheme) {
     root.style.setProperty('--badge-info-color',    '#60a5fa')
     root.style.setProperty('--badge-info-bg',       'rgba(59,130,246,0.15)')
     root.style.setProperty('--badge-info-border',   'rgba(59,130,246,0.3)')
+    root.style.setProperty('--gitpanel-sel-bg',     'rgba(75, 110, 175, 0.38)')
+    root.style.setProperty('--gitpanel-sel-fg',     '#ffffff')
   } else {
     root.style.setProperty('--badge-sync-color',    '#16a34a')
     root.style.setProperty('--badge-sync-bg',       'rgba(22,163,74,0.1)')
@@ -204,5 +206,8 @@ function applyTheme(theme: UnderleafTheme) {
     root.style.setProperty('--badge-info-color',    '#2563eb')
     root.style.setProperty('--badge-info-bg',       'rgba(37,99,235,0.1)')
     root.style.setProperty('--badge-info-border',   'rgba(37,99,235,0.3)')
+    // Light themes: PyCharm IntelliJ light uses a saturated blue selection.
+    root.style.setProperty('--gitpanel-sel-bg',     '#3574F0')
+    root.style.setProperty('--gitpanel-sel-fg',     '#ffffff')
   }
 }

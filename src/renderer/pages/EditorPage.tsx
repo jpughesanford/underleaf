@@ -7,7 +7,7 @@ import GitPanel from '../components/git/GitPanel'
 import CompilePanel from '../components/editor/CompilePanel'
 import Toolbar, { CompileTarget, ViewMode } from '../components/editor/Toolbar'
 
-export type SidebarTab = 'files' | 'git'
+export type SidebarTab = 'files' | 'git' | 'compile'
 
 export interface OpenTab {
   path: string
@@ -47,7 +47,6 @@ export default function EditorPage({ projectPath, projectName, onBack, onRename 
   const [compileResult, setCompileResult] = useState<CompileResult | null>(null)
   const [pdfPath, setPdfPath] = useState<string | null>(null)
   const [pdfVersion, setPdfVersion] = useState(0)
-  const [showCompilePanel, setShowCompilePanel] = useState(false)
   const [sidebarWidth, setSidebarWidth] = useState(260)
   const [pdfWidth, setPdfWidth] = useState(420)
   const [compileOnSave, setCompileOnSave] = useState(true)
@@ -59,6 +58,11 @@ export default function EditorPage({ projectPath, projectName, onBack, onRename 
   const [detectedMainDoc, setDetectedMainDoc] = useState<string | null>(null)
   const editorRef = useRef<EditorPaneHandle>(null)
   const tabsRef = useRef<OpenTab[]>([])
+  // Live handle on the body flex container — read at drag time to cap
+  // pdfWidth so the editor's minWidth is never violated. Without this the
+  // PDF drag clamps to a static [280, 800] range that ignores the actual
+  // container size, letting pdfWidth state grow past what's renderable.
+  const bodyRef = useRef<HTMLDivElement>(null)
   const activeTabRef = useRef<string | null>(null)
   const autoOpenedRef = useRef<string | null>(null)
 
@@ -117,7 +121,6 @@ export default function EditorPage({ projectPath, projectName, onBack, onRename 
     }
 
     setCompiling(true)
-    setShowCompilePanel(true)
     setCompileResult(null)
     try {
       const activeFile = activeTabRef.current
@@ -129,6 +132,10 @@ export default function EditorPage({ projectPath, projectName, onBack, onRename 
         setPdfPath(p)
         setPdfVersion(v => v + 1)
         setViewMode(v => v === 'editor' ? 'split' : v)
+      } else if (result.errors.length > 0) {
+        // Auto-jump to the compile tab on errors so the user sees them without hunting.
+        setSidebarTab('compile')
+        setSidebarOpen(true)
       }
     } finally {
       setCompiling(false)
@@ -263,6 +270,22 @@ export default function EditorPage({ projectPath, projectName, onBack, onRename 
     })
   }, []) // refs always current; setState setters are stable
 
+  // When the window (or sidebar) shrinks, an existing large pdfWidth state
+  // would still overflow the body and reproduce the same off-center bug
+  // the drag-time clamp prevents. Observe the body and re-clamp on every
+  // resize so state stays within renderable bounds at all times.
+  useEffect(() => {
+    const body = bodyRef.current
+    if (!body) return
+    const ro = new ResizeObserver(() => {
+      const sidebarTotal = sidebarOpen ? sidebarWidth + 8 : 0
+      const maxPdf = body.clientWidth - 44 - sidebarTotal - 8 - 320
+      setPdfWidth(w => Math.min(w, Math.max(280, maxPdf)))
+    })
+    ro.observe(body)
+    return () => ro.disconnect()
+  }, [sidebarOpen, sidebarWidth])
+
   const activeTabData = tabs.find(t => t.path === activeTab) ?? null
 
   return (
@@ -293,7 +316,7 @@ export default function EditorPage({ projectPath, projectName, onBack, onRename 
       />
 
       {/* Body */}
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+      <div ref={bodyRef} style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
         {/* Left rail */}
         <div style={{
           width: 44,
@@ -342,6 +365,29 @@ export default function EditorPage({ projectPath, projectName, onBack, onRename 
               <path d="M18 9a9 9 0 0 1-9 9"/>
             </svg>
           </RailButton>
+
+          {/* Compile tab — only present after the user has compiled at least once this session.
+              Auto-activates on errors via the compile() effect above. */}
+          {(compiling || compileResult) && (
+            <RailButton
+              active={sidebarTab === 'compile' && sidebarOpen}
+              title="Build Output"
+              badge={compileResult && compileResult.errors.length > 0 ? 'error' : compileResult && compileResult.warnings.length > 0 ? 'warn' : undefined}
+              onClick={() => {
+                if (sidebarTab === 'compile') {
+                  setSidebarOpen(v => !v)
+                } else {
+                  setSidebarTab('compile')
+                  setSidebarOpen(true)
+                }
+              }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
+                <polyline points="9 11 12 14 22 4"/>
+                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+              </svg>
+            </RailButton>
+          )}
         </div>
 
         {/* Sidebar */}
@@ -355,7 +401,7 @@ export default function EditorPage({ projectPath, projectName, onBack, onRename 
             overflow: 'hidden',
             flexShrink: 0,
           }}>
-            {sidebarTab === 'files' ? (
+            {sidebarTab === 'files' && (
               <FileExplorer
                 projectPath={projectPath}
                 activeFile={activeTab}
@@ -364,10 +410,18 @@ export default function EditorPage({ projectPath, projectName, onBack, onRename 
                 detectedMainDoc={detectedMainDoc}
                 onSetMainDoc={handleSetMainDoc}
               />
-            ) : (
+            )}
+            {sidebarTab === 'git' && (
               <GitPanel
                 projectPath={projectPath}
                 onOpenFile={openFile}
+              />
+            )}
+            {sidebarTab === 'compile' && (
+              <CompilePanel
+                result={compileResult}
+                compiling={compiling}
+                onJumpToError={jumpToError}
               />
             )}
           </div>
@@ -384,7 +438,11 @@ export default function EditorPage({ projectPath, projectName, onBack, onRename 
 
         {/* Editor */}
         {viewMode !== 'pdf' && (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
+        // 320px is the smallest width at which the search panel still
+        // composes legibly (input + nav pill + close fit on one row).
+        // Below that the PDF resize handle starts pushing the panel into
+        // a broken layout, so the flex item refuses to shrink past it.
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 320 }}>
           {/* Tab bar */}
           {tabs.length > 0 && (
             <div style={{
@@ -437,22 +495,23 @@ export default function EditorPage({ projectPath, projectName, onBack, onRename 
             )}
           </div>
 
-          {/* Compile panel */}
-          {showCompilePanel && (
-            <CompilePanel
-              result={compileResult}
-              compiling={compiling}
-              onClose={() => setShowCompilePanel(false)}
-              onJumpToError={jumpToError}
-            />
-          )}
         </div>
         )}
 
         {/* Resize handle - pdf */}
         {pdfPath && viewMode === 'split' && (
           <ResizeHandle
-            onDrag={(dx) => setPdfWidth(w => Math.max(280, Math.min(800, w - dx)))}
+            onDrag={(dx) => setPdfWidth(w => {
+              // Cap the PDF at what the body can actually give us, so the
+              // editor's minWidth (320) is honored and the drag stops
+              // responding instead of letting pdfWidth state diverge from
+              // the rendered width. Layout constants mirror the static
+              // sizes used in this file: 44px rail, 8px each resize handle.
+              const bodyW = bodyRef.current?.clientWidth ?? Infinity
+              const sidebarTotal = sidebarOpen ? sidebarWidth + 8 : 0
+              const maxPdf = bodyW - 44 - sidebarTotal - 8 - 320
+              return Math.max(280, Math.min(800, maxPdf, w - dx))
+            })}
             onCollapse={() => setViewMode('editor')}
             collapseDirection="right"
           />
@@ -469,17 +528,20 @@ export default function EditorPage({ projectPath, projectName, onBack, onRename 
   )
 }
 
-function RailButton({ active, title, onClick, children }: {
+function RailButton({ active, title, onClick, children, badge }: {
   active: boolean
   title: string
   onClick: () => void
   children: React.ReactNode
+  badge?: 'error' | 'warn'
 }) {
+  const badgeColor = badge === 'error' ? 'var(--color-error)' : badge === 'warn' ? 'var(--color-warning)' : null
   return (
     <button
       title={title}
       onClick={onClick}
       style={{
+        position: 'relative',
         width: 36, height: 36,
         borderRadius: 8,
         border: 'none',
@@ -493,6 +555,17 @@ function RailButton({ active, title, onClick, children }: {
       onMouseLeave={e => { if (!active) e.currentTarget.style.color = 'var(--color-text-muted)' }}
     >
       {children}
+      {badgeColor && (
+        <span
+          style={{
+            position: 'absolute',
+            top: 6, right: 6,
+            width: 7, height: 7, borderRadius: '50%',
+            background: badgeColor,
+            boxShadow: '0 0 0 1.5px var(--color-bg-app)',
+          }}
+        />
+      )}
     </button>
   )
 }
@@ -515,7 +588,7 @@ function TabItem({ tab, active, onActivate, onClose, onSave }: {
       style={{
         display: 'flex', alignItems: 'center', gap: 6,
         padding: '0 12px',
-        height: 34,
+        height: 'var(--header-h)',
         cursor: 'pointer',
         borderRight: '1px solid var(--color-border)',
         background: active ? 'var(--color-bg-editor)' : 'transparent',

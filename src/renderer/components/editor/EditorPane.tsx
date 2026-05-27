@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useImperativeHandle, forwardRef } from 'react'
+import React, { useEffect, useLayoutEffect, useRef, useImperativeHandle, forwardRef } from 'react'
 import { EditorState, Extension, Compartment, StateField, StateEffect, Text } from '@codemirror/state'
 import {
   EditorView, keymap, lineNumbers, highlightActiveLineGutter, highlightSpecialChars,
@@ -234,7 +234,11 @@ const EditorPane = forwardRef<EditorPaneHandle, Props>(function EditorPane(
     },
   }), [])
 
-  useEffect(() => {
+  // useLayoutEffect (not useEffect) so the view exists synchronously after commit.
+  // jumpToError uses requestAnimationFrame, which can fire BEFORE a regular useEffect's
+  // callback runs — causing the jump to bail because viewRef.current was still null
+  // when the file was first opened from an error.
+  useLayoutEffect(() => {
     if (!containerRef.current) return
 
     const view = new EditorView({

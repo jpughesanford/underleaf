@@ -3,9 +3,11 @@ import React from 'react'
 interface Props {
   size?: number
   color?: string
+  style?: React.CSSProperties
+  className?: string
 }
 
-export default function AppIcon({ size = 32, color = '#008000' }: Props) {
+export default function AppIcon({ size = 32, color = '#008000', style, className }: Props) {
   return (
     <svg
       width={size}
@@ -13,6 +15,8 @@ export default function AppIcon({ size = 32, color = '#008000' }: Props) {
       viewBox="0 0 175.34854 170.10625"
       xmlns="http://www.w3.org/2000/svg"
       aria-label="Underleaf"
+      style={style}
+      className={className}
     >
       <g transform="translate(-20.675324,-63.440277)">
         <path
