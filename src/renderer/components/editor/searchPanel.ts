@@ -541,6 +541,10 @@ export const underleafSearchPanelTheme = EditorView.theme({
   '.underleaf-search .us-btn:active': {
     transform: 'translateY(0.5px)',
   },
+  // Both buttons split the pill 50/50. Replace is the baseline ghost
+  // treatment; All carries one tonal step of additional weight — a soft
+  // neutral tint and 600 weight — to mark it as the more impactful action
+  // without resorting to a brand fill.
   '.underleaf-search .us-btn-ghost': {
     flex:     '1 1 0',
     minWidth: 0,
@@ -549,22 +553,15 @@ export const underleafSearchPanelTheme = EditorView.theme({
   '.underleaf-search .us-btn-ghost:hover': {
     background: 'var(--us-neutral-tint)',
   },
-  // Primary button — flat brand fill. No gradient, no inset shine, no text
-  // shadow — the color and weight do the work. Hover uses the theme's own
-  // `--color-brand-hover` so each theme gets a tonally correct hover step.
   '.underleaf-search .us-btn-primary': {
-    flex:          '0 0 auto',
-    padding:       '0 16px',
-    background:    'var(--color-brand)',
-    color:         '#ffffff',
-    fontWeight:    600,
-    letterSpacing: '0.012em',
+    flex:       '1 1 0',
+    minWidth:   0,
+    background: 'var(--us-neutral-tint)',
+    color:      'var(--color-text-primary)',
+    fontWeight: 600,
   },
   '.underleaf-search .us-btn-primary:hover': {
-    background: 'var(--color-brand-hover, var(--color-brand))',
-  },
-  '.underleaf-search .us-btn-primary:active': {
-    background: 'var(--color-brand-dark, var(--color-brand))',
+    background: 'var(--us-neutral-strong)',
   },
 
   // ── Close X — standalone square button, sits to the right of the nav pill
@@ -583,7 +580,6 @@ export const underleafSearchPanelTheme = EditorView.theme({
   '.underleaf-search .us-close:hover': {
     background: 'var(--us-neutral-tint)',
     color:      'var(--color-text-primary)',
-    transform:  'rotate(90deg)',
   },
   '.underleaf-search .us-close svg': {
     width:   '12px',

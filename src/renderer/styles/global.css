@@ -483,19 +483,20 @@ textarea.input { resize: vertical; font-family: var(--font-mono); }
   overflow-x: auto;
   scroll-snap-type: x mandatory;
   scroll-behavior: smooth;
-  /* iOS Photos centering: padding-inline = (track_width - card_width) / 2
-     puts the first card centered at scrollLeft=0 and the last centered
-     at scrollLeft=max. Paired with scroll-snap-align: center on cards. */
-  padding: 6px calc((100% - 116px) / 2) 14px;
+  padding: 6px 20px 14px;
+  /* scroll-padding matches the visual padding so snap-align: start anchors
+     the card at viewport-x=20 (not viewport-x=0). Without this, the first
+     card would auto-scroll under the left mask fade on initial render. */
+  scroll-padding-inline: 20px;
   -webkit-mask-image: linear-gradient(to right,
                         transparent 0,
-                        #000 24px,
-                        #000 calc(100% - 36px),
+                        #000 14px,
+                        #000 calc(100% - 28px),
                         transparent 100%);
           mask-image: linear-gradient(to right,
                         transparent 0,
-                        #000 24px,
-                        #000 calc(100% - 36px),
+                        #000 14px,
+                        #000 calc(100% - 28px),
                         transparent 100%);
   scrollbar-width: none;
 }
@@ -503,7 +504,7 @@ textarea.input { resize: vertical; font-family: var(--font-mono); }
 
 .album-card {
   flex: 0 0 116px;
-  scroll-snap-align: center;
+  scroll-snap-align: start;
   background: transparent;
   border: none;
   padding: 0;

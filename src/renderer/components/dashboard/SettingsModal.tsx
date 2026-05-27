@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import Modal from '../shared/Modal'
 import { useTheme } from '../../context/ThemeContext'
 import { UnderleafTheme } from '../../themes/schema'
@@ -17,6 +17,9 @@ export default function SettingsModal({ onClose, onChangeRoot }: Props) {
   const darkThemes = themes.filter(t => t.dark)
   const lightThemes = themes.filter(t => !t.dark)
 
+  const darkTrackRef = useRef<HTMLDivElement>(null)
+  const lightTrackRef = useRef<HTMLDivElement>(null)
+
   useEffect(() => {
     Promise.all([
       window.api.storeGet('settings'),
@@ -29,6 +32,22 @@ export default function SettingsModal({ onClose, onChangeRoot }: Props) {
       }
       setRoot(r || '')
     })
+  }, [])
+
+  // Center the active theme card in each album when the modal opens.
+  // Browsers clamp scrollLeft to [0, scrollLeftMax] so cards near the ends
+  // just stay at their natural snap position — no special-casing needed.
+  useEffect(() => {
+    const centerActive = (track: HTMLDivElement | null, themeId: string) => {
+      if (!track) return
+      const card = track.querySelector<HTMLElement>(`[data-theme-id="${themeId}"]`)
+      if (!card) return
+      const target = card.offsetLeft + card.offsetWidth / 2 - track.clientWidth / 2
+      track.scrollTo({ left: target, behavior: 'auto' })
+    }
+    centerActive(darkTrackRef.current, darkThemeId)
+    centerActive(lightTrackRef.current, lightThemeId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   async function save() {
@@ -48,7 +67,7 @@ export default function SettingsModal({ onClose, onChangeRoot }: Props) {
           <div style={{ marginBottom: 14 }}>
             <ThemeGroupLabel active={mode === 'dark'} icon="moon">Dark</ThemeGroupLabel>
             <div className="theme-album">
-              <div className="theme-track">
+              <div className="theme-track" ref={darkTrackRef}>
                 {darkThemes.map(theme => (
                   <AlbumCard
                     key={theme.id}
@@ -64,7 +83,7 @@ export default function SettingsModal({ onClose, onChangeRoot }: Props) {
           <div>
             <ThemeGroupLabel active={mode === 'light'} icon="sun">Light</ThemeGroupLabel>
             <div className="theme-album">
-              <div className="theme-track">
+              <div className="theme-track" ref={lightTrackRef}>
                 {lightThemes.map(theme => (
                   <AlbumCard
                     key={theme.id}
@@ -220,6 +239,7 @@ function AlbumCard({ theme, selected, onClick }: {
   return (
     <button
       type="button"
+      data-theme-id={theme.id}
       onClick={onClick}
       aria-pressed={selected}
       title={theme.name}

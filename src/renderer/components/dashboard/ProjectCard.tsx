@@ -138,7 +138,7 @@ export default function ProjectCard({
       onMouseEnter={e => {
         if (isRenaming) return
         e.currentTarget.style.background = 'var(--color-bg-card-hover)'
-        e.currentTarget.style.borderColor = 'rgba(76,175,80,0.4)'
+        e.currentTarget.style.borderColor = 'var(--color-brand-dark)'
       }}
       onMouseLeave={e => {
         if (isRenaming) return

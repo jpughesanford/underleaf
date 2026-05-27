@@ -1,8 +1,7 @@
 import { UnderleafTheme } from './schema'
 import underleafDark from './underleaf-dark.json'
 import underleafLight from './underleaf-light.json'
-import cherryBlossom from './cherry-blossom.json'
-import nord from './nord.json'
+import lunar from './lunar.json'
 import solar from './solar.json'
 import red from './red.json'
 import green from './green.json'
@@ -11,8 +10,7 @@ import blue from './blue.json'
 export const THEMES: UnderleafTheme[] = [
   underleafDark as UnderleafTheme,
   underleafLight as UnderleafTheme,
-  cherryBlossom as UnderleafTheme,
-  nord as UnderleafTheme,
+  lunar as UnderleafTheme,
   solar as UnderleafTheme,
   red as UnderleafTheme,
   green as UnderleafTheme,
