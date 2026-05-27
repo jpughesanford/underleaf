@@ -1,91 +1,123 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
+import type {
+  IpcChannel,
+  IpcArgs,
+  IpcReturn,
+  MenuAction,
+} from '@shared/ipc-contract'
+import type {
+  CommitOptions,
+  CompileConfig,
+  CompileOptions,
+  ConflictResolution,
+  OpenFileOptions,
+  ProjectTemplate,
+} from '@shared/types'
+
+// Strongly-typed invoke. Channel name and argument tuple are constrained by
+// the contract in src/shared/ipc-contract.ts; main and renderer can't drift.
+function invoke<K extends IpcChannel>(channel: K, ...args: IpcArgs<K>): IpcReturn<K> {
+  return ipcRenderer.invoke(channel, ...args) as IpcReturn<K>
+}
 
 const api = {
-  // Store
-  storeGet: (key: string) => ipcRenderer.invoke('store:get', key),
-  storeSet: (key: string, value: unknown) => ipcRenderer.invoke('store:set', key, value),
-
-  // Dialog
-  openFolder: () => ipcRenderer.invoke('dialog:openFolder'),
-  openFile: (opts?: { title?: string; filters?: { name: string; extensions: string[] }[] }) =>
-    ipcRenderer.invoke('dialog:openFile', opts),
-  showSaveDialog: (fileName: string) => ipcRenderer.invoke('dialog:showSave', fileName) as Promise<'save' | 'discard' | 'cancel'>,
-
-  // External
-  openExternal: (url: string) => ipcRenderer.invoke('app:openExternal', url),
-  openPath: (filePath: string) => ipcRenderer.invoke('app:openPath', filePath) as Promise<string>,
-
-  // Projects
-  scanProjects: () => ipcRenderer.invoke('projects:scan'),
-  setProjectsRoot: (path: string) => ipcRenderer.invoke('projects:setRoot', path),
-  getProjectsRoot: () => ipcRenderer.invoke('projects:getRoot'),
-  createFolder: (path: string) => ipcRenderer.invoke('projects:createFolder', path),
-  checkLatexmk: () => ipcRenderer.invoke('projects:checkLatexmk'),
-  setLatexmkPath: (path: string) => ipcRenderer.invoke('projects:setLatexmkPath', path),
-  getLatexmkPath: () => ipcRenderer.invoke('projects:getLatexmkPath'),
-  newProject: (opts: { root: string; name: string; template: string }) =>
-    ipcRenderer.invoke('projects:newProject', opts),
-  cloneProject: (opts: { root: string; url: string; name?: string }) =>
-    ipcRenderer.invoke('projects:clone', opts),
-  renameProject: (opts: { oldPath: string; newName: string }) =>
-    ipcRenderer.invoke('projects:rename', opts) as Promise<string>,
-  deleteProject: (projectPath: string) => ipcRenderer.invoke('projects:delete', projectPath) as Promise<boolean>,
-
-  // Files
-  fileTree: (projectPath: string) => ipcRenderer.invoke('files:tree', projectPath),
-  readFile: (filePath: string) => ipcRenderer.invoke('files:read', filePath) as Promise<string | null>,
-  writeFile: (filePath: string, content: string) => ipcRenderer.invoke('files:write', filePath, content),
-  deleteFile: (filePath: string) => ipcRenderer.invoke('files:delete', filePath),
-  renameFile: (oldPath: string, newPath: string) => ipcRenderer.invoke('files:rename', oldPath, newPath),
-  mkdir: (dirPath: string) => ipcRenderer.invoke('files:mkdir', dirPath),
-  copyFile: (srcPath: string, destPath: string) => ipcRenderer.invoke('files:copy', srcPath, destPath),
-  getPathForFile: (file: File) => webUtils.getPathForFile(file),
-  showInFinder: (filePath: string) => ipcRenderer.invoke('files:showInFinder', filePath),
-  openInTerminal: (dirPath: string) => ipcRenderer.invoke('files:openInTerminal', dirPath),
-
-  // Git
-  gitStatus: (projectPath: string) => ipcRenderer.invoke('git:status', projectPath),
-  gitStage: (projectPath: string, file: string) => ipcRenderer.invoke('git:stage', projectPath, file),
-  gitUnstage: (projectPath: string, file: string) => ipcRenderer.invoke('git:unstage', projectPath, file),
-  gitCommit: (projectPath: string, message: string, opts?: { amend?: boolean }) => ipcRenderer.invoke('git:commit', projectPath, message, opts),
-  gitPush: (projectPath: string) => ipcRenderer.invoke('git:push', projectPath),
-  gitPull: (projectPath: string) => ipcRenderer.invoke('git:pull', projectPath),
-  gitFetch: (projectPath: string) => ipcRenderer.invoke('git:fetch', projectPath),
-  gitResetToRemote: (projectPath: string) => ipcRenderer.invoke('git:resetToRemote', projectPath) as Promise<{ success: boolean; error?: string }>,
-  gitAddRemote: (projectPath: string, url: string) => ipcRenderer.invoke('git:addRemote', projectPath, url),
-  gitForcePush: (projectPath: string) => ipcRenderer.invoke('git:forcePush', projectPath),
-  gitLog: (projectPath: string, maxCount?: number) => ipcRenderer.invoke('git:log', projectPath, maxCount),
-  gitDiff: (projectPath: string, file: string, staged: boolean) =>
-    ipcRenderer.invoke('git:diff', projectPath, file, staged),
-  gitResolveConflict: (projectPath: string, file: string, resolution: 'ours' | 'theirs') =>
-    ipcRenderer.invoke('git:resolveConflict', projectPath, file, resolution),
-
-  // Compile
-  compile: (projectPath: string, opts?: { file?: string }) => ipcRenderer.invoke('compile:run', projectPath, opts),
-  stopCompile: (projectPath: string) => ipcRenderer.invoke('compile:stop', projectPath),
-  getPdfPath: (projectPath: string) => ipcRenderer.invoke('compile:getPdfPath', projectPath),
-  readPdf: (pdfPath: string) => ipcRenderer.invoke('compile:readPdf', pdfPath),
-  detectMainDoc: (projectPath: string) => ipcRenderer.invoke('compile:detectMainDoc', projectPath),
-  getCompileConfig: (projectPath: string) => ipcRenderer.invoke('compile:getConfig', projectPath),
-  setCompileConfig: (projectPath: string, config: Record<string, unknown>) =>
-    ipcRenderer.invoke('compile:setConfig', projectPath, config),
-
-  // Events
-  onCompileProgress: (cb: (chunk: string) => void) => {
-    const handler = (_: Electron.IpcRendererEvent, chunk: string) => cb(chunk)
-    ipcRenderer.on('compile:progress', handler)
-    return () => ipcRenderer.removeListener('compile:progress', handler)
+  store: {
+    get: (key: string) => invoke('store:get', key),
+    set: (key: string, value: unknown) => invoke('store:set', key, value),
   },
-  onMenuAction: (cb: (action: string) => void) => {
-    const channels = ['menu:save', 'menu:openSettings', 'menu:viewEditor', 'menu:viewSplit', 'menu:viewPdf']
-    const handler = (_: Electron.IpcRendererEvent, ...args: unknown[]) => cb(args[0] as string)
-    const handlers: Array<{ ch: string; fn: typeof handler }> = []
-    for (const ch of channels) {
-      const fn = (_evt: Electron.IpcRendererEvent) => cb(ch)
-      ipcRenderer.on(ch, fn)
-      handlers.push({ ch, fn })
-    }
-    return () => handlers.forEach(({ ch, fn }) => ipcRenderer.removeListener(ch, fn))
+
+  dialog: {
+    openFolder: () => invoke('dialog:openFolder'),
+    openFile: (opts: OpenFileOptions = {}) => invoke('dialog:openFile', opts),
+    showSave: (fileName: string) => invoke('dialog:showSave', fileName),
+  },
+
+  app: {
+    openExternal: (url: string) => invoke('app:openExternal', url),
+    openPath: (filePath: string) => invoke('app:openPath', filePath),
+  },
+
+  projects: {
+    scan: () => invoke('projects:scan'),
+    getRoot: () => invoke('projects:getRoot'),
+    setRoot: (rootPath: string) => invoke('projects:setRoot', rootPath),
+    createFolder: (folderPath: string) => invoke('projects:createFolder', folderPath),
+    checkLatexmk: () => invoke('projects:checkLatexmk'),
+    getLatexmkPath: () => invoke('projects:getLatexmkPath'),
+    setLatexmkPath: (path: string) => invoke('projects:setLatexmkPath', path),
+    create: (opts: { root: string; name: string; template: ProjectTemplate }) =>
+      invoke('projects:newProject', opts),
+    clone: (opts: { root: string; url: string; name?: string }) =>
+      invoke('projects:clone', opts),
+    rename: (opts: { oldPath: string; newName: string }) =>
+      invoke('projects:rename', opts),
+    delete: (projectPath: string) => invoke('projects:delete', projectPath),
+  },
+
+  files: {
+    tree: (projectPath: string) => invoke('files:tree', projectPath),
+    read: (filePath: string) => invoke('files:read', filePath),
+    write: (filePath: string, content: string) => invoke('files:write', filePath, content),
+    delete: (filePath: string) => invoke('files:delete', filePath),
+    rename: (oldPath: string, newPath: string) => invoke('files:rename', oldPath, newPath),
+    mkdir: (dirPath: string) => invoke('files:mkdir', dirPath),
+    copy: (srcPath: string, destPath: string) => invoke('files:copy', srcPath, destPath),
+    showInFinder: (filePath: string) => invoke('files:showInFinder', filePath),
+    openInTerminal: (dirPath: string) => invoke('files:openInTerminal', dirPath),
+    // Special: webUtils is preload-only (not an IPC call). Returns the OS path
+    // for a File object dragged in from the OS.
+    getPathFor: (file: File) => webUtils.getPathForFile(file),
+  },
+
+  git: {
+    status: (projectPath: string) => invoke('git:status', projectPath),
+    stage: (projectPath: string, file: string) => invoke('git:stage', projectPath, file),
+    unstage: (projectPath: string, file: string) => invoke('git:unstage', projectPath, file),
+    commit: (projectPath: string, message: string, opts?: CommitOptions) =>
+      invoke('git:commit', projectPath, message, opts),
+    push: (projectPath: string) => invoke('git:push', projectPath),
+    pull: (projectPath: string) => invoke('git:pull', projectPath),
+    fetch: (projectPath: string) => invoke('git:fetch', projectPath),
+    resetToRemote: (projectPath: string) => invoke('git:resetToRemote', projectPath),
+    addRemote: (projectPath: string, url: string) => invoke('git:addRemote', projectPath, url),
+    forcePush: (projectPath: string) => invoke('git:forcePush', projectPath),
+    log: (projectPath: string, maxCount?: number) => invoke('git:log', projectPath, maxCount),
+    diff: (projectPath: string, file: string, staged: boolean) =>
+      invoke('git:diff', projectPath, file, staged),
+    resolveConflict: (projectPath: string, file: string, resolution: ConflictResolution) =>
+      invoke('git:resolveConflict', projectPath, file, resolution),
+  },
+
+  compile: {
+    run: (projectPath: string, opts?: CompileOptions) => invoke('compile:run', projectPath, opts),
+    stop: (projectPath: string) => invoke('compile:stop', projectPath),
+    getPdfPath: (projectPath: string) => invoke('compile:getPdfPath', projectPath),
+    readPdf: (pdfPath: string) => invoke('compile:readPdf', pdfPath),
+    detectMainDoc: (projectPath: string) => invoke('compile:detectMainDoc', projectPath),
+    getConfig: (projectPath: string) => invoke('compile:getConfig', projectPath),
+    setConfig: (projectPath: string, config: CompileConfig) =>
+      invoke('compile:setConfig', projectPath, config),
+  },
+
+  events: {
+    onCompileProgress: (cb: (chunk: string) => void) => {
+      const handler = (_: Electron.IpcRendererEvent, chunk: string) => cb(chunk)
+      ipcRenderer.on('compile:progress', handler)
+      return () => ipcRenderer.removeListener('compile:progress', handler)
+    },
+    onMenuAction: (cb: (action: MenuAction) => void) => {
+      const channels: MenuAction[] = [
+        'menu:save', 'menu:openSettings',
+        'menu:viewEditor', 'menu:viewSplit', 'menu:viewPdf',
+      ]
+      const handlers: Array<{ ch: MenuAction; fn: () => void }> = []
+      for (const ch of channels) {
+        const fn = () => cb(ch)
+        ipcRenderer.on(ch, fn)
+        handlers.push({ ch, fn })
+      }
+      return () => handlers.forEach(({ ch, fn }) => ipcRenderer.removeListener(ch, fn))
+    },
   },
 }
 

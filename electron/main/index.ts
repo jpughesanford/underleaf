@@ -7,25 +7,15 @@ import { registerFileIPC } from './ipc/files'
 import { registerGitIPC } from './ipc/git'
 import { registerCompileIPC } from './ipc/compile'
 
-const store = new Store<{
-  projectsRoot: string | null
-  settings: {
-    defaultEngine: string
-    compileOnSave: boolean
-  }
-}>({
+const store = new Store<Record<string, unknown>>({
   defaults: {
     projectsRoot: null,
     settings: {
       defaultEngine: 'pdflatex',
       compileOnSave: true,
-    }
-  }
+    },
+  },
 })
-
-export function getStore() { return store }
-
-let mainWindow: BrowserWindow | null = null
 
 function createWindow(): BrowserWindow {
   const win = new BrowserWindow({
@@ -118,13 +108,13 @@ app.whenReady().then(() => {
     return shell.openPath(filePath)
   })
 
-  mainWindow = createWindow()
+  createWindow()
 
   buildMenu()
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
-      mainWindow = createWindow()
+      createWindow()
     }
   })
 })
@@ -235,5 +225,3 @@ function buildMenu() {
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
 })
-
-export { mainWindow }

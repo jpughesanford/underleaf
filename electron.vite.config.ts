@@ -13,6 +13,7 @@ export default defineConfig({
     resolve: {
       alias: {
         '@main': resolve('electron/main'),
+        '@shared': resolve('src/shared'),
       }
     }
   },
@@ -22,6 +23,11 @@ export default defineConfig({
       lib: {
         entry: resolve(__dirname, 'electron/preload/index.ts'),
       }
+    },
+    resolve: {
+      alias: {
+        '@shared': resolve('src/shared'),
+      }
     }
   },
   renderer: {
@@ -29,6 +35,7 @@ export default defineConfig({
       alias: {
         '@renderer': resolve('src/renderer'),
         '@': resolve('src/renderer'),
+        '@shared': resolve('src/shared'),
       }
     },
     plugins: [react()],

@@ -1,185 +1,25 @@
-import { ipcMain, BrowserWindow } from 'electron'
-import simpleGit from 'simple-git'
-
-export interface GitStatus {
-  staged: FileStatus[]
-  unstaged: FileStatus[]
-  conflicted: string[]
-}
-
-export interface FileStatus {
-  path: string
-  status: string
-}
-
-// Hide only app-managed paths from the git panel. Everything else (including
-// .DS_Store) is left to the user's .gitignore to control.
-function isHiddenFromPanel(filePath: string): boolean {
-  return (
-    filePath === '.underleaf' ||
-    filePath.startsWith('.underleaf-build') ||
-    filePath.startsWith('.underleaf/')
-  )
-}
-
-function parseStatus(files: { path: string; index: string; working_dir: string }[]): GitStatus {
-  const staged: FileStatus[] = []
-  const unstaged: FileStatus[] = []
-  const conflicted: string[] = []
-
-  for (const f of files) {
-    if (isHiddenFromPanel(f.path)) continue
-
-    const index = f.index.trim()
-    const wd = f.working_dir.trim()
-
-    if (index === 'U' || wd === 'U' || (index === 'A' && wd === 'A') || (index === 'D' && wd === 'D')) {
-      conflicted.push(f.path)
-      continue
-    }
-
-    if (index && index !== ' ' && index !== '?') {
-      staged.push({ path: f.path, status: index })
-    }
-    if (wd && wd !== ' ' && wd !== '?') {
-      unstaged.push({ path: f.path, status: wd })
-    }
-    if (index === '?' && wd === '?') {
-      unstaged.push({ path: f.path, status: '?' })
-    }
-  }
-
-  return { staged, unstaged, conflicted }
-}
+import { ipcMain } from 'electron'
+import * as git from '../services/git'
+import type { CommitOptions, ConflictResolution } from '@shared/types'
 
 export function registerGitIPC(): void {
-  ipcMain.handle('git:status', async (_, projectPath: string): Promise<GitStatus> => {
-    const git = simpleGit(projectPath)
-    const status = await git.status()
-    return parseStatus(status.files as { path: string; index: string; working_dir: string }[])
-  })
+  ipcMain.handle('git:status', (_, projectPath: string) => git.getStatus(projectPath))
+  ipcMain.handle('git:stage', (_, projectPath: string, filePath: string) => git.stageFile(projectPath, filePath))
+  ipcMain.handle('git:unstage', (_, projectPath: string, filePath: string) => git.unstageFile(projectPath, filePath))
+  ipcMain.handle('git:commit', (_, projectPath: string, message: string, opts?: CommitOptions) =>
+    git.commit(projectPath, message, opts))
 
-  ipcMain.handle('git:stage', async (_, projectPath: string, filePath: string) => {
-    const git = simpleGit(projectPath)
-    await git.add(filePath)
-  })
+  ipcMain.handle('git:push', (_, projectPath: string) => git.push(projectPath))
+  ipcMain.handle('git:pull', (_, projectPath: string) => git.pull(projectPath))
+  ipcMain.handle('git:fetch', (_, projectPath: string) => git.fetch(projectPath))
+  ipcMain.handle('git:resetToRemote', (_, projectPath: string) => git.resetToRemote(projectPath))
+  ipcMain.handle('git:addRemote', (_, projectPath: string, url: string) => git.addRemote(projectPath, url))
+  ipcMain.handle('git:forcePush', (_, projectPath: string) => git.forcePush(projectPath))
 
-  ipcMain.handle('git:unstage', async (_, projectPath: string, filePath: string) => {
-    const git = simpleGit(projectPath)
-    await git.reset(['HEAD', filePath])
-  })
+  ipcMain.handle('git:log', (_, projectPath: string, maxCount?: number) => git.log(projectPath, maxCount))
+  ipcMain.handle('git:diff', (_, projectPath: string, filePath: string, staged: boolean) =>
+    git.diff(projectPath, filePath, staged))
 
-  ipcMain.handle('git:commit', async (_, projectPath: string, message: string, opts?: { amend?: boolean }) => {
-    const git = simpleGit(projectPath)
-    if (opts?.amend) {
-      // Use raw so we don't fight simple-git's commit(message, files, opts) signature —
-      // passing flags as the second arg silently interpreted them as filenames.
-      const args = ['commit', '--amend']
-      if (message) args.push('-m', message)
-      else args.push('--no-edit')  // keep the previous commit's message verbatim
-      await git.raw(args)
-    } else {
-      await git.commit(message)
-    }
-  })
-
-  ipcMain.handle('git:push', async (_, projectPath: string): Promise<{ success: boolean; error?: string }> => {
-    const git = simpleGit(projectPath)
-    try {
-      await git.push()
-      return { success: true }
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e)
-      return { success: false, error: msg }
-    }
-  })
-
-  ipcMain.handle('git:pull', async (_, projectPath: string): Promise<{ success: boolean; error?: string; hasConflicts?: boolean }> => {
-    const git = simpleGit(projectPath)
-    try {
-      await git.pull()
-      return { success: true }
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e)
-      const hasConflicts = msg.includes('CONFLICT') || msg.includes('conflict')
-      return { success: false, error: msg, hasConflicts }
-    }
-  })
-
-  ipcMain.handle('git:fetch', async (_, projectPath: string): Promise<{ success: boolean; error?: string }> => {
-    const git = simpleGit(projectPath)
-    try {
-      await git.fetch()
-      return { success: true }
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e)
-      return { success: false, error: msg }
-    }
-  })
-
-  ipcMain.handle('git:resetToRemote', async (_, projectPath: string): Promise<{ success: boolean; error?: string }> => {
-    const git = simpleGit(projectPath)
-    try {
-      await git.fetch(['origin'])
-      const branch = (await git.revparse(['--abbrev-ref', 'HEAD'])).trim()
-      await git.raw(['reset', '--hard', `origin/${branch}`])
-      return { success: true }
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e)
-      return { success: false, error: msg }
-    }
-  })
-
-  ipcMain.handle('git:addRemote', async (_, projectPath: string, url: string): Promise<{ success: boolean; error?: string; needsForcePush?: boolean }> => {
-    const git = simpleGit(projectPath)
-    try {
-      await git.addRemote('origin', url)
-      await git.fetch()
-
-      // Check if remote has only an init commit
-      const log = await git.raw(['log', 'origin/main', '--oneline', '--max-count=2']).catch(() => '')
-      const lines = log.trim().split('\n').filter(Boolean)
-      const needsForcePush = lines.length === 1
-
-      return { success: true, needsForcePush }
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e)
-      return { success: false, error: msg }
-    }
-  })
-
-  ipcMain.handle('git:forcePush', async (_, projectPath: string): Promise<{ success: boolean; error?: string }> => {
-    const git = simpleGit(projectPath)
-    try {
-      await git.push(['--force', 'origin', 'HEAD'])
-      return { success: true }
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e)
-      return { success: false, error: msg }
-    }
-  })
-
-  ipcMain.handle('git:log', async (_, projectPath: string, maxCount = 20) => {
-    const git = simpleGit(projectPath)
-    const log = await git.log({ maxCount })
-    return log.all
-  })
-
-  ipcMain.handle('git:diff', async (_, projectPath: string, filePath: string, staged: boolean) => {
-    const git = simpleGit(projectPath)
-    if (staged) {
-      return git.diff(['--cached', filePath])
-    }
-    return git.diff([filePath])
-  })
-
-  ipcMain.handle('git:resolveConflict', async (_, projectPath: string, filePath: string, resolution: 'ours' | 'theirs') => {
-    const git = simpleGit(projectPath)
-    if (resolution === 'ours') {
-      await git.raw(['checkout', '--ours', filePath])
-    } else {
-      await git.raw(['checkout', '--theirs', filePath])
-    }
-    await git.add(filePath)
-  })
+  ipcMain.handle('git:resolveConflict', (_, projectPath: string, filePath: string, resolution: ConflictResolution) =>
+    git.resolveConflict(projectPath, filePath, resolution))
 }

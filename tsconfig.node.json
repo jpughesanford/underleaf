@@ -8,8 +8,15 @@
     "strict": true,
     "target": "ES2022",
     "lib": ["ES2022"],
+    "baseUrl": ".",
+    "paths": {
+      "@shared/*": ["src/shared/*"]
+    },
     "outDir": "out"
   },
+  "references": [
+    { "path": "./src/shared" }
+  ],
   "include": [
     "electron.vite.config.*",
     "electron/**/*.ts",

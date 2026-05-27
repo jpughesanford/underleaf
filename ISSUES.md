@@ -1,7 +1,7 @@
 
 ## TODO 
 
-
+- brightness window can extend beyond the app window, moving off screen. 
 - [ ] can we add the "Find in PDF" and "Find in Source" buttons that over leaf has that jump between the editor and pdf?
 - [ ] the git panel should copy VS code more closely, allowing users to check box the files they want to to commit
 - [ ] clicking on a file in the git panel should open the file with all git changes hi lighted. The PDF does not need to be here in the git panel. We can show the old file in a left editor and the new file in the right editor. 

@@ -7,18 +7,24 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
     "strict": true,
     "jsx": "react-jsx",
     "baseUrl": ".",
     "paths": {
       "@renderer/*": ["src/renderer/*"],
-      "@/*": ["src/renderer/*"]
+      "@/*": ["src/renderer/*"],
+      "@shared/*": ["src/shared/*"]
     },
     "outDir": "out"
   },
+  "references": [
+    { "path": "./src/shared" }
+  ],
   "include": [
-    "src/**/*.ts",
-    "src/**/*.tsx",
-    "src/**/*.d.ts"
+    "src/renderer/**/*.ts",
+    "src/renderer/**/*.tsx",
+    "src/renderer/**/*.d.ts",
+    "src/renderer/**/*.json"
   ]
 }
