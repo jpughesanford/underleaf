@@ -1,0 +1,844 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Underleaf Light — Cherry Blossom</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  /* page chrome (the document, not the theme) */
+  --paper:        #fbf3ee;
+  --paper-deep:   #f4e6df;
+  --paper-card:   #fffaf7;
+  --ink:          #2b1218;
+  --ink-2:        #6b4550;
+  --ink-3:        #9d7d83;
+  --ink-4:        #c2a59f;
+  --rule:         #ead6cd;
+  --rule-2:       #dcc1b5;
+  --blossom:      #c44569;
+  --blossom-soft: #f3c8d3;
+  --plum:         #5a2237;
+  --leaf:         #6f8b5d;
+
+  /* theme being shown */
+  --t-bgApp:        #f7e8e3;
+  --t-bgSidebar:    #f0dcd4;
+  --t-bgPanel:      #e8cdc3;
+  --t-bgCard:       #fffaf7;
+  --t-bgToolbar:    #3d1a26;
+  --t-bgInput:      #fffaf7;
+  --t-bgModal:      #fffaf7;
+  --t-brand:        #c44569;
+  --t-brandDark:    #9b2c4a;
+  --t-brandHover:   #d65778;
+  --t-textPrimary:  #2b1218;
+  --t-textSecondary:#6b4550;
+  --t-textMuted:    #9d7d83;
+  --t-textAccent:   #c44569;
+  --t-border:       #d4b6ad;
+  --t-borderLight:  #e3c9c0;
+  --t-editorBg:     #fffaf7;
+  --t-editorFg:     #2b1218;
+  --t-gutterBg:     #f5e1dc;
+  --t-gutterFg:     #b5928f;
+  --t-gutterBorder: #e3c9c0;
+  --t-activeLine:   rgba(196,69,105,0.05);
+  --t-selection:    rgba(196,69,105,0.18);
+
+  /* syntax */
+  --tok-cmd:        #2b1218;
+  --tok-key:        #a8324d;
+  --tok-lit:        #6b4980;
+  --tok-type:       #8a5530;
+  --tok-string:     #8a5530;
+  --tok-num:        #8a5530;
+  --tok-comment:    #9d8388;
+  --tok-attr:       #4d6b49;
+  --tok-attr-style: italic;
+  --tok-label:      #4d6b49;
+  --tok-attrname:   #4a5f7a;
+
+  --serif:  "Fraunces", Georgia, "Times New Roman", serif;
+  --news:   "Newsreader", "Times New Roman", serif;
+  --mono:   "JetBrains Mono", Menlo, Consolas, monospace;
+  --sans:   -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--paper);
+  background-image:
+    radial-gradient(ellipse 60% 50% at 0% 0%,   rgba(196,69,105,0.10) 0%, transparent 55%),
+    radial-gradient(ellipse 70% 60% at 100% 8%, rgba(243,200,211,0.40) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 40% at 90% 100%, rgba(111,139,93,0.10) 0%, transparent 60%);
+  color: var(--ink);
+  font-family: var(--news);
+  font-size: 15px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+  padding: 64px 56px 120px;
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* faint paper grain */
+body::before {
+  content: '';
+  position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.4  0 0 0 0 0.2  0 0 0 0 0.25  0 0 0 0.07 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  opacity: 0.4;
+  mix-blend-mode: multiply;
+}
+
+/* scattered petals — pure decoration */
+.petals {
+  position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden;
+}
+.petal {
+  position: absolute;
+  width: 22px; height: 22px;
+  opacity: 0.45;
+}
+.petal svg { width: 100%; height: 100%; }
+.p1 { top: 8%;  left: 7%;  transform: rotate(-15deg); opacity: 0.35; }
+.p2 { top: 18%; left: 92%; transform: rotate(40deg);  opacity: 0.45; width: 28px; height: 28px; }
+.p3 { top: 38%; left: 4%;  transform: rotate(85deg);  opacity: 0.25; width: 16px; height: 16px; }
+.p4 { top: 62%; left: 96%; transform: rotate(-50deg); opacity: 0.35; width: 24px; height: 24px; }
+.p5 { top: 78%; left: 12%; transform: rotate(20deg);  opacity: 0.28; width: 18px; height: 18px; }
+.p6 { top: 5%;  left: 50%; transform: rotate(-70deg); opacity: 0.18; width: 20px; height: 20px; }
+.p7 { top: 88%; left: 70%; transform: rotate(160deg); opacity: 0.30; width: 26px; height: 26px; }
+
+.wrap {
+  position: relative;
+  z-index: 1;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+/* ─────────────────────────── MASTHEAD ─────────────────────────── */
+.masthead {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: 32px;
+  padding-bottom: 32px;
+  border-bottom: 1px solid var(--rule);
+  margin-bottom: 60px;
+}
+.masthead .kicker {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--blossom);
+  margin-bottom: 22px;
+  display: flex; align-items: center; gap: 12px;
+}
+.masthead .kicker::before {
+  content: ''; width: 22px; height: 1px; background: var(--blossom);
+}
+.masthead .kicker::after {
+  content: '';
+  display: inline-block;
+  width: 10px; height: 10px;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23c44569'><path d='M12 4 C 11 8, 7 9, 4 8 C 6 11, 6 14, 4 17 C 8 16, 11 18, 12 21 C 13 18, 16 16, 20 17 C 18 14, 18 11, 20 8 C 17 9, 13 8, 12 4 Z'/></svg>");
+  background-size: contain;
+  background-repeat: no-repeat;
+}
+.masthead h1 {
+  margin: 0;
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: clamp(56px, 7vw, 104px);
+  line-height: 0.92;
+  letter-spacing: -0.028em;
+  color: var(--plum);
+}
+.masthead h1 em {
+  font-style: italic;
+  color: var(--blossom);
+  font-weight: 400;
+}
+.masthead .sub {
+  margin-top: 22px;
+  max-width: 540px;
+  font-family: var(--news);
+  font-size: 17px;
+  line-height: 1.55;
+  color: var(--ink-2);
+  font-weight: 400;
+}
+.masthead .sub em { font-style: italic; color: var(--blossom); }
+.masthead .meta {
+  text-align: right;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  line-height: 1.9;
+  color: var(--ink-3);
+  letter-spacing: 0.04em;
+}
+.masthead .meta .label { color: var(--ink-4); }
+.masthead .meta .val   { color: var(--ink-2); }
+
+/* ─────────────────────────── EPIGRAPH ─────────────────────────── */
+.epigraph {
+  display: grid;
+  grid-template-columns: 200px 1fr 200px;
+  gap: 40px;
+  align-items: start;
+  padding: 16px 0 56px;
+  margin-bottom: 40px;
+  border-bottom: 1px solid var(--rule);
+}
+.epigraph .side {
+  font-family: var(--mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--blossom);
+}
+.epigraph .body {
+  font-family: var(--serif);
+  font-size: 26px;
+  line-height: 1.45;
+  font-weight: 400;
+  letter-spacing: -0.008em;
+  color: var(--plum);
+}
+.epigraph .body em { color: var(--blossom); font-style: italic; }
+.epigraph .body .q { color: var(--leaf); font-style: italic; }
+.epigraph .author {
+  font-family: var(--news);
+  font-style: italic;
+  font-size: 13px;
+  color: var(--ink-3);
+  text-align: right;
+}
+
+/* ─────────────────────────── SHOWCASE ─────────────────────────── */
+.showcase {
+  display: grid;
+  grid-template-columns: 1.55fr 1fr;
+  gap: 32px;
+  margin-bottom: 56px;
+}
+@media (max-width: 980px) { .showcase { grid-template-columns: 1fr; } }
+
+/* big editor preview */
+.editor-frame {
+  background: var(--t-bgApp);
+  border: 1px solid var(--rule-2);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.9) inset,
+    0 30px 80px -30px rgba(90,34,55,0.30),
+    0 4px 14px -6px rgba(90,34,55,0.10);
+  font-family: var(--mono);
+  font-size: 12px;
+}
+.editor-frame .toolbar {
+  background: var(--t-bgToolbar);
+  height: 42px;
+  display: flex; align-items: center;
+  padding: 0 14px;
+  gap: 10px;
+  color: rgba(255,255,255,0.65);
+  border-bottom: 1px solid rgba(0,0,0,0.20);
+}
+.editor-frame .toolbar .icn {
+  width: 22px; height: 22px;
+  display: grid; place-items: center;
+  border-radius: 4px;
+}
+.editor-frame .toolbar .icn.active {
+  background: rgba(255,255,255,0.18);
+  color: #ffffff;
+}
+.editor-frame .toolbar .file {
+  margin-left: auto;
+  color: rgba(255,255,255,0.78);
+  font-family: var(--sans);
+  font-size: 12px;
+  display: flex; align-items: center; gap: 8px;
+}
+.editor-frame .toolbar .file::before {
+  content: ''; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--blossom-soft);
+}
+.editor-frame .body {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  height: 360px;
+}
+.editor-frame .sidebar {
+  background: var(--t-bgSidebar);
+  border-right: 1px solid var(--t-border);
+  padding: 12px;
+  font-family: var(--sans);
+}
+.editor-frame .sidebar .h {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--t-textMuted);
+  padding: 6px 4px 8px;
+  font-weight: 600;
+}
+.editor-frame .sidebar .file {
+  padding: 4px 6px;
+  border-radius: 4px;
+  color: var(--t-textSecondary);
+  font-size: 12px;
+  display: flex; gap: 8px; align-items: center;
+}
+.editor-frame .sidebar .file::before {
+  content: ''; width: 5px; height: 5px; border-radius: 50%;
+  background: var(--t-textMuted);
+}
+.editor-frame .sidebar .file.active {
+  background: var(--t-bgCard);
+  color: var(--t-textPrimary);
+}
+.editor-frame .sidebar .file.active::before { background: var(--t-brand); }
+.editor-frame .editor {
+  background: var(--t-editorBg);
+  color: var(--t-editorFg);
+  display: grid;
+  grid-template-columns: 36px 1fr;
+  overflow: hidden;
+}
+.editor-frame .gutter {
+  background: var(--t-gutterBg);
+  color: var(--t-gutterFg);
+  border-right: 1px solid var(--t-gutterBorder);
+  text-align: right;
+  padding: 12px 8px 0 0;
+  user-select: none;
+  font-size: 11px;
+}
+.editor-frame .content {
+  padding: 12px 16px;
+  line-height: 1.65;
+}
+.editor-frame .ln.active {
+  background: var(--t-activeLine);
+  margin: 0 -16px;
+  padding: 0 16px;
+}
+.editor-frame .cur {
+  display: inline-block;
+  width: 0; height: 1em;
+  border-left: 2px solid var(--t-brand);
+  vertical-align: text-bottom;
+  margin-left: -1px;
+  animation: blink 1.1s steps(2) infinite;
+}
+@keyframes blink { 50% { opacity: 0; } }
+.editor-frame .sel {
+  background: var(--t-selection);
+  border-radius: 1px;
+  padding: 0 1px;
+}
+
+.editor-frame .statusbar {
+  height: 28px;
+  background: var(--t-bgSidebar);
+  border-top: 1px solid var(--t-border);
+  display: flex; align-items: center;
+  padding: 0 14px; gap: 10px;
+  font-family: var(--sans);
+  font-size: 11px;
+  color: var(--t-textMuted);
+}
+.editor-frame .statusbar .badge {
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 10px;
+  color: var(--leaf);
+  background: color-mix(in srgb, var(--leaf) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--leaf) 32%, transparent);
+}
+
+.t-cmd { color: var(--tok-cmd); }
+.t-key { color: var(--tok-key); }
+.t-lit { color: var(--tok-lit); }
+.t-attr { color: var(--tok-attr); font-style: var(--tok-attr-style); }
+.t-str { color: var(--tok-string); }
+.t-num { color: var(--tok-num); }
+.t-cmt { color: var(--tok-comment); font-style: italic; }
+.t-type { color: var(--tok-type); }
+.t-label { color: var(--tok-label); }
+.t-attrname { color: var(--tok-attrname); }
+.brace { color: var(--t-editorFg); opacity: 0.45; }
+
+/* right-side palette panel */
+.palette-panel {
+  display: flex; flex-direction: column;
+  gap: 22px;
+}
+
+.panel-card {
+  background: var(--paper-card);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  padding: 22px 24px;
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.9) inset,
+    0 12px 36px -18px rgba(90,34,55,0.18);
+}
+.panel-card .title {
+  font-family: var(--mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--blossom);
+  margin-bottom: 14px;
+  display: flex; align-items: center; gap: 8px;
+}
+.panel-card .title::before {
+  content: ''; width: 6px; height: 6px;
+  background: var(--blossom);
+  border-radius: 50%;
+}
+
+.swatch-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+}
+.swatch-row {
+  display: grid;
+  grid-template-columns: 22px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 0;
+  border-bottom: 1px dashed var(--rule);
+  font-size: 13px;
+}
+.swatch-row:last-child { border-bottom: none; }
+.swatch-row .chip {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  border: 1px solid rgba(0,0,0,0.05);
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,0.4),
+    0 1px 2px rgba(90,34,55,0.10);
+}
+.swatch-row .name {
+  font-family: var(--news);
+  font-size: 13px;
+  color: var(--ink);
+}
+.swatch-row .name small {
+  display: block;
+  font-family: var(--sans);
+  font-size: 10.5px;
+  color: var(--ink-3);
+  margin-top: 1px;
+}
+.swatch-row .hex {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--ink-3);
+  letter-spacing: -0.01em;
+}
+
+/* poetic blurb in the right column */
+.haiku {
+  background: linear-gradient(180deg, rgba(243,200,211,0.40), rgba(243,200,211,0.10));
+  border: 1px solid var(--rule-2);
+  border-radius: 10px;
+  padding: 26px 28px;
+  position: relative;
+  overflow: hidden;
+}
+.haiku::before {
+  content: '';
+  position: absolute;
+  top: -30px; right: -30px;
+  width: 110px; height: 110px;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23c44569' opacity='0.12'><path d='M12 4 C 11 8, 7 9, 4 8 C 6 11, 6 14, 4 17 C 8 16, 11 18, 12 21 C 13 18, 16 16, 20 17 C 18 14, 18 11, 20 8 C 17 9, 13 8, 12 4 Z'/></svg>");
+  background-size: contain;
+  background-repeat: no-repeat;
+  transform: rotate(20deg);
+}
+.haiku .line {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 20px;
+  line-height: 1.45;
+  color: var(--plum);
+  margin: 0 0 2px;
+}
+.haiku .line.indent { padding-left: 18px; }
+.haiku .line.indent-more { padding-left: 36px; }
+.haiku .ascribed {
+  margin-top: 14px;
+  font-family: var(--news);
+  font-style: italic;
+  font-size: 12.5px;
+  color: var(--blossom);
+}
+
+/* ─────────────────────────── DETAIL SECTIONS ─────────────────────────── */
+.section-head {
+  display: flex; align-items: center; gap: 18px;
+  margin: 64px 0 28px;
+}
+.section-head .num {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 13px;
+  color: var(--blossom);
+  font-weight: 400;
+}
+.section-head h2 {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: 36px;
+  letter-spacing: -0.018em;
+  margin: 0;
+  color: var(--plum);
+}
+.section-head h2 em { font-style: italic; color: var(--blossom); }
+.section-head .rule { flex: 1; height: 1px; background: var(--rule); }
+
+/* full palette breakdown */
+.full-palette {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+}
+@media (max-width: 980px) { .full-palette { grid-template-columns: repeat(2, 1fr); } }
+.pal-group h3 {
+  font-family: var(--news);
+  font-style: italic;
+  font-weight: 500;
+  font-size: 17px;
+  color: var(--plum);
+  margin: 0 0 14px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--rule);
+}
+.pal-group .row {
+  display: grid;
+  grid-template-columns: 22px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 0;
+  font-size: 12.5px;
+}
+.pal-group .row .chip {
+  width: 22px; height: 22px;
+  border-radius: 5px;
+  border: 1px solid rgba(0,0,0,0.04);
+}
+.pal-group .row .label { color: var(--ink); font-family: var(--news); }
+.pal-group .row .label small { color: var(--ink-3); font-family: var(--sans); font-size: 10.5px; }
+.pal-group .row .hex { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); }
+
+/* compositional notes */
+.composition {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 40px;
+  margin-top: 32px;
+  padding: 32px 0 0;
+  border-top: 1px solid var(--rule);
+}
+.composition .side {
+  font-family: var(--mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--blossom);
+}
+.composition .body {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 36px;
+}
+.composition h4 {
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 500;
+  font-size: 19px;
+  margin: 0 0 8px;
+  color: var(--plum);
+}
+.composition p {
+  font-family: var(--news);
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--ink-2);
+  margin: 0;
+}
+.composition p em { color: var(--blossom); font-style: italic; }
+
+/* dropdcap close */
+.closing {
+  margin-top: 80px;
+  padding-top: 32px;
+  border-top: 1px solid var(--rule);
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+}
+.closing .stamp {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 16px;
+  color: var(--blossom);
+  letter-spacing: 0;
+}
+</style>
+</head>
+<body>
+
+<!-- decorative petals -->
+<div class="petals" aria-hidden="true">
+  <div class="petal p1"><svg viewBox="0 0 24 24" fill="#c44569"><path d="M12 2 C 11 7, 6 9, 2 8 C 4 12, 4 16, 2 19 C 8 17, 11 19, 12 22 C 13 19, 16 17, 22 19 C 20 16, 20 12, 22 8 C 18 9, 13 7, 12 2 Z"/></svg></div>
+  <div class="petal p2"><svg viewBox="0 0 24 24" fill="#f3a5b6"><path d="M12 2 C 11 7, 6 9, 2 8 C 4 12, 4 16, 2 19 C 8 17, 11 19, 12 22 C 13 19, 16 17, 22 19 C 20 16, 20 12, 22 8 C 18 9, 13 7, 12 2 Z"/></svg></div>
+  <div class="petal p3"><svg viewBox="0 0 24 24" fill="#c44569"><path d="M12 2 C 11 7, 6 9, 2 8 C 4 12, 4 16, 2 19 C 8 17, 11 19, 12 22 C 13 19, 16 17, 22 19 C 20 16, 20 12, 22 8 C 18 9, 13 7, 12 2 Z"/></svg></div>
+  <div class="petal p4"><svg viewBox="0 0 24 24" fill="#f3a5b6"><path d="M12 2 C 11 7, 6 9, 2 8 C 4 12, 4 16, 2 19 C 8 17, 11 19, 12 22 C 13 19, 16 17, 22 19 C 20 16, 20 12, 22 8 C 18 9, 13 7, 12 2 Z"/></svg></div>
+  <div class="petal p5"><svg viewBox="0 0 24 24" fill="#c44569"><path d="M12 2 C 11 7, 6 9, 2 8 C 4 12, 4 16, 2 19 C 8 17, 11 19, 12 22 C 13 19, 16 17, 22 19 C 20 16, 20 12, 22 8 C 18 9, 13 7, 12 2 Z"/></svg></div>
+  <div class="petal p6"><svg viewBox="0 0 24 24" fill="#d65778"><path d="M12 2 C 11 7, 6 9, 2 8 C 4 12, 4 16, 2 19 C 8 17, 11 19, 12 22 C 13 19, 16 17, 22 19 C 20 16, 20 12, 22 8 C 18 9, 13 7, 12 2 Z"/></svg></div>
+  <div class="petal p7"><svg viewBox="0 0 24 24" fill="#f3c8d3"><path d="M12 2 C 11 7, 6 9, 2 8 C 4 12, 4 16, 2 19 C 8 17, 11 19, 12 22 C 13 19, 16 17, 22 19 C 20 16, 20 12, 22 8 C 18 9, 13 7, 12 2 Z"/></svg></div>
+</div>
+
+<div class="wrap">
+
+  <!-- ───────────────── MASTHEAD ───────────────── -->
+  <header class="masthead">
+    <div>
+      <div class="kicker">Hanami journal · light theme study № 02</div>
+      <h1>Cherry<br><em>Blossom.</em></h1>
+      <p class="sub">A light theme that reads like washi paper warmed by morning sun: <em>blush ground, plum ink, sage leaves,</em> and a single bright petal of brand coral.</p>
+    </div>
+    <div class="meta">
+      <div><span class="label">date.</span> <span class="val">2026·05·26</span></div>
+      <div><span class="label">subj.</span> <span class="val">theme-light-new</span></div>
+      <div><span class="label">id.</span> <span class="val">cherry-blossom</span></div>
+      <div><span class="label">mode.</span> <span class="val">light</span></div>
+    </div>
+  </header>
+
+  <!-- ───────────────── EPIGRAPH ───────────────── -->
+  <section class="epigraph">
+    <div class="side">Premise.</div>
+    <div class="body">
+      A light theme should not be <em>white.</em> Paper is warmer than that — and the things written on it ought to feel like ink, not pixels. We start from the petal, work toward the <span class="q">leaf</span>, and let the bark live only at the toolbar.
+    </div>
+    <div class="author">— design note, draft i.</div>
+  </section>
+
+  <!-- ───────────────── SHOWCASE ───────────────── -->
+  <section class="showcase">
+
+    <!-- left: editor preview -->
+    <div class="editor-frame">
+      <div class="toolbar">
+        <div class="icn active" title="Edit">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h14M3 12h14M3 18h10"/></svg>
+        </div>
+        <div class="icn" title="Search">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        </div>
+        <div class="icn" title="Git">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"/><circle cx="18" cy="18" r="3"/><circle cx="18" cy="6" r="3"/><path d="M6 9v6a3 3 0 0 0 3 3h6"/></svg>
+        </div>
+        <span class="file">main.tex</span>
+      </div>
+      <div class="body">
+        <div class="sidebar">
+          <div class="h">Project</div>
+          <div class="file active">main.tex</div>
+          <div class="file">references.bib</div>
+          <div class="file">chapters/</div>
+          <div class="file">figures/</div>
+          <div class="h" style="margin-top:14px">Outline</div>
+          <div class="file">Premise</div>
+          <div class="file">Method</div>
+          <div class="file">Result</div>
+        </div>
+        <div class="editor">
+          <div class="gutter">
+            <div>1</div><div>2</div><div>3</div><div>4</div><div>5</div><div>6</div><div>7</div><div>8</div><div>9</div><div>10</div><div>11</div><div>12</div>
+          </div>
+          <div class="content">
+            <div class="ln"><span class="t-cmd">\documentclass</span><span class="brace">{</span><span class="t-attr">article</span><span class="brace">}</span></div>
+            <div class="ln"><span class="t-cmd">\usepackage</span><span class="brace">{</span><span class="t-attr">amsmath</span><span class="brace">}</span></div>
+            <div class="ln">&nbsp;</div>
+            <div class="ln"><span class="t-cmd">\begin</span><span class="brace">{</span><span class="t-attr">document</span><span class="brace">}</span></div>
+            <div class="ln"><span class="t-key">\section</span><span class="brace">{</span>Cherry blossom<span class="brace">}</span> <span class="t-cmt">% sakura · 桜</span></div>
+            <div class="ln">Refer to <span class="t-key">\cite</span><span class="brace">{</span><span class="t-attr">basho1689</span><span class="brace">}</span> for the original premise.</div>
+            <div class="ln active"><span class="sel">The </span><span class="t-str">$</span><span class="t-lit">\alpha</span><span class="t-str">$</span><span class="sel"> ratio</span> is governed by <span class="t-str">$</span><span class="t-lit">\beta </span><span class="t-num">= 1.618</span><span class="t-str">$</span><span class="cur"></span>.</div>
+            <div class="ln"><span class="t-cmd">\label</span><span class="brace">{</span><span class="t-label">sec:hanami</span><span class="brace">}</span></div>
+            <div class="ln">&nbsp;</div>
+            <div class="ln"><span class="t-cmd">\begin</span><span class="brace">{</span><span class="t-attr">equation</span><span class="brace">}</span></div>
+            <div class="ln">&nbsp;&nbsp;&nbsp;<span class="t-lit">\sum_{i=1}^{n}</span> <span class="t-lit">\phi_i</span> <span class="t-num">= </span><span class="t-num">2\pi</span></div>
+            <div class="ln"><span class="t-cmd">\end</span><span class="brace">{</span><span class="t-attr">document</span><span class="brace">}</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="statusbar">
+        <span class="badge">synced · 3s ago</span>
+        <span>LaTeX</span>
+        <span>UTF-8</span>
+        <span style="margin-left:auto">Ln 7, Col 32 · 287 words</span>
+      </div>
+    </div>
+
+    <!-- right: palette + haiku -->
+    <aside class="palette-panel">
+
+      <div class="haiku">
+        <p class="line">Petal on the page,</p>
+        <p class="line indent">leaf-green where the labels rest —</p>
+        <p class="line indent-more">plum ink, then the wind.</p>
+        <p class="ascribed">— after Bashō, in praise of legibility</p>
+      </div>
+
+      <div class="panel-card">
+        <div class="title">Signature swatches</div>
+        <div class="swatch-grid">
+          <div class="swatch-row">
+            <div class="chip" style="background:#fffaf7"></div>
+            <div class="name">Washi <small>editor background</small></div>
+            <div class="hex">#fffaf7</div>
+          </div>
+          <div class="swatch-row">
+            <div class="chip" style="background:#f7e8e3"></div>
+            <div class="name">Petal-fall <small>app background</small></div>
+            <div class="hex">#f7e8e3</div>
+          </div>
+          <div class="swatch-row">
+            <div class="chip" style="background:#3d1a26"></div>
+            <div class="name">Branch <small>toolbar</small></div>
+            <div class="hex">#3d1a26</div>
+          </div>
+          <div class="swatch-row">
+            <div class="chip" style="background:#c44569"></div>
+            <div class="name">Sakura <small>brand · cursor</small></div>
+            <div class="hex">#c44569</div>
+          </div>
+          <div class="swatch-row">
+            <div class="chip" style="background:#4d6b49"></div>
+            <div class="name">Young leaf <small>labels · attrs</small></div>
+            <div class="hex">#4d6b49</div>
+          </div>
+          <div class="swatch-row">
+            <div class="chip" style="background:#2b1218"></div>
+            <div class="name">Sumi ink <small>primary text</small></div>
+            <div class="hex">#2b1218</div>
+          </div>
+        </div>
+      </div>
+
+    </aside>
+
+  </section>
+
+  <!-- ───────────────── FULL PALETTE ───────────────── -->
+  <div class="section-head">
+    <span class="num">i.</span>
+    <h2>The full <em>palette.</em></h2>
+    <span class="rule"></span>
+  </div>
+
+  <div class="full-palette">
+    <div class="pal-group">
+      <h3>Chrome — surface</h3>
+      <div class="row"><div class="chip" style="background:#f7e8e3"></div><div class="label">bgApp <small>cool blush</small></div><div class="hex">#f7e8e3</div></div>
+      <div class="row"><div class="chip" style="background:#f0dcd4"></div><div class="label">bgSidebar <small>petal deeper</small></div><div class="hex">#f0dcd4</div></div>
+      <div class="row"><div class="chip" style="background:#e8cdc3"></div><div class="label">bgPanel <small>petal deepest</small></div><div class="hex">#e8cdc3</div></div>
+      <div class="row"><div class="chip" style="background:#fffaf7"></div><div class="label">bgCard <small>washi</small></div><div class="hex">#fffaf7</div></div>
+      <div class="row"><div class="chip" style="background:#3d1a26"></div><div class="label">bgToolbar <small>branch / stem</small></div><div class="hex">#3d1a26</div></div>
+      <div class="row"><div class="chip" style="background:#fffaf7"></div><div class="label">bgInput · bgModal</div><div class="hex">#fffaf7</div></div>
+      <div class="row"><div class="chip" style="background:#d4b6ad"></div><div class="label">border</div><div class="hex">#d4b6ad</div></div>
+      <div class="row"><div class="chip" style="background:#e3c9c0"></div><div class="label">borderLight</div><div class="hex">#e3c9c0</div></div>
+    </div>
+
+    <div class="pal-group">
+      <h3>Chrome — accent</h3>
+      <div class="row"><div class="chip" style="background:#c44569"></div><div class="label">brand <small>sakura coral</small></div><div class="hex">#c44569</div></div>
+      <div class="row"><div class="chip" style="background:#9b2c4a"></div><div class="label">brandDark</div><div class="hex">#9b2c4a</div></div>
+      <div class="row"><div class="chip" style="background:#d65778"></div><div class="label">brandHover</div><div class="hex">#d65778</div></div>
+      <div class="row"><div class="chip" style="background:#c44569"></div><div class="label">borderFocus · textAccent</div><div class="hex">#c44569</div></div>
+      <div class="row"><div class="chip" style="background:#4d6b49"></div><div class="label">success <small>young leaf</small></div><div class="hex">#4d6b49</div></div>
+      <div class="row"><div class="chip" style="background:#d97706"></div><div class="label">warning</div><div class="hex">#d97706</div></div>
+      <div class="row"><div class="chip" style="background:#dc2626"></div><div class="label">error</div><div class="hex">#dc2626</div></div>
+      <div class="row"><div class="chip" style="background:#1d4ed8"></div><div class="label">info</div><div class="hex">#1d4ed8</div></div>
+    </div>
+
+    <div class="pal-group">
+      <h3>Text — ink</h3>
+      <div class="row"><div class="chip" style="background:#2b1218"></div><div class="label">textPrimary <small>sumi</small></div><div class="hex">#2b1218</div></div>
+      <div class="row"><div class="chip" style="background:#6b4550"></div><div class="label">textSecondary</div><div class="hex">#6b4550</div></div>
+      <div class="row"><div class="chip" style="background:#9d7d83"></div><div class="label">textMuted</div><div class="hex">#9d7d83</div></div>
+      <div class="row"><div class="chip" style="background:#c44569"></div><div class="label">textAccent <small>cherry</small></div><div class="hex">#c44569</div></div>
+      <div class="row"><div class="chip" style="background:#b91c1c"></div><div class="label">textError</div><div class="hex">#b91c1c</div></div>
+      <div class="row"><div class="chip" style="background:#b45309"></div><div class="label">textWarning</div><div class="hex">#b45309</div></div>
+      <div class="row"><div class="chip" style="background:#d4b6ad"></div><div class="label">scrollbar</div><div class="hex">#d4b6ad</div></div>
+      <div class="row"><div class="chip" style="background:#c2a098"></div><div class="label">scrollbarHover</div><div class="hex">#c2a098</div></div>
+    </div>
+
+    <div class="pal-group">
+      <h3>Syntax — tokens</h3>
+      <div class="row"><div class="chip" style="background:#2b1218"></div><div class="label">tagName <small>\macro</small></div><div class="hex">#2b1218</div></div>
+      <div class="row"><div class="chip" style="background:#a8324d"></div><div class="label">keyword <small>\section, \cite</small></div><div class="hex">#a8324d</div></div>
+      <div class="row"><div class="chip" style="background:#6b4980"></div><div class="label">literal <small>math symbols</small></div><div class="hex">#6b4980</div></div>
+      <div class="row"><div class="chip" style="background:#8a5530"></div><div class="label">string · number · type</div><div class="hex">#8a5530</div></div>
+      <div class="row"><div class="chip" style="background:#4d6b49"></div><div class="label">attrValue · labelName</div><div class="hex">#4d6b49</div></div>
+      <div class="row"><div class="chip" style="background:#4a5f7a"></div><div class="label">attributeName</div><div class="hex">#4a5f7a</div></div>
+      <div class="row"><div class="chip" style="background:#9d8388"></div><div class="label">comment <small>italic</small></div><div class="hex">#9d8388</div></div>
+      <div class="row"><div class="chip" style="background:rgba(196,69,105,0.18)"></div><div class="label">selection</div><div class="hex">28% sakura</div></div>
+    </div>
+  </div>
+
+  <!-- ───────────────── COMPOSITIONAL NOTES ───────────────── -->
+  <div class="section-head">
+    <span class="num">ii.</span>
+    <h2>How it <em>composes.</em></h2>
+    <span class="rule"></span>
+  </div>
+
+  <section class="composition">
+    <div class="side">Reading notes.</div>
+    <div class="body">
+      <div>
+        <h4>One bright petal.</h4>
+        <p>The brand (<em>sakura coral</em>) is the only highly-saturated color in the entire theme. It earns its attention because nothing else competes — the focus ring, the cursor, the active-file dot all share it.</p>
+      </div>
+      <div>
+        <h4>Plum, not black.</h4>
+        <p>Primary text is <em>#2b1218</em> — a deep aubergine. Against the warm paper, true black would feel printed-too-hard; plum sits with the warmth instead of shouting over it.</p>
+      </div>
+      <div>
+        <h4>Leaves as labels.</h4>
+        <p>Sage green is reserved for <em>label content</em> — what <code>\label{…}</code>, <code>\cite{…}</code>, <code>\ref{…}</code> point at. Labels are the "fixed points" of a document. Leaves are the fixed points of a tree.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ───────────────── CLOSING ───────────────── -->
+  <div class="closing">
+    <span>cherry-blossom.json · draft</span>
+    <span class="stamp">end of journal entry.</span>
+    <span>fin.</span>
+  </div>
+
+</div>
+
+</body>
+</html>

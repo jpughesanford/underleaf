@@ -1,0 +1,855 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Underleaf — Find &amp; Replace · Design Study</title>
+<style>
+/* ─────────────────────────────────────────────────────────────────────
+   Underleaf · Find & Replace — Design study v2
+   Aligned to actual app vibe: clean system sans, soft 6–8px radii,
+   sage-green accents, status-chip palette, Linear/Notion-app feel.
+   ───────────────────────────────────────────────────────────────────── */
+:root {
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", Menlo, Consolas, monospace;
+
+  /* ── LIGHT (warm cream paper — Underleaf Light) ── */
+  --l-app:           #f0e9dd;          /* slightly cooler app bg */
+  --l-editor-bg:     #fdf8f2;
+  --l-card:          #ffffff;
+  --l-line:          #d8cfc4;
+  --l-line-soft:     #e8e1d4;
+  --l-text:          #1c1410;
+  --l-text-sec:      #5a4e44;
+  --l-text-mute:     #9d8e82;
+  --l-brand:         #2e7d32;
+  --l-brand-2:       #1b5e20;
+  --l-brand-soft:    #e6f0e3;
+  --l-brand-tint:    rgba(46,125,50,0.08);
+  --l-blue-soft:     #e3ecf7;
+  --l-blue-fg:       #1d4ed8;
+  --l-amber-soft:    #fbe9cf;
+  --l-amber-fg:      #b45309;
+  --l-shadow:        0 1px 0 rgba(255,255,255,0.8) inset,
+                     0 6px 24px -10px rgba(60,40,20,0.18),
+                     0 1px 2px rgba(60,40,20,0.06);
+  --l-mark-cur:      rgba(46,125,50,0.22);
+  --l-mark-cur-rim:  rgba(46,125,50,0.55);
+  --l-mark-oth:      rgba(180,83,9,0.16);
+  --l-mark-oth-rim:  rgba(180,83,9,0.42);
+
+  /* ── DARK (deep slate — Underleaf Dark) ── */
+  --d-app:           #131a26;
+  --d-editor-bg:     #1a2332;
+  --d-card:          #1f293b;
+  --d-line:          #2d3f55;
+  --d-line-soft:     #243144;
+  --d-text:          #e2e8f0;
+  --d-text-sec:      #94a3b8;
+  --d-text-mute:     #64748b;
+  --d-brand:         #4ade80;
+  --d-brand-2:       #22c55e;
+  --d-brand-soft:    #1f3a2a;
+  --d-brand-tint:    rgba(74,222,128,0.14);
+  --d-blue-soft:     #1e2e4d;
+  --d-blue-fg:       #93c5fd;
+  --d-amber-soft:    #3a2c12;
+  --d-amber-fg:      #fbbf24;
+  --d-shadow:        0 1px 0 rgba(255,255,255,0.03) inset,
+                     0 10px 30px -12px rgba(0,0,0,0.6),
+                     0 1px 2px rgba(0,0,0,0.4);
+  --d-mark-cur:      rgba(74,222,128,0.22);
+  --d-mark-cur-rim:  rgba(74,222,128,0.55);
+  --d-mark-oth:      rgba(251,191,36,0.18);
+  --d-mark-oth-rim:  rgba(251,191,36,0.42);
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: var(--font-sans);
+  background: #0a0d12;
+  color: #e2e8f0;
+  min-height: 100vh;
+  padding: 48px 40px 96px;
+  display: flex; flex-direction: column; gap: 44px; align-items: stretch;
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "cv11";
+}
+
+/* ─── page header ─── */
+.studyHead {
+  max-width: 1280px; margin: 0 auto; width: 100%;
+  display: grid; grid-template-columns: 1fr auto; align-items: end;
+  gap: 28px; padding-bottom: 20px; border-bottom: 1px solid #1d242f;
+}
+.studyHead h1 {
+  font-size: 16px; font-weight: 600; letter-spacing: -0.01em;
+  color: #e2e8f0; margin: 0 0 4px 0;
+}
+.studyHead .sub {
+  font-size: 13px; color: #98a2b3; font-weight: 400; line-height: 1.5;
+}
+.studyHead .meta {
+  font-family: var(--font-mono); font-size: 11px;
+  color: #4a5563; text-align: right; line-height: 1.6;
+}
+
+/* ─── stage ─── */
+.stage {
+  max-width: 1280px; margin: 0 auto; width: 100%;
+  display: flex; flex-direction: column; gap: 14px;
+}
+.stage > .label {
+  display: flex; align-items: center; gap: 12px;
+  font-size: 13px; font-weight: 600; color: #c8d1dd;
+}
+.stage > .label .tag {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 500;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  color: #6f7a8a; padding: 3px 8px;
+  background: #131923; border: 1px solid #1d2532; border-radius: 4px;
+}
+.stage > .label .rule { flex: 1; height: 1px; background: #1d242f; }
+
+/* ─── editor frame (mirrors the real Underleaf chrome) ─── */
+.frame {
+  border-radius: 10px; overflow: hidden;
+  box-shadow: 0 30px 60px -28px rgba(0,0,0,0.6),
+              0 0 0 1px rgba(255,255,255,0.04) inset;
+}
+.frame .toolbar {
+  height: 44px; padding: 0 14px 0 14px;
+  display: flex; align-items: center; gap: 12px;
+  background: #1c4d2e;   /* the deep-forest editor toolbar */
+  color: #d6ead9;
+  font-size: 13px; font-weight: 500;
+}
+.frame .toolbar .traffic { display: flex; gap: 7px; }
+.frame .toolbar .traffic .dot { width: 11px; height: 11px; border-radius: 50%; }
+.frame .toolbar .traffic .dot:nth-child(1) { background: #e85b53; }
+.frame .toolbar .traffic .dot:nth-child(2) { background: #e9a23b; }
+.frame .toolbar .traffic .dot:nth-child(3) { background: #4cae50; }
+.frame .toolbar .back {
+  width: 26px; height: 26px; border-radius: 6px;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: #d6ead9; opacity: 0.8;
+}
+.frame .toolbar .leaf {
+  width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center;
+  color: #b8dcbb;
+}
+.frame .toolbar .title { font-weight: 600; color: #f0f7f1; margin-left: 2px; }
+.frame .toolbar .spacer { flex: 1; }
+.frame .toolbar .icon {
+  width: 28px; height: 28px; border-radius: 6px;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: #d6ead9; opacity: 0.85;
+}
+.frame .toolbar .recompile {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 30px; padding: 0 14px;
+  border-radius: 999px;
+  background: #4cae50; color: white;
+  font-size: 13px; font-weight: 600;
+  border: 0; cursor: pointer;
+}
+.frame .toolbar .recompile svg { width: 10px; height: 10px; }
+
+/* ─── editor body (lines + the panel pinned to the top) ─── */
+.frame .body { position: relative; }
+.frame .editor {
+  font-family: var(--font-mono); font-size: 12.5px; line-height: 1.85;
+  padding: 18px 28px 40px;
+  min-height: 280px;
+  display: grid; grid-template-columns: 32px 1fr; column-gap: 18px;
+}
+.frame .editor .gut { color: var(--gut, #9d8e82); text-align: right; opacity: 0.55; user-select: none; font-variant-numeric: tabular-nums; }
+.frame .editor .ln  { white-space: pre-wrap; }
+.frame .editor .mark-current { background: var(--mark-cur); border-radius: 2px; padding: 1px 0; box-shadow: 0 0 0 1px var(--mark-cur-rim); }
+.frame .editor .mark-other   { background: var(--mark-oth); border-radius: 2px; padding: 1px 0; box-shadow: 0 0 0 1px var(--mark-oth-rim); }
+.frame .editor .cmd  { color: var(--cmd); }
+.frame .editor .arg  { color: var(--arg); }
+.frame .editor .com  { color: var(--com); font-style: italic; }
+.frame .editor .lit  { color: var(--lit); }
+
+/* light frame */
+.light .frame                    { background: var(--l-editor-bg); color: var(--l-text); }
+.light .frame .editor {
+  --gut: #b9ab9c; --cmd: #065f46; --arg: #0c4a6e; --lit: #6d28d9; --com: #9d8e82;
+  --mark-cur: var(--l-mark-cur);  --mark-cur-rim: var(--l-mark-cur-rim);
+  --mark-oth: var(--l-mark-oth);  --mark-oth-rim: var(--l-mark-oth-rim);
+}
+
+/* dark frame */
+.dark .frame                     { background: var(--d-editor-bg); color: var(--d-text); }
+.dark .frame .toolbar            { background: #0f291b; }
+.dark .frame .editor {
+  --gut: #4a5b76; --cmd: #34d399; --arg: #86efac; --lit: #a78bfa; --com: #4a5b76;
+  --mark-cur: var(--d-mark-cur);  --mark-cur-rim: var(--d-mark-cur-rim);
+  --mark-oth: var(--d-mark-oth);  --mark-oth-rim: var(--d-mark-oth-rim);
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   THE PANEL
+   A floating white (or slate) card pinned to the top of the editor.
+   Two compact rows. Inline modifiers. Match-counter chip in the
+   "Synced" pill style. Replace All wears the brand fill.
+   ════════════════════════════════════════════════════════════════════ */
+
+.fr {
+  margin: 14px 16px 0;
+  padding: 8px;
+  display: flex; flex-direction: column;
+  gap: 6px;
+  background: var(--card);
+  border: 1px solid var(--rim);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  position: relative;
+  z-index: 2;
+}
+.fr .row {
+  display: flex; align-items: center; gap: 8px;
+  height: 36px;
+}
+.fr .row > .field { flex: 1; min-width: 0; }
+.light .fr {
+  --card:   var(--l-card);
+  --rim:    var(--l-line);
+  --shadow: var(--l-shadow);
+}
+.dark .fr {
+  --card:   var(--d-card);
+  --rim:    var(--d-line);
+  --shadow: var(--d-shadow);
+}
+
+/* ─── input field (find / replace) ─── */
+.fr .field {
+  display: flex; align-items: stretch;
+  height: 36px;
+  border-radius: 7px;
+  background: var(--in-bg);
+  border: 1px solid var(--in-rim);
+  transition: border-color 140ms ease, box-shadow 140ms ease, background 140ms ease;
+  overflow: hidden;
+}
+.light .fr .field {
+  --in-bg:  #fbf7f0;
+  --in-rim: var(--l-line-soft);
+}
+.dark .fr .field {
+  --in-bg:  rgba(15,23,42,0.55);
+  --in-rim: var(--d-line-soft);
+}
+
+.fr .field.is-focused {
+  border-color: var(--brand);
+  background: var(--in-bg-focused);
+  box-shadow: 0 0 0 3px var(--brand-ring);
+}
+.light .fr .field.is-focused {
+  --brand: var(--l-brand);
+  --in-bg-focused: #ffffff;
+  --brand-ring: var(--l-brand-tint);
+}
+.dark .fr .field.is-focused {
+  --brand: var(--d-brand);
+  --in-bg-focused: #15203a;
+  --brand-ring: var(--d-brand-tint);
+}
+
+/* leading icon inside each field — search glyph + replace glyph */
+.fr .field .lead {
+  width: 30px; flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--lead-fg);
+}
+.light .fr .field .lead { --lead-fg: #b09f8e; }
+.dark  .fr .field .lead { --lead-fg: #586b86; }
+.fr .field.is-focused .lead { color: var(--brand); }
+.fr .field .lead svg { width: 14px; height: 14px; }
+
+/* text input */
+.fr input.txt {
+  flex: 1; min-width: 0;
+  background: transparent; border: 0; outline: 0;
+  font-family: var(--font-mono); font-size: 12.5px;
+  color: inherit; padding: 0 6px 0 0;
+  font-feature-settings: "ss03", "cv11";
+}
+.light .fr input.txt::placeholder { color: var(--l-text-mute); }
+.dark  .fr input.txt::placeholder { color: var(--d-text-mute); }
+
+/* trailing strip inside the find field: Aa / .* / W and the count chip */
+.fr .trail {
+  display: flex; align-items: center; gap: 4px;
+  padding: 4px 6px 4px 4px;
+  flex: none;
+}
+
+/* modifier toggle button — soft, square-ish, ghost background until on */
+.fr .mod {
+  height: 26px; min-width: 28px; padding: 0 7px;
+  background: transparent;
+  border: 0; border-radius: 5px;
+  font-family: var(--font-sans);
+  font-size: 11px; font-weight: 600;
+  color: var(--mod-fg);
+  cursor: pointer;
+  transition: color 120ms, background 120ms, box-shadow 120ms;
+  letter-spacing: 0.01em;
+}
+.light .fr .mod { --mod-fg: var(--l-text-mute); }
+.dark  .fr .mod { --mod-fg: var(--d-text-mute); }
+.fr .mod:hover {
+  color: var(--mod-fg-hov);
+  background: var(--mod-bg-hov);
+}
+.light .fr .mod:hover { --mod-fg-hov: var(--l-text); --mod-bg-hov: rgba(0,0,0,0.04); }
+.dark  .fr .mod:hover { --mod-fg-hov: var(--d-text); --mod-bg-hov: rgba(255,255,255,0.05); }
+
+.fr .mod.is-on {
+  color: var(--brand);
+  background: var(--brand-soft);
+}
+.light .fr .mod.is-on { --brand: var(--l-brand-2); --brand-soft: var(--l-brand-soft); }
+.dark  .fr .mod.is-on { --brand: var(--d-brand); --brand-soft: var(--d-brand-soft); }
+
+/* match count chip — uses the same shape language as the Synced/1 change pills */
+.fr .count {
+  display: inline-flex; align-items: center; gap: 4px;
+  height: 24px; padding: 0 10px;
+  border-radius: 999px;
+  font-family: var(--font-sans);
+  font-size: 11px; font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  background: var(--count-bg);
+  color: var(--count-fg);
+  margin-left: 2px;
+  border: 1px solid var(--count-rim);
+  letter-spacing: 0.01em;
+}
+.light .fr .count {
+  --count-bg:  var(--l-brand-soft);
+  --count-fg:  var(--l-brand-2);
+  --count-rim: rgba(46,125,50,0.18);
+}
+.dark .fr .count {
+  --count-bg:  var(--d-brand-soft);
+  --count-fg:  #86efac;
+  --count-rim: rgba(74,222,128,0.22);
+}
+.fr .count .of { opacity: 0.55; font-weight: 500; }
+
+/* empty-state (no query) — neutral chip instead of brand */
+.fr .count.is-empty {
+  background: var(--empty-bg); color: var(--empty-fg); border-color: var(--empty-rim);
+}
+.light .fr .count.is-empty { --empty-bg: #f3ede2; --empty-fg: var(--l-text-mute); --empty-rim: var(--l-line-soft); }
+.dark  .fr .count.is-empty { --empty-bg: #1a2436; --empty-fg: var(--d-text-mute); --empty-rim: var(--d-line-soft); }
+
+/* zero-match (query with no hits) — amber chip, mirrors "1 behind" */
+.fr .count.is-zero {
+  background: var(--z-bg); color: var(--z-fg); border-color: var(--z-rim);
+}
+.light .fr .count.is-zero { --z-bg: var(--l-amber-soft); --z-fg: var(--l-amber-fg); --z-rim: rgba(180,83,9,0.22); }
+.dark  .fr .count.is-zero { --z-bg: var(--d-amber-soft); --z-fg: var(--d-amber-fg); --z-rim: rgba(251,191,36,0.28); }
+
+/* ─── right-rail clusters ─── */
+.fr .rail   { display: flex; align-items: center; gap: 6px; flex: none; }
+
+/* prev / next as paired buttons, with the close X tucked to the right */
+.fr .nav {
+  display: inline-flex; align-items: stretch;
+  height: 30px; border-radius: 7px;
+  background: var(--nav-bg);
+  border: 1px solid var(--nav-rim);
+  overflow: hidden;
+}
+.light .fr .nav { --nav-bg: #fbf7f0; --nav-rim: var(--l-line-soft); }
+.dark  .fr .nav { --nav-bg: rgba(15,23,42,0.55); --nav-rim: var(--d-line-soft); }
+
+.fr .nav button {
+  width: 30px; padding: 0; margin: 0;
+  background: transparent; border: 0; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--nav-fg);
+  transition: color 120ms, background 120ms;
+}
+.light .fr .nav button { --nav-fg: var(--l-text-sec); }
+.dark  .fr .nav button { --nav-fg: var(--d-text-sec); }
+.fr .nav button + button { border-left: 1px solid var(--nav-rim); }
+.fr .nav button:hover {
+  color: var(--nav-hov-fg);
+  background: var(--nav-hov-bg);
+}
+.light .fr .nav button:hover { --nav-hov-fg: var(--l-brand-2); --nav-hov-bg: var(--l-brand-soft); }
+.dark  .fr .nav button:hover { --nav-hov-fg: var(--d-brand);   --nav-hov-bg: var(--d-brand-soft); }
+.fr .nav svg { width: 12px; height: 12px; display: block; }
+
+/* close X — square ghost button, matches editor toolbar icon buttons */
+.fr .close {
+  width: 30px; height: 30px; border-radius: 7px;
+  background: transparent; border: 0; cursor: pointer; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--close-fg);
+  transition: color 120ms, background 120ms;
+}
+.light .fr .close { --close-fg: var(--l-text-mute); }
+.dark  .fr .close { --close-fg: var(--d-text-mute); }
+.fr .close:hover { color: var(--close-hov-fg); background: var(--close-hov-bg); }
+.light .fr .close:hover { --close-hov-fg: var(--l-text); --close-hov-bg: rgba(0,0,0,0.05); }
+.dark  .fr .close:hover { --close-hov-fg: var(--d-text); --close-hov-bg: rgba(255,255,255,0.05); }
+.fr .close svg { width: 12px; height: 12px; }
+
+/* replace actions: secondary "Replace" + primary "Replace all" */
+.fr .actions { display: flex; align-items: center; gap: 4px; }
+.fr .btn {
+  height: 30px; padding: 0 11px;
+  border-radius: 7px;
+  font-family: var(--font-sans);
+  font-size: 12px; font-weight: 500;
+  cursor: pointer; border: 1px solid transparent;
+  display: inline-flex; align-items: center; gap: 6px;
+  transition: background 120ms, color 120ms, border-color 120ms, box-shadow 120ms, transform 80ms;
+  letter-spacing: 0.005em;
+  white-space: nowrap;
+}
+.fr .btn:active { transform: translateY(0.5px); }
+
+.fr .btn.ghost {
+  background: transparent;
+  border-color: var(--ghost-rim);
+  color: var(--ghost-fg);
+}
+.light .fr .btn.ghost { --ghost-rim: var(--l-line); --ghost-fg: var(--l-text); }
+.dark  .fr .btn.ghost { --ghost-rim: var(--d-line); --ghost-fg: var(--d-text); }
+.fr .btn.ghost:hover { background: var(--ghost-hov-bg); border-color: var(--ghost-hov-rim); }
+.light .fr .btn.ghost:hover { --ghost-hov-bg: rgba(0,0,0,0.035); --ghost-hov-rim: #c1b8aa; }
+.dark  .fr .btn.ghost:hover { --ghost-hov-bg: rgba(255,255,255,0.04); --ghost-hov-rim: #38506e; }
+
+.fr .btn.primary {
+  background: var(--p-bg);
+  color: var(--p-fg);
+  border-color: var(--p-bg);
+  font-weight: 600;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.18) inset,
+              0 1px 2px rgba(0,0,0,0.18);
+}
+.light .fr .btn.primary { --p-bg: var(--l-brand); --p-fg: #ffffff; }
+.dark  .fr .btn.primary { --p-bg: var(--d-brand-2); --p-fg: #0a1a10; }
+.fr .btn.primary:hover { filter: brightness(1.05); }
+
+/* kbd hint chip */
+.fr .btn kbd {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 500;
+  padding: 1px 5px; border-radius: 4px; line-height: 1.4;
+  background: var(--kbd-bg); color: var(--kbd-fg);
+  border: 1px solid var(--kbd-rim);
+  letter-spacing: 0.02em;
+}
+.light .fr .btn.ghost kbd { --kbd-bg: rgba(0,0,0,0.04); --kbd-fg: var(--l-text-mute); --kbd-rim: var(--l-line-soft); }
+.dark  .fr .btn.ghost kbd { --kbd-bg: rgba(255,255,255,0.05); --kbd-fg: var(--d-text-mute); --kbd-rim: var(--d-line-soft); }
+.light .fr .btn.primary kbd { --kbd-bg: rgba(255,255,255,0.18); --kbd-fg: rgba(255,255,255,0.9); --kbd-rim: rgba(255,255,255,0.28); }
+.dark  .fr .btn.primary kbd { --kbd-bg: rgba(0,0,0,0.18); --kbd-fg: rgba(10,26,16,0.7); --kbd-rim: rgba(0,0,0,0.2); }
+
+/* ─── entrance motion ─── */
+@keyframes drop-in {
+  from { transform: translateY(-8px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+.fr { animation: drop-in 280ms cubic-bezier(.2,.7,.2,1); }
+
+/* ─── annotations grid below each variant ─── */
+.notes {
+  max-width: 1280px; margin: 4px auto 0; width: 100%;
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;
+  font-size: 12px; line-height: 1.55; color: #98a2b3;
+}
+.notes .n {
+  border-top: 1px solid #1d242f; padding-top: 10px;
+}
+.notes .n b {
+  display: block; font-size: 12.5px; font-weight: 600; color: #d5dce5; margin-bottom: 4px;
+}
+.notes .n .num {
+  font-family: var(--font-mono); font-size: 10px; color: #4ade80;
+  margin-right: 6px; vertical-align: 1px;
+}
+
+/* ─── state variants row ─── */
+.stateRow {
+  max-width: 1280px; margin: 0 auto; width: 100%;
+  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 18px;
+}
+.stateRow .v {
+  background: linear-gradient(180deg, #11151c 0%, #0c1016 100%);
+  border: 1px solid #1d242f; border-radius: 12px; padding: 18px;
+}
+.stateRow .v h3 {
+  margin: 0 0 12px 0; font-size: 11px; font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase; color: #6f7a8a;
+}
+/* compact in-card frame for state previews */
+.stateRow .v .mini {
+  background: var(--l-editor-bg);
+  border-radius: 8px;
+  border: 1px solid rgba(0,0,0,0.06);
+  padding: 0 0 12px 0;
+}
+.stateRow .v .mini .fr {
+  margin: 12px 12px 0;
+  animation: none;
+}
+</style>
+</head>
+<body>
+
+<header class="studyHead">
+  <div>
+    <h1>Underleaf · Find &amp; Replace</h1>
+    <div class="sub">Redesign of the in-editor search panel. Brings the panel in line with the dashboard / editor language: floating card, soft radii, sage-green accents, status-chip palette.</div>
+  </div>
+  <div class="meta">study v2 · 2026.05.26<br/>light &amp; dark · states</div>
+</header>
+
+<!-- ════════════════════════════════════════════════════════════════
+     LIGHT — in the editor frame
+     ════════════════════════════════════════════════════════════════ -->
+<section class="stage light">
+  <div class="label">
+    <span>Underleaf Light</span>
+    <span class="tag">cream paper · sage accent</span>
+    <span class="rule"></span>
+  </div>
+
+  <div class="frame">
+    <div class="toolbar">
+      <div class="traffic"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+      <div class="back" title="Back">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13 5 8l5-5"/></svg>
+      </div>
+      <div class="leaf">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 19c0-8 6-14 14-14 0 8-6 14-14 14z"/></svg>
+      </div>
+      <div class="title">kl-interpretability</div>
+      <div class="spacer"></div>
+      <div class="icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 2.5a5.5 5.5 0 1 0 5.5 5.5h-2A3.5 3.5 0 1 1 8 4.5V2.5z"/></svg></div>
+      <div class="icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="2.2"/><path d="M13 8c0 .4 0 .8-.1 1.2l1.4 1.1-1.5 2.6-1.7-.7c-.6.5-1.3.8-2 1l-.2 1.8H5.1l-.2-1.8a5.6 5.6 0 0 1-2-1l-1.7.7L-.3 8.9 1 7.7C1 7.4 1 7 1 6.6"/></svg></div>
+      <button class="recompile">
+        <svg viewBox="0 0 10 10" fill="currentColor"><path d="M2 1l7 4-7 4z"/></svg>
+        Recompile
+      </button>
+    </div>
+
+    <!-- the panel -->
+    <div class="fr">
+      <!-- row 1: find field + nav + close -->
+      <div class="row">
+        <div class="field is-focused" id="findFieldL">
+          <span class="lead">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="7" cy="7" r="4.2"/><path d="m10.2 10.2 3.3 3.3"/></svg>
+          </span>
+          <input class="txt" type="text" value="\eqref" placeholder="Find in document…" spellcheck="false" />
+          <div class="trail">
+            <button class="mod is-on" type="button" title="Match case">Aa</button>
+            <button class="mod" type="button" title="Use regular expression">.*</button>
+            <button class="mod is-on" type="button" title="Match whole word">W</button>
+            <span class="count"><span class="cur">3</span><span class="of">/</span><span class="tot">47</span></span>
+          </div>
+        </div>
+        <div class="rail">
+          <div class="nav">
+            <button type="button" title="Previous match (⇧⌘G)">
+              <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 9.5 4 6l4.5-3.5"/></svg>
+            </button>
+            <button type="button" title="Next match (⌘G)">
+              <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 2.5 8 6l-4.5 3.5"/></svg>
+            </button>
+          </div>
+          <button type="button" class="close" title="Close (Esc)">
+            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M2.5 2.5l7 7m0-7-7 7"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- row 2: replace field + actions -->
+      <div class="row">
+        <div class="field">
+          <span class="lead">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h7l-2-2m2 2-2 2"/><path d="M13 12H6l2 2m-2-2 2-2"/></svg>
+          </span>
+          <input class="txt" type="text" value="\ref" placeholder="Replace with…" spellcheck="false" />
+        </div>
+        <div class="actions">
+          <button class="btn ghost" title="Replace next match (⌥↵)">Replace</button>
+          <button class="btn primary" title="Replace all matches (⇧⌥↵)">Replace all</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- editor preview -->
+    <div class="editor">
+      <div class="gut">42<br>43<br>44<br>45<br>46<br>47<br>48<br>49</div>
+      <div class="ln">As shown in <span class="cmd">\eqref</span><span class="arg">{eq:laplacian}</span>, the operator is self-adjoint.
+Substituting <span class="cmd">\eqref</span><span class="arg">{eq:initial}</span> into <span class="cmd">\eqref</span><span class="arg">{eq:bvp}</span> gives
+<span class="cmd">\begin</span><span class="arg">{equation}</span>
+  u(x,t) = \sum_{n=1}^{\infty} a_n \sin(n\pi x) e^{-n^2 \pi^2 t}<span class="com">  % see <span class="mark-current">\eqref</span>{eq:fourier}</span>
+<span class="cmd">\end</span><span class="arg">{equation}</span>
+The convergence rate matches <span class="mark-other">\eqref</span>{eq:rate-bound} when $t > 0$.
+For boundary data, refer to <span class="mark-other">\eqref</span>{eq:dirichlet} above.
+A final estimate appears in <span class="mark-other">\eqref</span>{eq:final-bound}.</div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <div class="n"><b>One floating card</b><span class="num">01</span>White panel with hairline border and soft drop-shadow — the same elevation language as the dashboard project cards. Replaces the flat gray bar with floating pills.</div>
+    <div class="n"><b>Modifiers inside the field</b><span class="num">02</span>Aa · .* · W sit on the right edge of the search input, with the count chip beside them. Removes three orbiting pills and keeps the entire search context in one unit.</div>
+    <div class="n"><b>Count as status chip</b><span class="num">03</span>"3 / 47" wears the same pill shape as <i>Synced</i> / <i>1 change</i>. Green when matches found, amber for zero matches, neutral when empty. Reuses palette you've already established.</div>
+    <div class="n"><b>Replace All is the primary</b><span class="num">04</span>The destructive action gets the sage-green fill that matches Recompile. Replace stays a ghost button. Visual weight communicates intent before the click.</div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════════════
+     DARK — in the editor frame
+     ════════════════════════════════════════════════════════════════ -->
+<section class="stage dark">
+  <div class="label">
+    <span>Underleaf Dark</span>
+    <span class="tag">deep slate · luminous green</span>
+    <span class="rule"></span>
+  </div>
+
+  <div class="frame">
+    <div class="toolbar">
+      <div class="traffic"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+      <div class="back">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13 5 8l5-5"/></svg>
+      </div>
+      <div class="leaf">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 19c0-8 6-14 14-14 0 8-6 14-14 14z"/></svg>
+      </div>
+      <div class="title">kl-interpretability</div>
+      <div class="spacer"></div>
+      <div class="icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 2.5a5.5 5.5 0 1 0 5.5 5.5h-2A3.5 3.5 0 1 1 8 4.5V2.5z"/></svg></div>
+      <div class="icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="2.2"/></svg></div>
+      <button class="recompile">
+        <svg viewBox="0 0 10 10" fill="currentColor"><path d="M2 1l7 4-7 4z"/></svg>
+        Recompile
+      </button>
+    </div>
+
+    <div class="fr">
+      <div class="row">
+        <div class="field is-focused" id="findFieldD">
+          <span class="lead">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="7" cy="7" r="4.2"/><path d="m10.2 10.2 3.3 3.3"/></svg>
+          </span>
+          <input class="txt" type="text" value="\eqref" placeholder="Find in document…" spellcheck="false" />
+          <div class="trail">
+            <button class="mod is-on" type="button" title="Match case">Aa</button>
+            <button class="mod" type="button" title="Use regular expression">.*</button>
+            <button class="mod is-on" type="button" title="Match whole word">W</button>
+            <span class="count"><span class="cur">3</span><span class="of">/</span><span class="tot">47</span></span>
+          </div>
+        </div>
+        <div class="rail">
+          <div class="nav">
+            <button type="button" title="Previous match">
+              <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 9.5 4 6l4.5-3.5"/></svg>
+            </button>
+            <button type="button" title="Next match">
+              <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 2.5 8 6l-4.5 3.5"/></svg>
+            </button>
+          </div>
+          <button type="button" class="close" title="Close (Esc)">
+            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M2.5 2.5l7 7m0-7-7 7"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <span class="lead">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h7l-2-2m2 2-2 2"/><path d="M13 12H6l2 2m-2-2 2-2"/></svg>
+          </span>
+          <input class="txt" type="text" value="\ref" placeholder="Replace with…" spellcheck="false" />
+        </div>
+        <div class="actions">
+          <button class="btn ghost" title="Replace next match (⌥↵)">Replace</button>
+          <button class="btn primary" title="Replace all matches (⇧⌥↵)">Replace all</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="editor">
+      <div class="gut">42<br>43<br>44<br>45<br>46<br>47<br>48<br>49</div>
+      <div class="ln">As shown in <span class="cmd">\eqref</span><span class="arg">{eq:laplacian}</span>, the operator is self-adjoint.
+Substituting <span class="cmd">\eqref</span><span class="arg">{eq:initial}</span> into <span class="cmd">\eqref</span><span class="arg">{eq:bvp}</span> gives
+<span class="cmd">\begin</span><span class="arg">{equation}</span>
+  u(x,t) = \sum_{n=1}^{\infty} a_n \sin(n\pi x) e^{-n^2 \pi^2 t}<span class="com">  % see <span class="mark-current">\eqref</span>{eq:fourier}</span>
+<span class="cmd">\end</span><span class="arg">{equation}</span>
+The convergence rate matches <span class="mark-other">\eqref</span>{eq:rate-bound} when $t > 0$.
+For boundary data, refer to <span class="mark-other">\eqref</span>{eq:dirichlet} above.
+A final estimate appears in <span class="mark-other">\eqref</span>{eq:final-bound}.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════════════
+     STATES — count-chip variants on light
+     ════════════════════════════════════════════════════════════════ -->
+<section class="stateRow">
+  <div class="v">
+    <h3>Empty · idle</h3>
+    <div class="mini light">
+      <div class="fr">
+        <div class="row">
+          <div class="field">
+            <span class="lead">
+              <svg viewBox="0 0 16 16" fill="none" stroke="#b09f8e" stroke-width="1.7" stroke-linecap="round"><circle cx="7" cy="7" r="4.2"/><path d="m10.2 10.2 3.3 3.3"/></svg>
+            </span>
+            <input class="txt" type="text" placeholder="Find in document…" spellcheck="false" />
+            <div class="trail">
+              <button class="mod" type="button">Aa</button>
+              <button class="mod" type="button">.*</button>
+              <button class="mod" type="button">W</button>
+              <span class="count is-empty"><span class="cur">0</span><span class="of">/</span><span class="tot">0</span></span>
+            </div>
+          </div>
+          <div class="rail">
+            <div class="nav">
+              <button type="button"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 9.5 4 6l4.5-3.5"/></svg></button>
+              <button type="button"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 2.5 8 6l-4.5 3.5"/></svg></button>
+            </div>
+            <button class="close"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M2.5 2.5l7 7m0-7-7 7"/></svg></button>
+          </div>
+        </div>
+        <div class="row">
+          <div class="field">
+            <span class="lead">
+              <svg viewBox="0 0 16 16" fill="none" stroke="#b09f8e" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h7l-2-2m2 2-2 2"/><path d="M13 12H6l2 2m-2-2 2-2"/></svg>
+            </span>
+            <input class="txt" type="text" placeholder="Replace with…" spellcheck="false" />
+          </div>
+          <div class="actions">
+            <button class="btn ghost">Replace</button>
+            <button class="btn primary">Replace all</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="v">
+    <h3>Active · matches found</h3>
+    <div class="mini light">
+      <div class="fr">
+        <div class="row">
+          <div class="field is-focused">
+            <span class="lead">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="7" cy="7" r="4.2"/><path d="m10.2 10.2 3.3 3.3"/></svg>
+            </span>
+            <input class="txt" type="text" value="\eqref" spellcheck="false" />
+            <div class="trail">
+              <button class="mod is-on">Aa</button>
+              <button class="mod">.*</button>
+              <button class="mod is-on">W</button>
+              <span class="count"><span class="cur">3</span><span class="of">/</span><span class="tot">47</span></span>
+            </div>
+          </div>
+          <div class="rail">
+            <div class="nav">
+              <button type="button"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 9.5 4 6l4.5-3.5"/></svg></button>
+              <button type="button"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 2.5 8 6l-4.5 3.5"/></svg></button>
+            </div>
+            <button class="close"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M2.5 2.5l7 7m0-7-7 7"/></svg></button>
+          </div>
+        </div>
+        <div class="row">
+          <div class="field">
+            <span class="lead">
+              <svg viewBox="0 0 16 16" fill="none" stroke="#b09f8e" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h7l-2-2m2 2-2 2"/><path d="M13 12H6l2 2m-2-2 2-2"/></svg>
+            </span>
+            <input class="txt" type="text" value="\ref" spellcheck="false" />
+          </div>
+          <div class="actions">
+            <button class="btn ghost">Replace</button>
+            <button class="btn primary">Replace all</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="v">
+    <h3>No results</h3>
+    <div class="mini light">
+      <div class="fr">
+        <div class="row">
+          <div class="field is-focused">
+            <span class="lead">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="7" cy="7" r="4.2"/><path d="m10.2 10.2 3.3 3.3"/></svg>
+            </span>
+            <input class="txt" type="text" value="\nonexistent" spellcheck="false" />
+            <div class="trail">
+              <button class="mod">Aa</button>
+              <button class="mod">.*</button>
+              <button class="mod">W</button>
+              <span class="count is-zero"><span class="cur">no matches</span></span>
+            </div>
+          </div>
+          <div class="rail">
+            <div class="nav">
+              <button type="button"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 9.5 4 6l4.5-3.5"/></svg></button>
+              <button type="button"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 2.5 8 6l-4.5 3.5"/></svg></button>
+            </div>
+            <button class="close"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M2.5 2.5l7 7m0-7-7 7"/></svg></button>
+          </div>
+        </div>
+        <div class="row">
+          <div class="field">
+            <span class="lead">
+              <svg viewBox="0 0 16 16" fill="none" stroke="#b09f8e" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h7l-2-2m2 2-2 2"/><path d="M13 12H6l2 2m-2-2 2-2"/></svg>
+            </span>
+            <input class="txt" type="text" placeholder="Replace with…" spellcheck="false" />
+          </div>
+          <div class="actions">
+            <button class="btn ghost" disabled style="opacity:0.5;cursor:not-allowed">Replace</button>
+            <button class="btn primary" disabled style="opacity:0.5;cursor:not-allowed">Replace all</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  document.querySelectorAll('.fr .mod').forEach(b => {
+    b.addEventListener('click', () => b.classList.toggle('is-on'));
+  });
+  document.querySelectorAll('.fr .field').forEach(f => {
+    const inp = f.querySelector('input.txt');
+    if (!inp) return;
+    inp.addEventListener('focus', () => f.classList.add('is-focused'));
+    inp.addEventListener('blur',  () => f.classList.remove('is-focused'));
+    f.addEventListener('mousedown', e => { if (e.target === f) inp.focus(); });
+  });
+  document.querySelectorAll('.fr .nav button').forEach(b => {
+    b.addEventListener('click', () => {
+      const root = b.closest('.fr');
+      const counter = root.querySelector('.count:not(.is-empty):not(.is-zero) .cur');
+      if (!counter) return;
+      const total = parseInt(root.querySelector('.count .tot').textContent, 10);
+      let cur = parseInt(counter.textContent, 10);
+      const dir = b.title.startsWith('Next') ? 1 : -1;
+      cur = ((cur - 1 + dir + total) % total) + 1;
+      counter.textContent = cur;
+    });
+  });
+</script>
+
+</body>
+</html>

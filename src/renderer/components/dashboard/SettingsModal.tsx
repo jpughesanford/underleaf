@@ -202,7 +202,9 @@ function ThemeCard({ theme, selected, onClick }: {
   }
   const editorBg = (theme.theme['&']?.backgroundColor as string) ?? '#ffffff'
   const editorFg = (theme.theme['&']?.color as string) ?? '#000000'
-  const tagName       = colorOf('.tok-tagName', editorFg)        // generic \cmd, \begin/\end
+  // Generic \cmd, \begin/\end are tagged t.tagName but fall through to tok-typeName
+  // (see latexStyleTags.ts) — read tok-typeName so the preview matches the live editor.
+  const tagName       = colorOf('.tok-typeName', editorFg)
   const keyword       = colorOf('.tok-keyword', tagName)         // \cite \ref \label \usepackage \documentclass
   const attributeVal  = colorOf('.tok-attributeValue', editorFg) // env names, label/ref/cite key contents
   const string        = colorOf('.tok-string', editorFg)         // math content, $...$

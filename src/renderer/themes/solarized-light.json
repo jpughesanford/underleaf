@@ -72,7 +72,6 @@
     }
   },
   "highlightStyle": {
-    ".tok-tagName": { "color": "#657b83" },
     ".tok-keyword": { "color": "#2aa198" },
     ".tok-literal": { "color": "#6c71c4" },
     ".tok-typeName": { "color": "#cb4b16" },
@@ -80,14 +79,9 @@
     ".tok-string": { "color": "#268bd2" },
     ".tok-comment": { "fontStyle": "italic", "color": "#839496" },
     ".tok-attributeValue": { "color": "#896800", "fontStyle": "italic" },
-    ".tok-attributeName": { "color": "#268bd2" },
-    ".tok-variableName": { "color": "#268bd2" },
     ".tok-number": { "color": "#268bd2" },
     ".tok-link": { "color": "#268bd2", "textDecoration": "underline" },
     ".tok-url": { "color": "#268bd2" },
-    ".tok-monospace": { "color": "#896800" },
-    ".tok-labelName": { "color": "#896800" },
-    ".tok-strong": { "fontWeight": "bold" },
-    ".tok-emphasis": { "fontStyle": "italic" }
+    ".tok-strong": { "fontWeight": "bold" }
   }
 }
