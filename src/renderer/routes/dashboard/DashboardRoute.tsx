@@ -7,6 +7,7 @@ import CloneModal from './CloneModal'
 import { SettingsModal } from '@/features/settings'
 import AppIcon from '@/ui/AppIcon'
 import ModeToggle from '@/ui/ModeToggle'
+import ContextMenu from '@/ui/ContextMenu'
 
 interface ContextMenuState {
   x: number
@@ -84,13 +85,6 @@ export default function Dashboard({ onOpenProject, onResetRoot }: Props) {
   }, [])
 
   useEffect(() => { load() }, [load])
-
-  useEffect(() => {
-    if (!contextMenu) return
-    const close = () => setContextMenu(null)
-    window.addEventListener('mousedown', close)
-    return () => window.removeEventListener('mousedown', close)
-  }, [contextMenu])
 
   const handleFetchAll = async () => {
     if (fetchSuccessTimer.current) clearTimeout(fetchSuccessTimer.current)
@@ -347,89 +341,41 @@ export default function Dashboard({ onOpenProject, onResetRoot }: Props) {
         )}
       </div>
 
-      {/* Context Menu */}
       {contextMenu && (
-        <div
-          onMouseDown={e => e.stopPropagation()}
-          style={{
-            position: 'fixed',
-            top: contextMenu.y,
-            left: contextMenu.x,
-            background: 'var(--color-bg-panel)',
-            border: '1px solid var(--color-border)',
-            borderRadius: 8,
-            padding: '4px 0',
-            zIndex: 9999,
-            minWidth: 190,
-            boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
-          }}
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          onClose={() => setContextMenu(null)}
+          header={contextMenu.project.name}
         >
-          <div style={{ padding: '4px 12px 6px', fontSize: 11, color: 'var(--color-text-muted)', fontWeight: 600, borderBottom: '1px solid var(--color-border)', marginBottom: 4 }}>
-            {contextMenu.project.name}
-          </div>
-
-          <button
+          <ContextMenu.Item
+            label="Rename…"
+            icon={<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>}
             onClick={() => handleRename(contextMenu.project)}
-            style={menuItemStyle}
-            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.06)')}
-            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-              <path d="M12 20h9"/>
-              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
-            </svg>
-            Rename…
-          </button>
-
-          {contextMenu.project.hasRemote && (
-            <div style={{ height: 1, background: 'var(--color-border)', margin: '4px 0' }} />
-          )}
-
-          {contextMenu.project.hasRemote && (
-            <button
+          />
+          {contextMenu.project.hasRemote && <>
+            <ContextMenu.Separator />
+            <ContextMenu.Item
+              label="Fetch"
+              icon={<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>}
               onClick={() => handleFetch(contextMenu.project)}
-              style={menuItemStyle}
-              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.06)')}
-              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-            >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
-                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
-              </svg>
-              Fetch
-            </button>
-          )}
-
-          {contextMenu.project.hasRemote && (
-            <>
-              <div style={{ height: 1, background: 'var(--color-border)', margin: '4px 0' }} />
-              <button
-                onClick={() => handleResetToRemote(contextMenu.project)}
-                style={{ ...menuItemStyle, color: '#f87171' }}
-                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(248,113,113,0.08)')}
-                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-              >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                  <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.51"/>
-                </svg>
-                Reset to Remote…
-              </button>
-            </>
-          )}
-
-          {contextMenu.project.hasRemote && <div style={{ height: 1, background: 'var(--color-border)', margin: '4px 0' }} />}
-          <button
+            />
+            <ContextMenu.Separator />
+            <ContextMenu.Item
+              label="Reset to Remote…"
+              danger
+              icon={<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.51"/></svg>}
+              onClick={() => handleResetToRemote(contextMenu.project)}
+            />
+          </>}
+          <ContextMenu.Separator />
+          <ContextMenu.Item
+            label="Delete from Disk…"
+            danger
+            icon={<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>}
             onClick={() => handleDelete(contextMenu.project)}
-            style={{ ...menuItemStyle, color: '#f87171' }}
-            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(248,113,113,0.08)')}
-            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-              <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
-            </svg>
-            Delete from Disk…
-          </button>
-        </div>
+          />
+        </ContextMenu>
       )}
 
       {/* Reset to Remote confirmation */}
@@ -531,20 +477,4 @@ export default function Dashboard({ onOpenProject, onResetRoot }: Props) {
       )}
     </div>
   )
-}
-
-const menuItemStyle: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: 8,
-  width: '100%',
-  background: 'transparent',
-  border: 'none',
-  color: 'var(--color-text-primary)',
-  fontSize: 13,
-  padding: '6px 12px',
-  cursor: 'pointer',
-  fontFamily: 'inherit',
-  textAlign: 'left',
-  transition: 'background 100ms',
 }

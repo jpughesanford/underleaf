@@ -1,0 +1,31 @@
+/* Structural design tokens — these are theme-independent and the only thing
+   tokens.css owns. All color tokens (--color-*, --badge-*, --gitpanel-*) are
+   set at runtime by ThemeProvider.applyTheme() from the active theme JSON.
+
+   Why split this way: keeping color tokens in JS+JSON means switching themes
+   doesn't require swapping stylesheets, and adding a new theme only requires
+   editing one JSON file — no CSS edits.
+
+   The brief moment between first paint and ThemeProvider mount is covered by
+   the explicit `background-color` fallback on `html` in reset.css. */
+
+:root {
+  /* ── Layout ─────────────────────────────────────────────────────────── */
+  --sidebar-width:                280px;
+  --rail-width:                   44px;
+  --toolbar-height:               48px;
+  --header-h:                     34px;
+  --panel-resize-handle:          4px;
+
+  /* ── Typography ─────────────────────────────────────────────────────── */
+  --font-sans:                    -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-mono:                    'JetBrains Mono', 'Fira Code', 'Cascadia Code', Menlo, Consolas, monospace;
+
+  /* ── Shadows ────────────────────────────────────────────────────────── */
+  --shadow-sm:                    0 1px 3px rgba(0,0,0,0.3);
+  --shadow-md:                    0 4px 12px rgba(0,0,0,0.4);
+  --shadow-lg:                    0 8px 24px rgba(0,0,0,0.5);
+
+  /* ── Motion ─────────────────────────────────────────────────────────── */
+  --transition:                   150ms ease;
+}

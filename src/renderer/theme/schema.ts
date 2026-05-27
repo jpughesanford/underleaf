@@ -30,6 +30,39 @@ export interface ChromeColors {
   info: string
   scrollbar: string
   scrollbarHover: string
+
+  /** Optional overrides — if omitted, defaults are chosen based on `dark`. */
+  badges?: Partial<BadgeColors>
+  toolbar?: Partial<ToolbarColors>
+  gitpanelSelBg?: string
+  gitpanelSelFg?: string
+}
+
+/** Status badge palette. Defaults vary between dark and light themes. */
+export interface BadgeColors {
+  syncColor:   string
+  syncBg:      string
+  syncBgHover: string
+  syncBorder:  string
+  warnColor:   string
+  warnBg:      string
+  warnBorder:  string
+  errColor:    string
+  errBg:       string
+  errBorder:   string
+  mutedColor:  string
+  mutedBg:     string
+  mutedBorder: string
+  infoColor:   string
+  infoBg:      string
+  infoBorder:  string
+}
+
+/** Editor toolbar palette. Defaults vary between dark and light themes. */
+export interface ToolbarColors {
+  fg:           string
+  fgActive:     string
+  btnActiveBg:  string
 }
 
 // CSS selector → CSS-prop-bag, identical to Overleaf's theme JSON shape.

@@ -114,100 +114,100 @@ function readFg(theme: UnderleafTheme['theme']): string | undefined {
   return typeof v === 'string' ? v : undefined
 }
 
+// Defaults for the per-mode chrome (badges, toolbar accents, git-panel selection).
+// Themes can override individual entries via chrome.badges / chrome.toolbar.
+
+const DEFAULT_DARK_BADGES = {
+  syncColor:   '#4ade80', syncBg: 'rgba(74,222,128,0.08)', syncBgHover: 'rgba(74,222,128,0.13)', syncBorder: 'rgba(74,222,128,0.25)',
+  warnColor:   '#fbbf24', warnBg: 'rgba(251,191,36,0.1)', warnBorder: 'rgba(251,191,36,0.3)',
+  errColor:    '#f87171', errBg:  'rgba(248,113,113,0.12)', errBorder: 'rgba(248,113,113,0.35)',
+  mutedColor:  '#64748b', mutedBg: 'rgba(100,116,139,0.1)', mutedBorder: 'rgba(100,116,139,0.25)',
+  infoColor:   '#60a5fa', infoBg: 'rgba(59,130,246,0.15)', infoBorder: 'rgba(59,130,246,0.3)',
+}
+
+const DEFAULT_LIGHT_BADGES = {
+  syncColor:   '#16a34a', syncBg: 'rgba(22,163,74,0.1)', syncBgHover: 'rgba(22,163,74,0.17)', syncBorder: 'rgba(22,163,74,0.35)',
+  warnColor:   '#c2680a', warnBg: 'rgba(194,104,10,0.1)', warnBorder: 'rgba(194,104,10,0.35)',
+  errColor:    '#dc2626', errBg:  'rgba(220,38,38,0.09)', errBorder: 'rgba(220,38,38,0.32)',
+  mutedColor:  '#64748b', mutedBg: 'rgba(100,116,139,0.1)', mutedBorder: 'rgba(100,116,139,0.28)',
+  infoColor:   '#2563eb', infoBg: 'rgba(37,99,235,0.1)', infoBorder: 'rgba(37,99,235,0.3)',
+}
+
+// Toolbar icon overlay. Dark themes have navy/slate toolbars where the brand
+// color reads as the active accent; light themes have brand-colored toolbars
+// where only white provides enough contrast.
+function defaultToolbar(dark: boolean, brand: string) {
+  return dark
+    ? { fg: 'rgba(255,255,255,0.62)', fgActive: brand,     btnActiveBg: 'rgba(255,255,255,0.12)' }
+    : { fg: 'rgba(255,255,255,0.85)', fgActive: '#ffffff', btnActiveBg: 'rgba(255,255,255,0.22)' }
+}
+
 function applyTheme(theme: UnderleafTheme) {
   const root = document.documentElement
   const c = theme.chrome
+  const set = (key: string, value: string) => root.style.setProperty(key, value)
 
-  root.style.setProperty('--color-brand',          c.brand)
-  root.style.setProperty('--color-brand-dark',     c.brandDark)
-  root.style.setProperty('--color-brand-hover',    c.brandHover)
-  root.style.setProperty('--color-bg-app',         c.bgApp)
-  root.style.setProperty('--color-bg-sidebar',     c.bgSidebar)
-  root.style.setProperty('--color-bg-panel',       c.bgPanel)
-  root.style.setProperty('--color-bg-card',        c.bgCard)
-  root.style.setProperty('--color-bg-card-hover',  c.bgCardHover)
-  root.style.setProperty('--color-bg-toolbar',     c.bgToolbar)
-  root.style.setProperty('--color-bg-input',       c.bgInput)
-  root.style.setProperty('--color-bg-modal',       c.bgModal)
-  root.style.setProperty('--color-bg-overlay',     c.bgOverlay)
-  root.style.setProperty('--color-text-primary',   c.textPrimary)
-  root.style.setProperty('--color-text-secondary', c.textSecondary)
-  root.style.setProperty('--color-text-muted',     c.textMuted)
-  root.style.setProperty('--color-text-accent',    c.textAccent)
-  root.style.setProperty('--color-text-error',     c.textError)
-  root.style.setProperty('--color-text-warning',   c.textWarning)
-  root.style.setProperty('--color-border',         c.border)
-  root.style.setProperty('--color-border-light',   c.borderLight)
-  root.style.setProperty('--color-border-focus',   c.borderFocus)
-  root.style.setProperty('--color-error',          c.error)
-  root.style.setProperty('--color-warning',        c.warning)
-  root.style.setProperty('--color-success',        c.success)
-  root.style.setProperty('--color-info',           c.info)
-  root.style.setProperty('--scrollbar-thumb',      c.scrollbar)
-  root.style.setProperty('--scrollbar-thumb-hover',c.scrollbarHover)
+  set('--color-brand',          c.brand)
+  set('--color-brand-dark',     c.brandDark)
+  set('--color-brand-hover',    c.brandHover)
+  set('--color-bg-app',         c.bgApp)
+  set('--color-bg-sidebar',     c.bgSidebar)
+  set('--color-bg-panel',       c.bgPanel)
+  set('--color-bg-card',        c.bgCard)
+  set('--color-bg-card-hover',  c.bgCardHover)
+  set('--color-bg-toolbar',     c.bgToolbar)
+  set('--color-bg-input',       c.bgInput)
+  set('--color-bg-modal',       c.bgModal)
+  set('--color-bg-overlay',     c.bgOverlay)
+  set('--color-text-primary',   c.textPrimary)
+  set('--color-text-secondary', c.textSecondary)
+  set('--color-text-muted',     c.textMuted)
+  set('--color-text-accent',    c.textAccent)
+  set('--color-text-error',     c.textError)
+  set('--color-text-warning',   c.textWarning)
+  set('--color-border',         c.border)
+  set('--color-border-light',   c.borderLight)
+  set('--color-border-focus',   c.borderFocus)
+  set('--color-error',          c.error)
+  set('--color-warning',        c.warning)
+  set('--color-success',        c.success)
+  set('--color-info',           c.info)
+  set('--scrollbar-thumb',      c.scrollbar)
+  set('--scrollbar-thumb-hover',c.scrollbarHover)
 
-  // Editor + syntax colors are applied INSIDE CodeMirror via EditorView.theme
-  // (see EditorPane.tsx), driven directly from theme.theme + theme.highlightStyle.
-  // For the rest of the chrome that wants a hint of the editor bg color, expose
-  // bg/fg as CSS vars.
+  // Editor surface — CodeMirror handles its own colors via theme.theme; we expose
+  // bg/fg as CSS vars so the surrounding chrome can paint matching backgrounds.
   const editorBg = readBg(theme.theme)
   const editorFg = readFg(theme.theme)
-  if (editorBg) root.style.setProperty('--color-bg-editor', editorBg)
-  if (editorBg) root.style.setProperty('--editor-bg',       editorBg)
-  if (editorFg) root.style.setProperty('--editor-fg',       editorFg)
+  if (editorBg) { set('--color-bg-editor', editorBg); set('--editor-bg', editorBg) }
+  if (editorFg) { set('--editor-fg', editorFg) }
 
-  // Toolbar icon colors — must be legible on bgToolbar regardless of theme hue.
-  // Dark themes have navy/slate toolbars; brand color works as active accent there.
-  // Light themes have colored (green/teal) toolbars; white is the only reliable contrast color.
-  if (theme.dark) {
-    root.style.setProperty('--color-toolbar-fg',        'rgba(255,255,255,0.62)')
-    root.style.setProperty('--color-toolbar-fg-active', c.brand)
-    root.style.setProperty('--color-toolbar-btn-active-bg', 'rgba(255,255,255,0.12)')
-  } else {
-    root.style.setProperty('--color-toolbar-fg',        'rgba(255,255,255,0.85)')
-    root.style.setProperty('--color-toolbar-fg-active', '#ffffff')
-    root.style.setProperty('--color-toolbar-btn-active-bg', 'rgba(255,255,255,0.22)')
-  }
+  // Toolbar — defaults from defaultToolbar(), themes may override individual keys.
+  const toolbar = { ...defaultToolbar(theme.dark, c.brand), ...(c.toolbar ?? {}) }
+  set('--color-toolbar-fg',            toolbar.fg)
+  set('--color-toolbar-fg-active',     toolbar.fgActive)
+  set('--color-toolbar-btn-active-bg', toolbar.btnActiveBg)
 
-  // Badge colors — bright pastels for dark themes, rich saturated for light themes
-  if (theme.dark) {
-    root.style.setProperty('--badge-sync-color',    '#4ade80')
-    root.style.setProperty('--badge-sync-bg',       'rgba(74,222,128,0.08)')
-    root.style.setProperty('--badge-sync-bg-hover', 'rgba(74,222,128,0.13)')
-    root.style.setProperty('--badge-sync-border',   'rgba(74,222,128,0.25)')
-    root.style.setProperty('--badge-warn-color',    '#fbbf24')
-    root.style.setProperty('--badge-warn-bg',       'rgba(251,191,36,0.1)')
-    root.style.setProperty('--badge-warn-border',   'rgba(251,191,36,0.3)')
-    root.style.setProperty('--badge-err-color',     '#f87171')
-    root.style.setProperty('--badge-err-bg',        'rgba(248,113,113,0.12)')
-    root.style.setProperty('--badge-err-border',    'rgba(248,113,113,0.35)')
-    root.style.setProperty('--badge-muted-color',   '#64748b')
-    root.style.setProperty('--badge-muted-bg',      'rgba(100,116,139,0.1)')
-    root.style.setProperty('--badge-muted-border',  'rgba(100,116,139,0.25)')
-    root.style.setProperty('--badge-info-color',    '#60a5fa')
-    root.style.setProperty('--badge-info-bg',       'rgba(59,130,246,0.15)')
-    root.style.setProperty('--badge-info-border',   'rgba(59,130,246,0.3)')
-    root.style.setProperty('--gitpanel-sel-bg',     'rgba(75, 110, 175, 0.38)')
-    root.style.setProperty('--gitpanel-sel-fg',     '#ffffff')
-  } else {
-    root.style.setProperty('--badge-sync-color',    '#16a34a')
-    root.style.setProperty('--badge-sync-bg',       'rgba(22,163,74,0.1)')
-    root.style.setProperty('--badge-sync-bg-hover', 'rgba(22,163,74,0.17)')
-    root.style.setProperty('--badge-sync-border',   'rgba(22,163,74,0.35)')
-    root.style.setProperty('--badge-warn-color',    '#c2680a')
-    root.style.setProperty('--badge-warn-bg',       'rgba(194,104,10,0.1)')
-    root.style.setProperty('--badge-warn-border',   'rgba(194,104,10,0.35)')
-    root.style.setProperty('--badge-err-color',     '#dc2626')
-    root.style.setProperty('--badge-err-bg',        'rgba(220,38,38,0.09)')
-    root.style.setProperty('--badge-err-border',    'rgba(220,38,38,0.32)')
-    root.style.setProperty('--badge-muted-color',   '#64748b')
-    root.style.setProperty('--badge-muted-bg',      'rgba(100,116,139,0.1)')
-    root.style.setProperty('--badge-muted-border',  'rgba(100,116,139,0.28)')
-    root.style.setProperty('--badge-info-color',    '#2563eb')
-    root.style.setProperty('--badge-info-bg',       'rgba(37,99,235,0.1)')
-    root.style.setProperty('--badge-info-border',   'rgba(37,99,235,0.3)')
-    // Light themes: PyCharm IntelliJ light uses a saturated blue selection.
-    root.style.setProperty('--gitpanel-sel-bg',     '#3574F0')
-    root.style.setProperty('--gitpanel-sel-fg',     '#ffffff')
-  }
+  // Badges — defaults from per-mode palette, themes may override individual keys.
+  const badges = { ...(theme.dark ? DEFAULT_DARK_BADGES : DEFAULT_LIGHT_BADGES), ...(c.badges ?? {}) }
+  set('--badge-sync-color',    badges.syncColor)
+  set('--badge-sync-bg',       badges.syncBg)
+  set('--badge-sync-bg-hover', badges.syncBgHover)
+  set('--badge-sync-border',   badges.syncBorder)
+  set('--badge-warn-color',    badges.warnColor)
+  set('--badge-warn-bg',       badges.warnBg)
+  set('--badge-warn-border',   badges.warnBorder)
+  set('--badge-err-color',     badges.errColor)
+  set('--badge-err-bg',        badges.errBg)
+  set('--badge-err-border',    badges.errBorder)
+  set('--badge-muted-color',   badges.mutedColor)
+  set('--badge-muted-bg',      badges.mutedBg)
+  set('--badge-muted-border',  badges.mutedBorder)
+  set('--badge-info-color',    badges.infoColor)
+  set('--badge-info-bg',       badges.infoBg)
+  set('--badge-info-border',   badges.infoBorder)
+
+  // Git panel focused-row highlight (PyCharm Darcula indigo for dark, IntelliJ blue for light).
+  set('--gitpanel-sel-bg', c.gitpanelSelBg ?? (theme.dark ? 'rgba(75, 110, 175, 0.38)' : '#3574F0'))
+  set('--gitpanel-sel-fg', c.gitpanelSelFg ?? '#ffffff')
 }

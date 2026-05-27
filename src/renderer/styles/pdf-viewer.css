@@ -1,0 +1,84 @@
+/* Styles owned by the PDF viewer feature but applied to DOM that's outside
+   React's tree (pdfjs-dist's AnnotationLayer injects raw <section> elements).
+   Kept as a global stylesheet rather than a CSS Module since it must target
+   .annotationLayer / .linkAnnotation selectors emitted by the pdfjs runtime. */
+
+.pdf-brightness-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    var(--color-brand) 0%,
+    var(--color-brand) var(--fill, 0%),
+    var(--color-border) var(--fill, 0%),
+    var(--color-border) 100%
+  );
+  outline: none;
+  cursor: pointer;
+  margin: 0;
+}
+.pdf-brightness-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--color-text-primary);
+  border: 2px solid var(--color-brand);
+  cursor: grab;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.35);
+  transition: transform 120ms, box-shadow 120ms;
+}
+.pdf-brightness-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.45);
+}
+.pdf-brightness-slider:active::-webkit-slider-thumb {
+  cursor: grabbing;
+  transform: scale(1.1);
+}
+.pdf-brightness-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--color-text-primary);
+  border: 2px solid var(--color-brand);
+  cursor: grab;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.35);
+}
+
+/* pdfjs AnnotationLayer — turns \ref / \autoref / \url / \href into clickable
+   links by overlaying <section> elements on the rendered canvas. AnnotationLayer.render()
+   positions via inline calc(... * var(--scale-factor)), so the parent must
+   expose --scale-factor (we set it per page in PdfPage). */
+.annotationLayer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  transform-origin: 0 0;
+  z-index: 3;
+}
+.annotationLayer section {
+  position: absolute;
+  text-align: initial;
+  pointer-events: auto;
+  box-sizing: border-box;
+  margin: 0;
+  transform-origin: 0 0;
+}
+.annotationLayer .linkAnnotation > a {
+  position: absolute;
+  inset: 0;
+  display: block;
+  font-size: 1em;
+  cursor: pointer;
+}
+.annotationLayer .linkAnnotation > a:hover {
+  background: rgba(76, 175, 80, 0.18);
+  box-shadow: 0 0 0 1px rgba(76, 175, 80, 0.5);
+  border-radius: 1px;
+}

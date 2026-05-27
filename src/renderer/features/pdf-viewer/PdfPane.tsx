@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 import { useTheme } from '@/theme/ThemeProvider'
+import IconButton from '@/ui/IconButton'
 import { UnderleafLinkService } from './link-service'
 
 // Per-mode brightness defaults. Dark mode dims the PDF so it doesn't blast white
@@ -384,7 +385,7 @@ export default function PdfPane({ pdfPath, version = 0 }: Props) {
         </span>
 
         {/* Open the compiled PDF in the OS default app (Preview on macOS). */}
-        <PdfToolButton
+        <IconButton size={26}
           onClick={() => window.api.app.openPath(pdfPath)}
           title="Open in default PDF app"
           disabled={!doc}
@@ -394,12 +395,12 @@ export default function PdfPane({ pdfPath, version = 0 }: Props) {
             <polyline points="15 3 21 3 21 9"/>
             <line x1="10" y1="14" x2="21" y2="3"/>
           </svg>
-        </PdfToolButton>
+        </IconButton>
 
-        {/* Brightness — popover with slider. Uses PdfToolButton so its color
+        {/* Brightness — popover with slider. Uses IconButton so its color
            matches the other tool buttons; the popover handles "modified" state. */}
         <div ref={brightnessRef} style={{ position: 'relative' }}>
-          <PdfToolButton
+          <IconButton size={26}
             onClick={() => setBrightnessOpen(o => !o)}
             title="Brightness"
             disabled={!doc}
@@ -412,7 +413,7 @@ export default function PdfPane({ pdfPath, version = 0 }: Props) {
               <path d="M2 12h2"/><path d="M20 12h2"/>
               <path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>
             </svg>
-          </PdfToolButton>
+          </IconButton>
           {brightnessOpen && (
             <div
               style={{
@@ -491,20 +492,20 @@ export default function PdfPane({ pdfPath, version = 0 }: Props) {
         {/* Right group — tightly grouped, right-justified */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           {/* Fit to width */}
-          <PdfToolButton onClick={fitToWidth} title="Fit to width" disabled={!doc}>
+          <IconButton size={26} onClick={fitToWidth} title="Fit to width" disabled={!doc}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M21 11H3"/><path d="M7 7l-4 4 4 4"/><path d="M17 7l4 4-4 4"/>
               <line x1="3" y1="19" x2="21" y2="19" strokeWidth="1.5" strokeDasharray="2 2"/>
             </svg>
-          </PdfToolButton>
+          </IconButton>
 
           {/* Fit to height */}
-          <PdfToolButton onClick={fitToHeight} title="Fit to height" disabled={!doc}>
+          <IconButton size={26} onClick={fitToHeight} title="Fit to height" disabled={!doc}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M13 21V3"/><path d="M17 7l-4-4-4 4"/><path d="M17 17l-4 4-4-4"/>
               <line x1="5" y1="3" x2="5" y2="21" strokeWidth="1.5" strokeDasharray="2 2"/>
             </svg>
-          </PdfToolButton>
+          </IconButton>
 
           {/* Zoom controls — pill group with - <pct> + */}
           <div style={{
@@ -516,20 +517,15 @@ export default function PdfPane({ pdfPath, version = 0 }: Props) {
             overflow: 'hidden',
             marginLeft: 4,
           }}>
-            <button
-              onClick={() => setScale(s => Math.max(0.4, +(s - 0.15).toFixed(2)))}
+            <IconButton
+              size={26}
               title="Zoom out"
-              style={{
-                width: 26, height: 26, border: 'none', background: 'transparent',
-                color: 'var(--color-text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}
-              onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-bg-card-hover)'; e.currentTarget.style.color = 'var(--color-text-primary)' }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--color-text-secondary)' }}
+              onClick={() => setScale(s => Math.max(0.4, +(s - 0.15).toFixed(2)))}
             >
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <line x1="5" y1="12" x2="19" y2="12"/>
               </svg>
-            </button>
+            </IconButton>
             <span
               style={{
                 fontSize: 11, color: 'var(--color-text-secondary)', minWidth: 40, textAlign: 'center',
@@ -539,20 +535,15 @@ export default function PdfPane({ pdfPath, version = 0 }: Props) {
             >
               {Math.round(scale * 100)}%
             </span>
-            <button
-              onClick={() => setScale(s => Math.min(4, +(s + 0.15).toFixed(2)))}
+            <IconButton
+              size={26}
               title="Zoom in"
-              style={{
-                width: 26, height: 26, border: 'none', background: 'transparent',
-                color: 'var(--color-text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}
-              onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-bg-card-hover)'; e.currentTarget.style.color = 'var(--color-text-primary)' }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--color-text-secondary)' }}
+              onClick={() => setScale(s => Math.min(4, +(s + 0.15).toFixed(2)))}
             >
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
               </svg>
-            </button>
+            </IconButton>
           </div>
         </div>
       </div>
@@ -621,32 +612,3 @@ export default function PdfPane({ pdfPath, version = 0 }: Props) {
   )
 }
 
-function PdfToolButton({ onClick, title, disabled, active, children }: {
-  onClick: () => void
-  title: string
-  disabled?: boolean
-  active?: boolean
-  children: React.ReactNode
-}) {
-  const baseColor = disabled ? 'var(--color-text-muted)' : 'var(--color-text-secondary)'
-  const activeColor = 'var(--color-text-primary)'
-  return (
-    <button
-      onClick={onClick}
-      title={title}
-      disabled={disabled}
-      style={{
-        width: 26, height: 26, border: 'none', borderRadius: 5,
-        background: active ? 'var(--color-bg-card-hover)' : 'transparent',
-        color: active ? activeColor : baseColor,
-        cursor: disabled ? 'default' : 'pointer',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        transition: 'background 120ms, color 120ms',
-      }}
-      onMouseEnter={e => { if (!disabled && !active) { e.currentTarget.style.background = 'var(--color-bg-card-hover)'; e.currentTarget.style.color = activeColor } }}
-      onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = baseColor } }}
-    >
-      {children}
-    </button>
-  )
-}

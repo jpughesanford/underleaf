@@ -2,8 +2,10 @@ import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { AlertTriangle, FileText, BookOpen, Image, File, ChevronRight, ChevronDown, TerminalSquare } from 'lucide-react'
 import AddRemoteModal from './AddRemoteModal'
 import type { FileStatus, GitStatus } from '@shared/types'
+import ContextMenu from '@/ui/ContextMenu'
+import IconButton from '@/ui/IconButton'
 
-interface ContextMenu {
+interface ContextMenuState {
   x: number
   y: number
   file: FileStatus
@@ -38,7 +40,7 @@ export default function GitPanel({ projectPath, onOpenFile }: Props) {
   const [statusMsg, setStatusMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
   const [showAddRemote, setShowAddRemote] = useState(false)
   const [hasRemote, setHasRemote] = useState(true)
-  const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null)
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
   const [collapsed, setCollapsed] = useState<Record<SectionKey, boolean>>({
     staged: false, changes: false, unversioned: false, conflicts: false,
   })
@@ -187,14 +189,6 @@ export default function GitPanel({ projectPath, onOpenFile }: Props) {
     try { await window.api.files.delete(`${projectPath}/${filePath}`); refresh() }
     catch (e) { flash(`Delete failed: ${e instanceof Error ? e.message : e}`, 'error') }
   }
-
-  useEffect(() => {
-    if (!contextMenu) return
-    const close = () => setContextMenu(null)
-    window.addEventListener('click', close)
-    window.addEventListener('contextmenu', close)
-    return () => { window.removeEventListener('click', close); window.removeEventListener('contextmenu', close) }
-  }, [contextMenu])
 
   // Split unstaged into "tracked changes" vs "unversioned" (PyCharm convention).
   const changes = (status?.unstaged ?? []).filter(f => f.status !== '?')
@@ -480,27 +474,17 @@ export default function GitPanel({ projectPath, onOpenFile }: Props) {
         const ignoreIcon = <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
         const trashIcon = <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
         return (
-          <div
-            onClick={e => e.stopPropagation()}
-            style={{
-              position: 'fixed',
-              top: contextMenu.y, left: contextMenu.x,
-              background: 'var(--color-bg-modal)',
-              border: '1px solid var(--color-border)',
-              borderRadius: 8, padding: 4, zIndex: 2000,
-              minWidth: 210, boxShadow: 'var(--shadow-md)',
-            }}
-          >
-            <GitContextMenuItem label="Add file to .gitignore" icon={ignoreIcon} onClick={() => { addToGitignore(filePath); setContextMenu(null) }} />
+          <ContextMenu x={contextMenu.x} y={contextMenu.y} onClose={() => setContextMenu(null)}>
+            <ContextMenu.Item label="Add file to .gitignore" icon={ignoreIcon} onClick={() => { addToGitignore(filePath); setContextMenu(null) }} />
             {ext && (
-              <GitContextMenuItem label={`Add *.${ext} to .gitignore`} icon={ignoreIcon} onClick={() => { addToGitignore(`*.${ext}`); setContextMenu(null) }} />
+              <ContextMenu.Item label={`Add *.${ext} to .gitignore`} icon={ignoreIcon} onClick={() => { addToGitignore(`*.${ext}`); setContextMenu(null) }} />
             )}
             {enclosingDir && (
-              <GitContextMenuItem label="Add enclosing folder to .gitignore" icon={ignoreIcon} onClick={() => { addToGitignore(enclosingDir); setContextMenu(null) }} />
+              <ContextMenu.Item label="Add enclosing folder to .gitignore" icon={ignoreIcon} onClick={() => { addToGitignore(enclosingDir); setContextMenu(null) }} />
             )}
-            <div style={{ height: 1, background: 'var(--color-border)', margin: '3px 6px' }} />
-            <GitContextMenuItem label="Delete file" icon={trashIcon} onClick={() => { deleteFile(filePath); setContextMenu(null) }} danger />
-          </div>
+            <ContextMenu.Separator />
+            <ContextMenu.Item label="Delete file" icon={trashIcon} onClick={() => { deleteFile(filePath); setContextMenu(null) }} danger />
+          </ContextMenu>
         )
       })()}
     </div>
@@ -658,38 +642,6 @@ function PyCheckbox({ checked, indeterminate, onChange }: {
   )
 }
 
-function IconButton({ children, title, onClick, disabled, spin }: {
-  children: React.ReactNode
-  title: string
-  onClick?: () => void
-  disabled?: boolean
-  spin?: boolean
-}) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      title={title}
-      style={{
-        width: 24, height: 24,
-        border: 'none', background: 'transparent',
-        color: disabled ? 'var(--color-text-muted)' : 'var(--color-text-secondary)',
-        cursor: disabled ? 'default' : 'pointer',
-        borderRadius: 4,
-        padding: 0,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        opacity: disabled ? 0.5 : 1,
-        animation: spin ? 'spin 0.9s linear infinite' : undefined,
-        transition: 'background 100ms ease, color 100ms ease',
-      }}
-      onMouseEnter={e => { if (!disabled) { e.currentTarget.style.background = 'var(--color-bg-card-hover)'; e.currentTarget.style.color = 'var(--color-text-primary)' } }}
-      onMouseLeave={e => { if (!disabled) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--color-text-secondary)' } }}
-    >
-      {children}
-    </button>
-  )
-}
-
 function CommitButton({ children, primary, onClick, disabled }: {
   children: React.ReactNode
   primary?: boolean
@@ -732,25 +684,3 @@ function CommitButton({ children, primary, onClick, disabled }: {
   )
 }
 
-function GitContextMenuItem({ label, icon, onClick, danger }: {
-  label: string
-  icon: React.ReactNode
-  onClick: () => void
-  danger?: boolean
-}) {
-  return (
-    <div
-      onClick={onClick}
-      style={{
-        display: 'flex', alignItems: 'center', gap: 8,
-        padding: '7px 10px', borderRadius: 5, cursor: 'pointer',
-        color: danger ? 'var(--color-text-error)' : 'var(--color-text-primary)', fontSize: 12,
-      }}
-      onMouseEnter={e => { e.currentTarget.style.background = danger ? 'var(--badge-err-bg)' : 'var(--color-bg-card-hover)' }}
-      onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
-    >
-      <span style={{ color: danger ? 'var(--color-text-error)' : 'var(--color-text-muted)', flexShrink: 0 }}>{icon}</span>
-      {label}
-    </div>
-  )
-}

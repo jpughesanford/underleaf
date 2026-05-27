@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { File, FileText, Image, BookOpen, Folder, FolderOpen } from 'lucide-react'
 import type { FileNode } from '@shared/types'
+import ContextMenu from '@/ui/ContextMenu'
 
-interface ContextMenu {
+interface ContextMenuState {
   x: number
   y: number
   node: FileNode | null  // null = background (project root) right-click
@@ -287,11 +288,10 @@ export default function FileExplorer({ projectPath, activeFile, onOpenFile, main
   const [tree, setTree] = useState<FileNode[]>([])
   const [loading, setLoading] = useState(true)
   const [showHidden, setShowHidden] = useState(true)
-  const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null)
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
   const [creating, setCreating] = useState<Creating | null>(null)
   const [draggingPath, setDraggingPath] = useState<string | null>(null)
   const [dragOverPath, setDragOverPath] = useState<string | null>(null)
-  const menuRef = useRef<HTMLDivElement>(null)
 
   const refresh = useCallback(async () => {
     setLoading(true)
@@ -304,17 +304,6 @@ export default function FileExplorer({ projectPath, activeFile, onOpenFile, main
   }, [projectPath])
 
   useEffect(() => { refresh() }, [refresh])
-
-  useEffect(() => {
-    if (!contextMenu) return
-    const close = () => setContextMenu(null)
-    window.addEventListener('click', close)
-    window.addEventListener('contextmenu', close)
-    return () => {
-      window.removeEventListener('click', close)
-      window.removeEventListener('contextmenu', close)
-    }
-  }, [contextMenu])
 
   function handleContextMenu(e: React.MouseEvent, node: FileNode | null) {
     e.preventDefault()
@@ -548,123 +537,71 @@ export default function FileExplorer({ projectPath, activeFile, onOpenFile, main
         const finderIcon = <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
         const terminalIcon = <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
 
+        const close = () => setContextMenu(null)
         return (
-          <div
-            ref={menuRef}
-            onClick={e => e.stopPropagation()}
-            style={{
-              position: 'fixed',
-              top: contextMenu.y,
-              left: contextMenu.x,
-              background: 'var(--color-bg-modal)',
-              border: '1px solid var(--color-border)',
-              borderRadius: 8,
-              padding: 4,
-              zIndex: 2000,
-              minWidth: 200,
-              boxShadow: 'var(--shadow-md)',
-            }}
-          >
-            {/* Set as main doc — only for .tex files */}
-            {node && !node.isDirectory && node.extension === 'tex' && onSetMainDoc && (
-              <>
-                <ContextMenuItem
-                  label="Set as Main Document"
-                  icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>}
-                  onClick={() => { onSetMainDoc(node.relativePath); setContextMenu(null) }}
-                />
-                <Separator />
-              </>
-            )}
+          <ContextMenu x={contextMenu.x} y={contextMenu.y} onClose={close}>
+            {node && !node.isDirectory && node.extension === 'tex' && onSetMainDoc && <>
+              <ContextMenu.Item
+                label="Set as Main Document"
+                icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>}
+                onClick={() => { onSetMainDoc(node.relativePath); close() }}
+              />
+              <ContextMenu.Separator />
+            </>}
 
-            {/* Open file — only for non-directory nodes */}
             {node && !node.isDirectory && (
-              <ContextMenuItem
+              <ContextMenu.Item
                 label="Open File"
                 icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>}
-                onClick={() => { onOpenFile(node.path); setContextMenu(null) }}
+                onClick={() => { onOpenFile(node.path); close() }}
               />
             )}
 
-            {/* New file / folder — always available */}
-            <ContextMenuItem
+            <ContextMenu.Item
               label="New File"
               icon={newFileIcon}
-              onClick={() => { setCreating({ parentPath: createParent, type: 'file' }); setContextMenu(null) }}
+              onClick={() => { setCreating({ parentPath: createParent, type: 'file' }); close() }}
             />
-            <ContextMenuItem
+            <ContextMenu.Item
               label="New Folder"
               icon={newFolderIcon}
-              onClick={() => { setCreating({ parentPath: createParent, type: 'folder' }); setContextMenu(null) }}
+              onClick={() => { setCreating({ parentPath: createParent, type: 'folder' }); close() }}
             />
 
-            <Separator />
+            <ContextMenu.Separator />
 
-            {/* Open in Finder */}
-            <ContextMenuItem
+            <ContextMenu.Item
               label="Open in Finder"
               icon={finderIcon}
-              onClick={() => { window.api.files.showInFinder(finderPath); setContextMenu(null) }}
+              onClick={() => { window.api.files.showInFinder(finderPath); close() }}
             />
-            <ContextMenuItem
+            <ContextMenu.Item
               label="Open in Terminal"
               icon={terminalIcon}
-              onClick={() => { window.api.files.openInTerminal(terminalPath); setContextMenu(null) }}
+              onClick={() => { window.api.files.openInTerminal(terminalPath); close() }}
             />
 
-            {/* Delete — only for actual nodes, not background */}
-            {node && (
-              <>
-                <Separator />
-                <ContextMenuItem
-                  label="Delete"
-                  icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>}
-                  onClick={async () => {
-                    try {
-                      await window.api.files.delete(node.path)
-                      refresh()
-                    } catch (e) {
-                      console.error('Delete failed', e)
-                    }
-                    setContextMenu(null)
-                  }}
-                  danger
-                />
-              </>
-            )}
-          </div>
+            {node && <>
+              <ContextMenu.Separator />
+              <ContextMenu.Item
+                label="Delete"
+                icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>}
+                onClick={async () => {
+                  try {
+                    await window.api.files.delete(node.path)
+                    refresh()
+                  } catch (e) {
+                    console.error('Delete failed', e)
+                  }
+                  close()
+                }}
+                danger
+              />
+            </>}
+          </ContextMenu>
         )
       })()}
     </div>
   )
 }
 
-function Separator() {
-  return <div style={{ height: 1, background: 'var(--color-border)', margin: '3px 6px' }} />
-}
-
-function ContextMenuItem({ label, icon, onClick, disabled, danger }: {
-  label: string
-  icon: React.ReactNode
-  onClick: () => void
-  disabled?: boolean
-  danger?: boolean
-}) {
-  return (
-    <div
-      onClick={disabled ? undefined : onClick}
-      style={{
-        display: 'flex', alignItems: 'center', gap: 8,
-        padding: '7px 10px', borderRadius: 5,
-        cursor: disabled ? 'default' : 'pointer',
-        color: disabled ? 'var(--color-text-muted)' : danger ? 'var(--color-text-error)' : 'var(--color-text-primary)',
-        fontSize: 12,
-      }}
-      onMouseEnter={e => { if (!disabled) e.currentTarget.style.background = danger ? 'var(--badge-err-bg)' : 'var(--color-bg-card-hover)' }}
-      onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
-    >
-      <span style={{ color: disabled ? 'var(--color-text-muted)' : danger ? 'var(--color-text-error)' : 'var(--color-text-muted)', flexShrink: 0 }}>{icon}</span>
-      {label}
-    </div>
-  )
-}

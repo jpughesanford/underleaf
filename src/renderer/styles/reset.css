@@ -1,0 +1,64 @@
+/* Minimal reset + root scaffolding. */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* Fallback bg/fg color on `html` so the first paint isn't browser-default
+   white. ThemeProvider.applyTheme() overrides --color-bg-app / --color-text-primary
+   on mount, but those vars are unset for one frame; the literal colors below
+   carry the page through that frame. Matches Underleaf Dark, the default theme. */
+html {
+  background-color: #141b21;
+  color: #e8eede;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  background: var(--color-bg-app);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  /* Text labels, error messages, code, headings — all selectable by default.
+     Interactive surfaces (buttons, file tree rows, tab strips, drag regions)
+     opt out via `.unselectable` or component-local rules. */
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* Interactive controls aren't drag-selectable — selecting their label feels broken. */
+.btn,
+button,
+.titlebar-drag,
+.titlebar-drag * {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.unselectable, .unselectable * {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Opt-in helper for blocks that should always be selectable, even inside an
+   `.unselectable` ancestor. */
+.selectable {
+  user-select: text;
+  -webkit-user-select: text;
+  cursor: text;
+}
+
+/* Scrollbars */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb, #2d3f55); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover, #3d5070); }
+
+/* Native macOS titlebar drag region */
+.titlebar-drag { -webkit-app-region: drag; }
+.titlebar-no-drag { -webkit-app-region: no-drag; }
