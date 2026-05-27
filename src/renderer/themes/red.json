@@ -1,6 +1,6 @@
 {
-  "id": "cherry-blossom",
-  "name": "Cherry Blossom",
+  "id": "red",
+  "name": "Red",
   "dark": false,
   "chrome": {
     "bgApp": "#fce0e7",
@@ -8,10 +8,10 @@
     "bgPanel": "#f1b9ca",
     "bgCard": "#fffaf9",
     "bgCardHover": "#faeae8",
-    "bgToolbar": "#3d1a26",
+    "bgToolbar": "#2a4a3a",
     "bgInput": "#fffaf9",
     "bgModal": "#fffaf9",
-    "bgOverlay": "rgba(61,26,38,0.4)",
+    "bgOverlay": "rgba(42,74,58,0.4)",
     "brand": "#d63f7a",
     "brandDark": "#b32d62",
     "brandHover": "#e0588d",

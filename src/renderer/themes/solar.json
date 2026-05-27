@@ -1,6 +1,6 @@
 {
-  "id": "solarized-light",
-  "name": "Solarized Light",
+  "id": "solar",
+  "name": "Solar",
   "dark": false,
   "chrome": {
     "bgApp": "#fdf6e3",

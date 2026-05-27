@@ -1,70 +1,70 @@
 {
-  "id": "cherry-blossom",
-  "name": "Cherry Blossom",
+  "id": "green",
+  "name": "Green",
   "dark": false,
   "chrome": {
-    "bgApp": "#fce0e7",
-    "bgSidebar": "#f8d0dc",
-    "bgPanel": "#f1b9ca",
-    "bgCard": "#fffaf9",
-    "bgCardHover": "#faeae8",
-    "bgToolbar": "#3d1a26",
-    "bgInput": "#fffaf9",
-    "bgModal": "#fffaf9",
-    "bgOverlay": "rgba(61,26,38,0.4)",
+    "bgApp": "#e7f0d8",
+    "bgSidebar": "#d6e4c2",
+    "bgPanel": "#bcd1a0",
+    "bgCard": "#f8fce8",
+    "bgCardHover": "#eef5dc",
+    "bgToolbar": "#2d3a1e",
+    "bgInput": "#f8fce8",
+    "bgModal": "#f8fce8",
+    "bgOverlay": "rgba(45,58,30,0.4)",
     "brand": "#d63f7a",
     "brandDark": "#b32d62",
     "brandHover": "#e0588d",
-    "textPrimary": "#2b1218",
-    "textSecondary": "#6b3a48",
-    "textMuted": "#a08087",
+    "textPrimary": "#1a2410",
+    "textSecondary": "#4a5a35",
+    "textMuted": "#8a9d78",
     "textAccent": "#d63f7a",
     "textError": "#b91c1c",
     "textWarning": "#b45309",
-    "border": "#e8c4cf",
-    "borderLight": "#f3d6df",
+    "border": "#c8d8b0",
+    "borderLight": "#d8e4c4",
     "borderFocus": "#d63f7a",
     "error": "#dc2626",
     "warning": "#d97706",
     "success": "#5fae3f",
-    "info": "#4a7bb8",
-    "scrollbar": "#e8c4cf",
-    "scrollbarHover": "#d4a3b0"
+    "info": "#2a5a8a",
+    "scrollbar": "#c8d8b0",
+    "scrollbarHover": "#a8be88"
   },
   "theme": {
     "&": {
-      "backgroundColor": "#fffaf9",
-      "color": "#2b1218"
+      "backgroundColor": "#f8fce8",
+      "color": "#1a2410"
     },
     ".cm-gutters": {
-      "backgroundColor": "#fadde5",
-      "color": "#b8949c",
-      "borderRightColor": "#ead0d8"
+      "backgroundColor": "#e8f0d5",
+      "color": "#8a9d78",
+      "borderRightColor": "#d4e0bf"
     },
     ".cm-cursor, .cm-dropCursor": {
       "borderLeft": "2px solid #d63f7a"
     },
     "&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection, .cm-searchMatch.cm-searchMatch.cm-searchMatch-selected": {
-      "background": "rgba(214,63,122,0.2)"
+      "background": "rgba(214,63,122,0.18)"
     },
     "&.cm-focused .cm-matchingBracket, &.cm-focused .cm-nonmatchingBracket": {
       "margin": 0,
       "outline": "1px solid rgba(214,63,122,0.45)"
     },
     ".cm-activeLine": {
-      "background": "rgba(214,63,122,0.05)"
+      "background": "rgba(214,63,122,0.06)"
     },
     ".cm-activeLineGutter": {
       "backgroundColor": "rgba(214,63,122,0.08)"
     },
     ".cm-selectionMatch.cm-selectionMatch, .cm-searchMatch.cm-searchMatch": {
-      "outline": "1px solid rgba(168,118,42,0.32)",
+      "outline": "1px solid rgba(180,83,9,0.32)",
       "margin": 0
     },
     ".cm-foldPlaceholder": {
       "backgroundColor": "rgba(214,63,122,0.12)",
       "borderColor": "rgba(214,63,122,0.35)",
-      "color": "#2b1218"
+      "color": "#1a2410"
     },
     ".cm-error-line": {
       "backgroundColor": "rgba(185,28,28,0.07)",
@@ -74,14 +74,14 @@
   "highlightStyle": {
     ".tok-keyword": { "color": "#b8345a" },
     ".tok-literal": { "color": "#862557" },
-    ".tok-typeName": { "color": "#4d7a35" },
-    ".tok-invalid": { "color": "#fffaf9", "backgroundColor": "#dc2626" },
-    ".tok-string": { "color": "#a87e2c" },
-    ".tok-comment": { "fontStyle": "italic", "color": "#a08087" },
-    ".tok-attributeValue": { "color": "#5a7d3d", "fontStyle": "italic" },
-    ".tok-number": { "color": "#a87e2c" },
-    ".tok-link": { "color": "#4a7bb8", "textDecoration": "underline" },
-    ".tok-url": { "color": "#4a7bb8" },
+    ".tok-typeName": { "color": "#5d8a3a" },
+    ".tok-invalid": { "color": "#f8fce8", "backgroundColor": "#dc2626" },
+    ".tok-string": { "color": "#b8843c" },
+    ".tok-comment": { "fontStyle": "italic", "color": "#8a9d78" },
+    ".tok-attributeValue": { "color": "#d63f7a", "fontStyle": "italic" },
+    ".tok-number": { "color": "#b8843c" },
+    ".tok-link": { "color": "#2a5a8a", "textDecoration": "underline" },
+    ".tok-url": { "color": "#2a5a8a" },
     ".tok-strong": { "fontWeight": "bold" }
   }
 }

@@ -38,10 +38,27 @@ function countMatches(state: EditorState, query: SearchQuery): { current: number
 // ─── Panel factory ────────────────────────────────────────────────────────
 export function createUnderleafSearchPanel(view: EditorView): Panel {
   const root = document.createElement('div')
-  root.className = 'cm-search underleaf-search'
-  // Flat 4-child grid: row 1 = [find field][rail], row 2 = [replace field][actions].
-  // CSS Grid forces both fields into the same column so their right edges align,
-  // and both trailings share the same column so their right edges align too.
+  // Deliberately omit `cm-search`. @codemirror/search's baseTheme attaches
+  // a block of input/button defaults under `.cm-panel.cm-search` — margins,
+  // font sizes, the close-X absolute positioning — that conflict with this
+  // panel's grid layout. Since we supply a custom `createPanel`, the class
+  // has no functional use (CM doesn't query it); inheriting it would just
+  // mean fighting CM's defaults from this theme rule-by-rule.
+  root.className = 'underleaf-search'
+  // Flat 5-child grid (3 cols × 2 rows). Auto-flow row places items in order;
+  // the final cell at (2, 3) stays empty by design — that's the breathing room
+  // beneath the close button.
+  //
+  //   col 1 (1fr)        col 2 (pill-w)             col 3 (close-w)
+  //   ┌──────────────┐   ┌──────────────────────┐   ┌──────┐
+  //   │  find field  │   │  prev  │  next       │   │   ✕  │
+  //   └──────────────┘   └──────────────────────┘   └──────┘
+  //   ┌──────────────┐   ┌──────────────────────┐
+  //   │ replace field│   │ Replace │   All      │    (empty)
+  //   └──────────────┘   └──────────────────────┘
+  //
+  // Both fields share col 1 → field right edges align.
+  // Both pills share col 2 with fixed width → pill left AND right edges align.
   root.innerHTML = `
     <div class="us-field us-field-find">
       <span class="us-lead">${SVG_SEARCH}</span>
@@ -53,18 +70,16 @@ export function createUnderleafSearchPanel(view: EditorView): Panel {
         <span class="us-count is-empty" aria-live="polite"><span class="us-count-cur">0</span><span class="us-count-sep">/</span><span class="us-count-tot">0</span></span>
       </div>
     </div>
-    <div class="us-rail">
-      <div class="us-nav">
-        <button type="button" class="us-prev" title="Previous match (⇧⌘G)" aria-label="Previous match">${SVG_PREV}</button>
-        <button type="button" class="us-next" title="Next match (⌘G)" aria-label="Next match">${SVG_NEXT}</button>
-      </div>
-      <button type="button" class="us-close" title="Close (Esc)" aria-label="Close search">${SVG_CLOSE}</button>
+    <div class="us-nav us-pill">
+      <button type="button" class="us-prev" title="Previous match (⇧⌘G)" aria-label="Previous match">${SVG_PREV}</button>
+      <button type="button" class="us-next" title="Next match (⌘G)" aria-label="Next match">${SVG_NEXT}</button>
     </div>
+    <button type="button" class="us-close" title="Close (Esc)" aria-label="Close search">${SVG_CLOSE}</button>
     <div class="us-field us-field-replace">
       <span class="us-lead">${SVG_REPLACE}</span>
       <input class="us-input us-replace" type="text" placeholder="Replace with…" spellcheck="false" autocomplete="off" />
     </div>
-    <div class="us-actions">
+    <div class="us-actions us-pill">
       <button type="button" class="us-btn us-btn-ghost"   title="Replace next (⌥↵)">Replace</button>
       <button type="button" class="us-btn us-btn-primary" title="Replace all matches (⇧⌥↵)">All</button>
     </div>
@@ -173,9 +188,13 @@ export function createUnderleafSearchPanel(view: EditorView): Panel {
 // override one variable and the whole component re-tunes consistently.
 //
 //   spacing scale     4 · 6 · 8 · 12 · 16
-//   radius scale      pill · 10 (card) · 8 (shell) · 6 (control)
+//   radius scale      pill · 11 (card) · 8 (shell) · 6 (control)
 //   height scale      32 (row) · 24 (inset control)
-//   font scale        12.5 mono · 12 ui · 11 micro
+//   font scale        12.5 mono · 12 ui · 10.5 micro
+//
+// All accent colors derive from `--color-brand` / `--color-warning` via
+// `color-mix()`, so any theme (cherry-blossom, nord, solarized, dark, light)
+// dyes the panel correctly without hardcoded RGB values.
 //
 // NOTE: CodeMirror's default baseTheme paints `.cm-panels` via `&light/&dark`
 // selectors which compile to a higher-specificity `.cm-light .cm-panels`. We
@@ -192,62 +211,95 @@ export const underleafSearchPanelTheme = EditorView.theme({
   '.cm-panels.cm-panels-top':    { borderBottom: 'none !important' },
   '.cm-panels.cm-panels-bottom': { borderTop: 'none !important' },
 
+  // While the search panel is mounted, neutralize the editor content's own
+  // top padding (`.cm-content { padding: 8px 0 }`) so the visual gap below
+  // our card equals the visual gap above it — keeps the card's outer
+  // breathing room truly symmetric on all four sides. `:has()` scopes this
+  // to only when the panel is actually open.
+  '&:has(.underleaf-search) .cm-content': {
+    paddingTop: '0',
+  },
+
   // ── Card shell + design tokens ─────────────────────────────────────────
   '.underleaf-search': {
     // Design tokens — single source of truth for the whole component.
-    '--us-pad':          '12px',
-    '--us-gap':          '6px',
-    '--us-gap-tight':    '4px',
-    '--us-row-h':        '32px',
-    '--us-ctrl-h':       '24px',
-    '--us-ctrl-pad':     '8px',
-    '--us-r-card':       '10px',
-    '--us-r-shell':      '8px',
-    '--us-r-control':    '6px',
-    '--us-font-input':   '12.5px',
-    '--us-font-ui':      '12px',
-    '--us-font-micro':   '11px',
-    '--us-brand-tint':   'rgba(76, 175, 80, 0.16)',
-    '--us-brand-ring':   'rgba(76, 175, 80, 0.18)',
-    '--us-neutral-tint': 'rgba(127, 127, 127, 0.10)',
-    '--us-amber-tint':   'rgba(245, 158, 11, 0.14)',
+    '--us-pad':           '11px',
+    '--us-gap':           '7px',
+    '--us-gap-tight':     '3px',
+    '--us-row-h':         '32px',
+    '--us-pill-w':        '132px',
+    '--us-ctrl-h':        '24px',
+    '--us-ctrl-pad':      '8px',
+    '--us-r-card':        '11px',
+    '--us-r-shell':       '8px',
+    '--us-r-control':     '6px',
+    '--us-font-input':    '12.5px',
+    '--us-font-ui':       '12px',
+    '--us-font-micro':    '10.5px',
 
-    // Two-by-two grid: col 1 is the input column (1fr), col 2 is the
-    // trailing column (auto = max content). Both fields share col 1 so
-    // their right edges align; both trailings share col 2 so their right
-    // edges align with each other AND with the card's right padding.
+    // Theme-derived tints — every accent flows from the active theme's
+    // `--color-brand` / `--color-warning`, so cherry-blossom dyes pink,
+    // dark-verdant stays green, nord goes blue, etc., with zero overrides.
+    '--us-brand-tint':       'color-mix(in srgb, var(--color-brand) 12%, transparent)',
+    '--us-brand-tint-hover': 'color-mix(in srgb, var(--color-brand) 18%, transparent)',
+    '--us-brand-edge':       'color-mix(in srgb, var(--color-brand) 28%, transparent)',
+    '--us-brand-ring':       'color-mix(in srgb, var(--color-brand) 22%, transparent)',
+    '--us-warn-tint':        'color-mix(in srgb, var(--color-warning) 16%, transparent)',
+    '--us-warn-edge':        'color-mix(in srgb, var(--color-warning) 32%, transparent)',
+    '--us-neutral-tint':     'color-mix(in srgb, var(--color-text-muted) 14%, transparent)',
+    '--us-neutral-strong':   'color-mix(in srgb, var(--color-text-muted) 22%, transparent)',
+    '--us-inset-hl':         'color-mix(in srgb, white 18%, transparent)',
+    '--us-shadow-deep':      'color-mix(in srgb, black 14%, transparent)',
+    '--us-shadow-near':      'color-mix(in srgb, black 8%, transparent)',
+
+    // 3×2 grid:
+    //   col 1 = input column (1fr)
+    //   col 2 = pill column (fixed --us-pill-w, shared by nav + actions pills)
+    //   col 3 = close column (fixed --us-row-h, square — empty cell on row 2)
+    //
+    // Fixed col 2 means both pills are identical width, so their left AND
+    // right edges align between rows. The empty cell at (2, 3) is the
+    // breathing room beneath the close button.
     display:             'grid',
-    gridTemplateColumns: 'minmax(0, 1fr) auto',
+    gridTemplateColumns: 'minmax(0, 1fr) var(--us-pill-w) var(--us-row-h)',
     gridTemplateRows:    'var(--us-row-h) var(--us-row-h)',
     columnGap:           'var(--us-gap)',
     rowGap:              'var(--us-gap)',
     padding:             'var(--us-pad)',
-    margin:              '8px 12px',
+    margin:              'var(--us-pad)',
     background:          'var(--color-bg-card)',
     border:              '1px solid var(--color-border)',
     borderRadius:        'var(--us-r-card)',
-    boxShadow:           '0 0 20px rgba(0, 0, 0, 0.10)',
+    // Layered depth: a hair of inset highlight along the top edge, then a
+    // wide soft drop catching the room, then a tight near-shadow for the
+    // 1px crease beneath. The triple makes the card feel set on the page
+    // rather than pasted to it.
+    boxShadow: [
+      '0 1px 0 var(--us-inset-hl) inset',
+      '0 14px 36px -12px var(--us-shadow-deep)',
+      '0 2px 6px -1px var(--us-shadow-near)',
+    ].join(', '),
     fontFamily:          'var(--font-sans)',
     fontSize:            'var(--us-font-ui)',
+    fontFeatureSettings: '"ss01", "cv11"',
     color:               'var(--color-text-primary)',
     position:            'relative',
-    animation:           'underleaf-search-in 220ms cubic-bezier(.2, .7, .2, 1)',
+    isolation:           'isolate',
+    animation:           'underleaf-search-in 240ms cubic-bezier(.2, .7, .2, 1)',
+  },
+  // A second-row reveal that trails the card a touch — feels like the
+  // panel unfolds into shape rather than landing all at once.
+  '.underleaf-search .us-field-replace, .underleaf-search .us-actions': {
+    animation: 'underleaf-search-row-in 320ms cubic-bezier(.2, .7, .2, 1) both',
+    animationDelay: '60ms',
   },
   '@keyframes underleaf-search-in': {
-    from: { transform: 'translateY(-4px)', opacity: 0 },
-    to:   { transform: 'translateY(0)',    opacity: 1 },
+    from: { transform: 'translateY(-6px) scale(0.985)', opacity: 0 },
+    to:   { transform: 'translateY(0) scale(1)',         opacity: 1 },
   },
-
-  // ── Trailing cluster (rail = row 1, actions = row 2) ───────────────────
-  // justify-content: flex-end pushes the cluster's content to the right edge
-  // of column 2. Since column 2 is sized to the WIDER trailing (actions),
-  // row 1's narrower nav+close sits with empty space on its left — which
-  // reads naturally as the gap between the find field and its controls.
-  '.underleaf-search .us-rail, .underleaf-search .us-actions': {
-    display:        'flex',
-    alignItems:     'stretch',
-    gap:            'var(--us-gap)',
-    justifyContent: 'flex-end',
+  '@keyframes underleaf-search-row-in': {
+    from: { transform: 'translateY(-3px)', opacity: 0 },
+    to:   { transform: 'translateY(0)',    opacity: 1 },
   },
 
   // ── Field shell (input + optional inline controls) ─────────────────────
@@ -260,7 +312,10 @@ export const underleafSearchPanelTheme = EditorView.theme({
     border:       '1px solid var(--color-border)',
     borderRadius: 'var(--us-r-shell)',
     overflow:     'hidden',
-    transition:   'border-color 140ms ease, box-shadow 140ms ease',
+    transition:   'border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease',
+  },
+  '.underleaf-search .us-field:hover': {
+    borderColor: 'var(--color-border-light, var(--color-border))',
   },
   '.underleaf-search .us-field:focus-within': {
     borderColor: 'var(--color-brand)',
@@ -275,10 +330,15 @@ export const underleafSearchPanelTheme = EditorView.theme({
     alignItems:     'center',
     justifyContent: 'center',
     color:          'var(--color-text-muted)',
-    transition:     'color 140ms ease',
+    transition:     'color 160ms ease, transform 200ms cubic-bezier(.2, .7, .2, 1)',
   },
   '.underleaf-search .us-field:focus-within .us-lead': {
     color: 'var(--color-brand)',
+  },
+  '.underleaf-search .us-field-find:focus-within .us-lead': {
+    // The magnifier hops a fraction when the field activates — a small
+    // craft signal that the search query is now live.
+    transform: 'scale(1.08)',
   },
   '.underleaf-search .us-lead svg': {
     width:   '14px',
@@ -288,19 +348,26 @@ export const underleafSearchPanelTheme = EditorView.theme({
 
   // Text input — fills the remaining field width
   '.underleaf-search .us-input': {
-    flex:       '1 1 auto',
-    minWidth:   0,
-    background: 'transparent',
-    border:     0,
-    outline:    0,
-    padding:    '0 var(--us-gap) 0 0',
-    color:      'inherit',
-    fontFamily: 'var(--font-mono)',
-    fontSize:   'var(--us-font-input)',
+    flex:               '1 1 auto',
+    minWidth:           0,
+    background:         'transparent',
+    border:             0,
+    outline:            0,
+    padding:            '0 var(--us-gap) 0 0',
+    color:              'inherit',
+    fontFamily:         'var(--font-mono)',
+    fontSize:           'var(--us-font-input)',
+    fontFeatureSettings: '"ss03", "cv11", "calt"',
+    letterSpacing:      '0.005em',
   },
   '.underleaf-search .us-input::placeholder': {
-    color:     'var(--color-text-muted)',
-    fontStyle: 'italic',
+    color:         'var(--color-text-muted)',
+    fontStyle:     'italic',
+    letterSpacing: '0.01em',
+  },
+  '.underleaf-search .us-input::selection': {
+    background: 'var(--us-brand-tint-hover)',
+    color:      'var(--color-text-primary)',
   },
 
   // Trailing cluster inside the find field (modifier toggles + count chip)
@@ -309,11 +376,12 @@ export const underleafSearchPanelTheme = EditorView.theme({
     display:      'flex',
     alignItems:   'center',
     gap:          'var(--us-gap-tight)',
-    paddingRight: 'var(--us-gap)',
+    paddingRight: '5px',
   },
 
   // ── Inset controls (live inside the find field's frame) ────────────────
-  // Modifier toggles — ghost until active, then soft brand tint.
+  // Modifier toggles — ghost until active, then brand-tinted with a thin
+  // inset ring that makes the chip read as pressed.
   '.underleaf-search .us-mod': {
     height:       'var(--us-ctrl-h)',
     minWidth:     'var(--us-ctrl-h)',
@@ -324,9 +392,10 @@ export const underleafSearchPanelTheme = EditorView.theme({
     fontFamily:   'var(--font-sans)',
     fontSize:     'var(--us-font-micro)',
     fontWeight:   600,
+    letterSpacing: '0.02em',
     color:        'var(--color-text-muted)',
     cursor:       'pointer',
-    transition:   'background 120ms, color 120ms',
+    transition:   'background 140ms, color 140ms, box-shadow 140ms',
   },
   '.underleaf-search .us-mod:hover': {
     background: 'var(--us-neutral-tint)',
@@ -335,52 +404,97 @@ export const underleafSearchPanelTheme = EditorView.theme({
   '.underleaf-search .us-mod.is-on': {
     background: 'var(--us-brand-tint)',
     color:      'var(--color-brand)',
+    boxShadow:  '0 0 0 1px var(--us-brand-edge) inset',
+  },
+  '.underleaf-search .us-mod.is-on:hover': {
+    background: 'var(--us-brand-tint-hover)',
   },
 
-  // Count chip — pill, three states (matches / empty / zero-results)
+  // Count chip — pill, three states (matches / empty / zero-results).
+  // Slightly tighter padding + bumped weight so the digits sit confidently.
   '.underleaf-search .us-count': {
     display:            'inline-flex',
     alignItems:         'center',
     height:             'var(--us-ctrl-h)',
-    padding:            '0 10px',
+    padding:            '0 9px',
+    marginLeft:         '2px',
     borderRadius:       '999px',
     border:             '1px solid transparent',
     fontFamily:         'var(--font-sans)',
     fontSize:           'var(--us-font-micro)',
     fontWeight:         600,
     fontVariantNumeric: 'tabular-nums',
+    letterSpacing:      '0.015em',
     whiteSpace:         'nowrap',
     background:         'var(--us-brand-tint)',
     color:              'var(--color-brand)',
-    borderColor:        'rgba(76, 175, 80, 0.24)',
+    borderColor:        'var(--us-brand-edge)',
+    transition:         'background 160ms, color 160ms, border-color 160ms',
   },
-  '.underleaf-search .us-count-sep, .underleaf-search .us-count-tot': {
-    opacity:    0.65,
+  '.underleaf-search .us-count-sep': {
+    opacity:     0.4,
+    fontWeight:  400,
+    padding:     '0 2px',
+  },
+  '.underleaf-search .us-count-tot': {
+    opacity:    0.75,
     fontWeight: 500,
   },
   '.underleaf-search .us-count.is-empty': {
     background:  'var(--us-neutral-tint)',
     color:       'var(--color-text-muted)',
-    borderColor: 'var(--color-border)',
+    borderColor: 'transparent',
   },
   '.underleaf-search .us-count.is-zero': {
-    background:  'var(--us-amber-tint)',
+    background:  'var(--us-warn-tint)',
     color:       'var(--color-warning)',
-    borderColor: 'rgba(245, 158, 11, 0.32)',
+    borderColor: 'var(--us-warn-edge)',
   },
 
-  // ── Row-1 trailing: nav + close ────────────────────────────────────────
-  // Segmented prev/next — equal-width buttons inside one shell.
-  '.underleaf-search .us-nav': {
-    display:      'inline-flex',
+  // ── Segmented pill (shared by nav + actions) ───────────────────────────
+  // Both pills are sized by their grid column (--us-pill-w), so they always
+  // share width regardless of internal content. Inside each pill, children
+  // are flex items: equal-weight for nav, asymmetric for actions.
+  //
+  // The 1px edge is painted as an *inset* box-shadow rather than a real
+  // border. Chromium has a long-standing bug where `overflow: hidden` plus
+  // `border-radius` plus a 1px `border` leaves a hairline gap between the
+  // border edge and the round clip — inner button hover fills leak through
+  // it at the corners. With the edge moved to an inset shadow, the
+  // children's `border-radius` can run all the way to the pill's outer
+  // round, so no mismatch exists.
+  '.underleaf-search .us-pill': {
+    display:      'flex',
     alignItems:   'stretch',
     background:   'var(--color-bg-input)',
-    border:       '1px solid var(--color-border)',
     borderRadius: 'var(--us-r-shell)',
+    boxShadow:    '0 0 0 1px var(--color-border) inset',
     overflow:     'hidden',
+    transition:   'box-shadow 160ms ease',
   },
+  '.underleaf-search .us-pill:hover': {
+    boxShadow: '0 0 0 1px var(--color-border-light, var(--color-border)) inset',
+  },
+  // Internal divider between segmented children.
+  '.underleaf-search .us-pill button + button': {
+    boxShadow: '-1px 0 0 0 var(--color-border)',
+  },
+  // The edge buttons round to the pill's *full* outer radius — the inset
+  // shadow paints the 1px edge over the top, so children can occupy the
+  // entire round without a corner mismatch.
+  '.underleaf-search .us-pill > :first-child': {
+    borderTopLeftRadius:    'var(--us-r-shell)',
+    borderBottomLeftRadius: 'var(--us-r-shell)',
+  },
+  '.underleaf-search .us-pill > :last-child': {
+    borderTopRightRadius:    'var(--us-r-shell)',
+    borderBottomRightRadius: 'var(--us-r-shell)',
+  },
+
+  // Nav pill: prev + next share width 50/50, brand-tinted on hover.
   '.underleaf-search .us-nav button': {
-    width:          'var(--us-row-h)',
+    flex:           '1 1 0',
+    minWidth:       0,
     padding:        0,
     background:     'transparent',
     border:         0,
@@ -389,14 +503,15 @@ export const underleafSearchPanelTheme = EditorView.theme({
     alignItems:     'center',
     justifyContent: 'center',
     color:          'var(--color-text-secondary)',
-    transition:     'background 120ms, color 120ms',
-  },
-  '.underleaf-search .us-nav button + button': {
-    borderLeft: '1px solid var(--color-border)',
+    transition:     'background 140ms, color 140ms, transform 80ms ease',
   },
   '.underleaf-search .us-nav button:hover': {
     background: 'var(--us-brand-tint)',
     color:      'var(--color-brand)',
+  },
+  '.underleaf-search .us-nav button:active': {
+    background: 'var(--us-brand-tint-hover)',
+    transform:  'scale(0.94)',
   },
   '.underleaf-search .us-nav svg': {
     width:   '12px',
@@ -404,9 +519,56 @@ export const underleafSearchPanelTheme = EditorView.theme({
     display: 'block',
   },
 
-  // Close X — square ghost icon button
+  // Actions pill: Replace grows to fill the remaining width, All stays at
+  // content width — so "Replace" reads wider than "All" inside a pill that
+  // exactly matches the nav pill above.
+  '.underleaf-search .us-btn': {
+    padding:        '0 14px',
+    background:     'transparent',
+    border:         0,
+    cursor:         'pointer',
+    fontFamily:     'var(--font-sans)',
+    fontSize:       'var(--us-font-ui)',
+    fontWeight:     500,
+    letterSpacing:  '0.008em',
+    whiteSpace:     'nowrap',
+    display:        'inline-flex',
+    alignItems:     'center',
+    justifyContent: 'center',
+    position:       'relative',
+    transition:     'background 140ms, color 140ms, filter 140ms, transform 80ms ease',
+  },
+  '.underleaf-search .us-btn:active': {
+    transform: 'translateY(0.5px)',
+  },
+  '.underleaf-search .us-btn-ghost': {
+    flex:     '1 1 0',
+    minWidth: 0,
+    color:    'var(--color-text-primary)',
+  },
+  '.underleaf-search .us-btn-ghost:hover': {
+    background: 'var(--us-neutral-tint)',
+  },
+  // Primary button — flat brand fill. No gradient, no inset shine, no text
+  // shadow — the color and weight do the work. Hover uses the theme's own
+  // `--color-brand-hover` so each theme gets a tonally correct hover step.
+  '.underleaf-search .us-btn-primary': {
+    flex:          '0 0 auto',
+    padding:       '0 16px',
+    background:    'var(--color-brand)',
+    color:         '#ffffff',
+    fontWeight:    600,
+    letterSpacing: '0.012em',
+  },
+  '.underleaf-search .us-btn-primary:hover': {
+    background: 'var(--color-brand-hover, var(--color-brand))',
+  },
+  '.underleaf-search .us-btn-primary:active': {
+    background: 'var(--color-brand-dark, var(--color-brand))',
+  },
+
+  // ── Close X — standalone square button, sits to the right of the nav pill
   '.underleaf-search .us-close': {
-    width:          'var(--us-row-h)',
     padding:        0,
     background:     'transparent',
     border:         0,
@@ -416,50 +578,16 @@ export const underleafSearchPanelTheme = EditorView.theme({
     alignItems:     'center',
     justifyContent: 'center',
     color:          'var(--color-text-muted)',
-    transition:     'background 120ms, color 120ms',
+    transition:     'background 140ms, color 140ms, transform 200ms cubic-bezier(.2, .7, .2, 1)',
   },
   '.underleaf-search .us-close:hover': {
     background: 'var(--us-neutral-tint)',
     color:      'var(--color-text-primary)',
+    transform:  'rotate(90deg)',
   },
   '.underleaf-search .us-close svg': {
     width:   '12px',
     height:  '12px',
     display: 'block',
-  },
-
-  // ── Row-2 trailing: Replace / All ──────────────────────────────────────
-  '.underleaf-search .us-btn': {
-    height:         'var(--us-row-h)',
-    padding:        '0 14px',
-    borderRadius:   'var(--us-r-control)',
-    fontFamily:     'var(--font-sans)',
-    fontSize:       'var(--us-font-ui)',
-    fontWeight:     500,
-    cursor:         'pointer',
-    whiteSpace:     'nowrap',
-    display:        'inline-flex',
-    alignItems:     'center',
-    justifyContent: 'center',
-    transition:     'background 120ms, color 120ms, border-color 120ms, filter 120ms',
-  },
-  '.underleaf-search .us-btn-ghost': {
-    background: 'transparent',
-    color:      'var(--color-text-primary)',
-    border:     '1px solid var(--color-border)',
-  },
-  '.underleaf-search .us-btn-ghost:hover': {
-    background:  'var(--us-neutral-tint)',
-    borderColor: 'var(--color-border-light)',
-  },
-  '.underleaf-search .us-btn-primary': {
-    background: 'var(--color-brand)',
-    color:      '#ffffff',
-    border:     '1px solid var(--color-brand)',
-    fontWeight: 600,
-    boxShadow:  '0 1px 0 rgba(255, 255, 255, 0.18) inset, 0 1px 2px rgba(0, 0, 0, 0.18)',
-  },
-  '.underleaf-search .us-btn-primary:hover': {
-    filter: 'brightness(1.08)',
   },
 })
