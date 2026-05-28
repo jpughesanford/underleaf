@@ -26,8 +26,8 @@
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: var(--color-text-primary);
-  border: 2px solid var(--color-brand);
+  background: var(--color-brand);
+  border: 2px solid var(--color-bg-card);
   cursor: grab;
   box-shadow: 0 1px 4px rgba(0,0,0,0.35);
   transition: transform 120ms, box-shadow 120ms;
@@ -44,8 +44,8 @@
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: var(--color-text-primary);
-  border: 2px solid var(--color-brand);
+  background: var(--color-brand);
+  border: 2px solid var(--color-bg-card);
   cursor: grab;
   box-shadow: 0 1px 4px rgba(0,0,0,0.35);
 }

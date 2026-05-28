@@ -70,16 +70,19 @@ export function useEditorLayout(): UseEditorLayoutResult {
     return () => ro.disconnect()
   }, [sidebarOpen, sidebarWidth])
 
+  // Re-clicking the active tab collapses/expands; clicking another switches and
+  // opens. Note: setSidebarOpen must NOT be nested inside a setSidebarTab updater
+  // — under StrictMode the updater runs twice, so a nested toggle fires twice and
+  // cancels itself out (the panel then only reopens when switching tabs). Reading
+  // sidebarTab from the closure keeps each setState call enqueued exactly once.
   const toggleSidebarTab = useCallback((tab: SidebarTab) => {
-    setSidebarTab(prev => {
-      if (prev === tab) {
-        setSidebarOpen(open => !open)
-        return prev
-      }
+    if (sidebarTab === tab) {
+      setSidebarOpen(open => !open)
+    } else {
+      setSidebarTab(tab)
       setSidebarOpen(true)
-      return tab
-    })
-  }, [])
+    }
+  }, [sidebarTab])
 
   return {
     sidebarTab, setSidebarTab, sidebarOpen, setSidebarOpen,

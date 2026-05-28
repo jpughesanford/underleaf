@@ -630,7 +630,10 @@ function PyCheckbox({ checked, indeterminate, onChange }: {
       style={{
         width: 14, height: 14,
         flexShrink: 0,
-        border: `1.5px solid ${checked || indeterminate ? 'var(--color-brand)' : 'var(--color-border-light)'}`,
+        // Unchecked border uses text-muted, not border-light: on the light theme
+        // border-light (#e0e0e0) is paler than the panel (#dcdcdc), so the empty
+        // box vanished. text-muted reads clearly on panels in both themes.
+        border: `1.5px solid ${checked || indeterminate ? 'var(--color-brand)' : 'var(--color-text-muted)'}`,
         background: checked || indeterminate ? 'var(--color-brand)' : 'transparent',
         borderRadius: 3,
         padding: 0,
@@ -639,7 +642,7 @@ function PyCheckbox({ checked, indeterminate, onChange }: {
         transition: 'background 120ms ease, border-color 120ms ease',
       }}
       onMouseEnter={e => { if (!checked && !indeterminate) e.currentTarget.style.borderColor = 'var(--color-brand)' }}
-      onMouseLeave={e => { if (!checked && !indeterminate) e.currentTarget.style.borderColor = 'var(--color-border-light)' }}
+      onMouseLeave={e => { if (!checked && !indeterminate) e.currentTarget.style.borderColor = 'var(--color-text-muted)' }}
     >
       {indeterminate ? (
         <div style={{ width: 7, height: 2, background: 'var(--color-on-brand)' }} />

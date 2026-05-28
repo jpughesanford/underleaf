@@ -561,27 +561,18 @@ const searchPanelStyles = EditorView.theme({
   '.underleaf-search .us-btn:active': {
     transform: 'translateY(0.5px)',
   },
-  // Both buttons split the pill 50/50. Replace is the baseline ghost
-  // treatment; All carries one tonal step of additional weight — a soft
-  // neutral tint and 600 weight — to mark it as the more impactful action
-  // without resorting to a brand fill.
-  '.underleaf-search .us-btn-ghost': {
+  // Both buttons split the pill 50/50 and share the same resting treatment —
+  // transparent ghost, primary text — so "All" reads identically to "Replace".
+  // On hover both pick up the nav (prev/next arrow) brand tint, keeping the
+  // whole pill row consistent.
+  '.underleaf-search .us-btn-ghost, .underleaf-search .us-btn-primary': {
     flex:     '1 1 0',
     minWidth: 0,
     color:    'var(--color-text-primary)',
   },
-  '.underleaf-search .us-btn-ghost:hover': {
-    background: 'var(--us-neutral-tint)',
-  },
-  '.underleaf-search .us-btn-primary': {
-    flex:       '1 1 0',
-    minWidth:   0,
-    background: 'var(--us-neutral-tint)',
-    color:      'var(--color-text-primary)',
-    fontWeight: 600,
-  },
-  '.underleaf-search .us-btn-primary:hover': {
-    background: 'var(--us-neutral-strong)',
+  '.underleaf-search .us-btn-ghost:hover, .underleaf-search .us-btn-primary:hover': {
+    background: 'var(--us-brand-tint)',
+    color:      'var(--color-brand)',
   },
 
   // ── Close X — standalone square button, sits to the right of the nav pill

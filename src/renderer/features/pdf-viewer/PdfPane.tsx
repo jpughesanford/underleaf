@@ -419,7 +419,12 @@ export default function PdfPane({ pdfPath, version = 0 }: Props) {
           {brightnessOpen && (
             <div
               style={{
-                position: 'absolute', top: 'calc(100% + 8px)', right: 0, zIndex: 20,
+                // Anchor left, not right: the brightness button sits in the
+                // toolbar's left group, so a right-anchored popover extended
+                // leftward off the window edge (worst in PDF-only mode with the
+                // panel collapsed). Opening rightward keeps it inside the pane
+                // (pane min-width 280 ≥ popover 220).
+                position: 'absolute', top: 'calc(100% + 8px)', left: 0, zIndex: 20,
                 background: 'var(--color-bg-card)',
                 border: '1px solid var(--color-border)',
                 borderRadius: 8,
