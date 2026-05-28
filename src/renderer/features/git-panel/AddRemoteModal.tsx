@@ -55,15 +55,15 @@ export default function AddRemoteModal({ projectPath, onClose, onAdded }: Props)
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div style={{
             padding: 12,
-            background: 'rgba(251,191,36,0.1)',
-            border: '1px solid rgba(251,191,36,0.3)',
+            background: 'var(--badge-warn-bg)',
+            border: '1px solid var(--badge-warn-border)',
             borderRadius: 8,
             fontSize: 13,
-            color: '#fbbf24',
+            color: 'var(--badge-warn-color)',
           }}>
             Remote has only an empty initialization commit. Push your local work and overwrite it?
           </div>
-          {error && <div style={{ color: '#f87171', fontSize: 13 }}>{error}</div>}
+          {error && <div className="form-error">{error}</div>}
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
             <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
             <button className="btn btn-danger" onClick={handleForcePush} disabled={loading}>
@@ -79,7 +79,7 @@ export default function AddRemoteModal({ projectPath, onClose, onAdded }: Props)
     <Modal title="Connect to Remote" onClose={onClose}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div>
-          <label style={{ display: 'block', color: '#94a3b8', fontSize: 12, marginBottom: 6 }}>Remote URL</label>
+          <label style={{ display: 'block', color: 'var(--color-text-secondary)', fontSize: 12, marginBottom: 6 }}>Remote URL</label>
           <input
             className="input"
             placeholder="https://git.overleaf.com/... or git@github.com:..."
@@ -88,12 +88,12 @@ export default function AddRemoteModal({ projectPath, onClose, onAdded }: Props)
             onKeyDown={e => e.key === 'Enter' && handleAdd()}
             autoFocus
           />
-          <div style={{ fontSize: 12, color: '#475569', marginTop: 6 }}>
+          <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 6 }}>
             Supports Overleaf git bridge, GitHub, GitLab, Bitbucket
           </div>
         </div>
 
-        {error && <div style={{ color: '#f87171', fontSize: 13 }}>{error}</div>}
+        {error && <div className="form-error">{error}</div>}
 
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
           <button className="btn btn-secondary" onClick={onClose}>Cancel</button>

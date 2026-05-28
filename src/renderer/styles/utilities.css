@@ -116,7 +116,7 @@
 }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-.btn-primary { background: var(--color-brand); color: white; }
+.btn-primary { background: var(--color-brand); color: var(--color-on-brand); }
 .btn-primary:hover:not(:disabled) { background: var(--color-brand-hover); }
 
 .btn-secondary {
@@ -132,7 +132,7 @@
   color: var(--color-text-primary);
 }
 
-.btn-danger { background: var(--color-error); color: white; }
+.btn-danger { background: var(--color-error); color: var(--color-on-brand); }
 .btn-danger:hover:not(:disabled) { background: var(--color-error-hover); }
 
 .btn-sm   { padding: 4px 10px; font-size: 12px; }

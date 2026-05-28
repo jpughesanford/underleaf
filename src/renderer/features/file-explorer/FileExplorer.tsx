@@ -64,7 +64,7 @@ function InlineCreate({ type, onConfirm, onCancel }: {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 8px 3px 22px' }}>
       {type === 'folder'
-        ? <Folder size={13} strokeWidth={1.5} style={{ flexShrink: 0, color: '#4CAF50' }} />
+        ? <Folder size={13} strokeWidth={1.5} style={{ flexShrink: 0, color: 'var(--color-brand)' }} />
         : <FileText size={13} strokeWidth={1.5} style={{ flexShrink: 0 }} />
       }
       <input
@@ -180,8 +180,8 @@ function FileTreeNode({
             <polyline points="9 18 15 12 9 6"/>
           </svg>
           {expanded
-            ? <FolderOpen size={13} strokeWidth={1.5} style={{ flexShrink: 0, color: '#4CAF50' }} />
-            : <Folder size={13} strokeWidth={1.5} style={{ flexShrink: 0, color: '#4CAF50' }} />
+            ? <FolderOpen size={13} strokeWidth={1.5} style={{ flexShrink: 0, color: 'var(--color-brand)' }} />
+            : <Folder size={13} strokeWidth={1.5} style={{ flexShrink: 0, color: 'var(--color-brand)' }} />
           }
           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{node.name}</span>
         </div>

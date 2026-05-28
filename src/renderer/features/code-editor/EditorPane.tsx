@@ -51,7 +51,7 @@ const baseEditorTheme = EditorView.theme({
     backgroundColor: 'var(--color-bg-modal)',
     border: '1px solid var(--color-border)',
     borderRadius: '6px',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+    boxShadow: 'var(--shadow-md)',
   },
   '.cm-tooltip-autocomplete': { backgroundColor: 'var(--color-bg-modal)' },
   '.cm-tooltip-autocomplete ul li': { color: 'var(--color-text-primary)' },
@@ -101,9 +101,9 @@ const errorLineField = StateField.define<DecorationSet>({
 })
 
 // ─── Conflict highlight ────────────────────────────────────────────────────────
-const conflictOursMark    = Decoration.line({ attributes: { style: 'background: rgba(76,175,80,0.15); border-left: 3px solid #2e7d32;' } })
-const conflictTheirsMark  = Decoration.line({ attributes: { style: 'background: rgba(239,68,68,0.1); border-left: 3px solid #c62828;' } })
-const conflictMarkerMark  = Decoration.line({ attributes: { style: 'background: rgba(245,158,11,0.12); border-left: 3px solid #f59e0b;' } })
+const conflictOursMark    = Decoration.line({ attributes: { style: 'background: var(--color-brand-tint); border-left: 3px solid var(--color-success);' } })
+const conflictTheirsMark  = Decoration.line({ attributes: { style: 'background: var(--badge-err-bg); border-left: 3px solid var(--color-error);' } })
+const conflictMarkerMark  = Decoration.line({ attributes: { style: 'background: var(--badge-warn-bg); border-left: 3px solid var(--color-warning);' } })
 
 const conflictMarkByKind = {
   marker: conflictMarkerMark,

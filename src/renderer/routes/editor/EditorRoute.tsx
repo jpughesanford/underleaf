@@ -15,6 +15,7 @@ import RailButton from './components/RailButton'
 import TabItem from './components/TabItem'
 import ResizeHandle from './components/ResizeHandle'
 import EmptyEditor from './components/EmptyEditor'
+import EmptyPdf from './components/EmptyPdf'
 import { CompileIcon, FilesIcon, GitIcon } from './components/RailIcons'
 
 import { useMainDoc } from './hooks/useMainDoc'
@@ -213,8 +214,9 @@ export default function EditorRoute({ projectPath, projectName, onBack, onRename
           )}
         </div>
 
-        {/* Sidebar panel */}
-        {layout.sidebarOpen && layout.viewMode !== 'pdf' && (
+        {/* Sidebar panel — standalone: stays available in every view mode
+            (incl. pdf-only), driven solely by its own collapse state. */}
+        {layout.sidebarOpen && (
           <div style={{
             width: layout.sidebarWidth,
             background: 'var(--color-bg-app)',
@@ -246,7 +248,7 @@ export default function EditorRoute({ projectPath, projectName, onBack, onRename
           </div>
         )}
 
-        {layout.sidebarOpen && layout.viewMode !== 'pdf' && (
+        {layout.sidebarOpen && (
           <ResizeHandle
             onDrag={layout.onSidebarDrag}
             onCollapse={() => layout.setSidebarOpen(false)}
@@ -311,7 +313,7 @@ export default function EditorRoute({ projectPath, projectName, onBack, onRename
           </div>
         )}
 
-        {!diffTarget && pdfPath && layout.viewMode === 'split' && (
+        {!diffTarget && layout.viewMode === 'split' && (
           <ResizeHandle
             onDrag={layout.onPdfDrag}
             onCollapse={() => layout.setViewMode('editor')}
@@ -319,14 +321,17 @@ export default function EditorRoute({ projectPath, projectName, onBack, onRename
           />
         )}
 
-        {!diffTarget && pdfPath && (layout.viewMode === 'split' || layout.viewMode === 'pdf') && (
+        {/* PDF slot. Renders whenever the view mode includes the PDF, even before
+            the first compile — falling back to a placeholder so pdf/both modes
+            never show a bare blank pane. */}
+        {!diffTarget && (layout.viewMode === 'split' || layout.viewMode === 'pdf') && (
           <div style={{
             width: layout.viewMode === 'pdf' ? undefined : layout.pdfWidth,
             flex: layout.viewMode === 'pdf' ? 1 : undefined,
             flexShrink: 0,
             borderLeft: '1px solid var(--color-border)',
           }}>
-            <PdfPane pdfPath={pdfPath} version={pdfVersion} />
+            {pdfPath ? <PdfPane pdfPath={pdfPath} version={pdfVersion} /> : <EmptyPdf />}
           </div>
         )}
       </div>

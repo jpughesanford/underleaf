@@ -210,13 +210,13 @@ export default function Dashboard({ onOpenProject, onResetRoot }: Props) {
       {/* TeX Live warning */}
       {!latexmkAvailable && (
         <div style={{
-          background: 'rgba(245,158,11,0.12)',
-          borderBottom: '1px solid rgba(245,158,11,0.3)',
+          background: 'var(--badge-warn-bg)',
+          borderBottom: '1px solid var(--badge-warn-border)',
           padding: '8px 20px',
           display: 'flex',
           alignItems: 'center',
           gap: 10,
-          color: '#fbbf24',
+          color: 'var(--badge-warn-color)',
           fontSize: 13,
           flexShrink: 0,
         }}>
@@ -224,13 +224,13 @@ export default function Dashboard({ onOpenProject, onResetRoot }: Props) {
             <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
           </svg>
           <span>TeX Live not detected — compilation will be unavailable.</span>
-          <span style={{ color: 'rgba(251,191,36,0.4)' }}>·</span>
+          <span style={{ color: 'var(--badge-warn-border)' }}>·</span>
           <button
             style={{
-              background: 'rgba(245,158,11,0.15)',
-              border: '1px solid rgba(245,158,11,0.4)',
+              background: 'var(--badge-warn-bg)',
+              border: '1px solid var(--badge-warn-border)',
               borderRadius: 5,
-              color: '#fbbf24',
+              color: 'var(--badge-warn-color)',
               fontSize: 12,
               padding: '2px 10px',
               cursor: 'pointer',
@@ -319,7 +319,7 @@ export default function Dashboard({ onOpenProject, onResetRoot }: Props) {
                   <div style={{
                     position: 'absolute', inset: 0, zIndex: 2,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    background: 'rgba(15,23,42,0.55)',
+                    background: 'var(--color-bg-overlay)',
                     borderRadius: 10,
                     backdropFilter: 'blur(2px)',
                   }}>
@@ -384,7 +384,7 @@ export default function Dashboard({ onOpenProject, onResetRoot }: Props) {
           style={{
             position: 'fixed', inset: 0, zIndex: 10000,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            background: 'rgba(0,0,0,0.6)',
+            background: 'var(--color-bg-overlay)',
           }}
           onClick={() => setResetConfirm(null)}
         >
@@ -397,15 +397,15 @@ export default function Dashboard({ onOpenProject, onResetRoot }: Props) {
               padding: 24,
               maxWidth: 400,
               width: '90%',
-              boxShadow: '0 20px 60px rgba(0,0,0,0.6)',
+              boxShadow: 'var(--shadow-lg)',
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
               <div style={{
                 width: 32, height: 32, borderRadius: 8,
-                background: 'rgba(248,113,113,0.15)',
+                background: 'var(--badge-err-bg)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                flexShrink: 0, color: '#f87171',
+                flexShrink: 0, color: 'var(--color-text-error)',
               }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
                   <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
@@ -427,10 +427,10 @@ export default function Dashboard({ onOpenProject, onResetRoot }: Props) {
               <button
                 onClick={confirmResetToRemote}
                 style={{
-                  background: 'rgba(248,113,113,0.15)',
-                  border: '1px solid rgba(248,113,113,0.4)',
+                  background: 'var(--badge-err-bg)',
+                  border: '1px solid var(--badge-err-border)',
                   borderRadius: 6,
-                  color: '#f87171',
+                  color: 'var(--color-text-error)',
                   fontSize: 12,
                   fontWeight: 600,
                   padding: '5px 14px',

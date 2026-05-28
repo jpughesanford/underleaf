@@ -74,8 +74,10 @@ The JSON `chrome` object key `bgApp` becomes `--color-bg-app`, `textPrimary` →
 | `--color-success` / `--color-info` | Status | `#98c379` / `#93c5fd` | `#388e3c` / `#1976d2` |
 
 Plus derived sets also set by the provider: `--badge-*` (info/sync/err badge bg+border+color),
-`--gitpanel-sel-bg` / `--gitpanel-sel-fg` (selected file row in Source Control),
-`--scrollbar-thumb` / `--scrollbar-thumb-hover`.
+`--gitpanel-sel-bg` / `--gitpanel-sel-fg` / `--gitpanel-sel-fg-muted` (selected file row
+in Source Control + its dimmed secondary text), `--scrollbar-thumb` / `--scrollbar-thumb-hover`,
+and `--color-on-brand` (text/glyph on a brand or error fill — primary/danger button
+labels, the checked checkbox glyph; defaults to white, optional `chrome.onBrand` override).
 
 ### 2.1b Derived tokens (computed in `applyTheme`, not in JSON)
 
@@ -374,9 +376,15 @@ suppresses the PDF handle + pane while `diffTarget` is set). Reference mockup:
 - **Z-index ladder:** content `0` → context menu / popover `2000` (above) ... modal
   overlay `1000`, floating collapse button `10`. (Note: context menus intentionally
   sit above modals.) Reuse these tiers; don't pick arbitrary z-values.
-- **First paint:** the only place a literal color is allowed is `reset.css`'s `html`
-  fallback (`#141b21`/`#e8eede`, matches Underleaf Dark), covering the one frame
-  before `ThemeProvider` mounts.
+- **Documented exceptions to "zero literals" (§2.2):** two, both deliberate —
+  (1) `reset.css`'s `html` first-paint fallback (`#141b21`/`#e8eede`, matches
+  Underleaf Dark), covering the one frame before `ThemeProvider` mounts;
+  (2) **per-theme previews** (`SettingsModal` theme swatches + `theme-album.css`
+  `.ph-*` miniatures) read each *previewed* theme's own colors with white/black only
+  as last-resort defaults — they must not use active-theme vars. Everything else
+  resolves to a token — including the onboarding/splash screen, which is fully
+  themed (it reads `theme.chrome.brand` for the `AppIcon` fill, since SVG `fill`
+  attributes don't accept `var()`, and CSS vars for everything else).
 
 ---
 

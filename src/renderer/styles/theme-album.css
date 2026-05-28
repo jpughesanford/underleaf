@@ -83,7 +83,7 @@
   height: 16px;
   border-radius: 50%;
   background: var(--color-brand);
-  color: #ffffff;
+  color: var(--color-on-brand);
   display: grid;
   place-items: center;
   z-index: 3;

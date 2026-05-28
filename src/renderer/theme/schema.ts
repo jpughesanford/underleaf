@@ -31,6 +31,10 @@ export interface ChromeColors {
   scrollbar: string
   scrollbarHover: string
 
+  /** Text/glyph color on a brand-filled surface (primary button, checked box).
+      Optional — defaults to white, which reads on every current brand green. */
+  onBrand?: string
+
   /** Optional overrides — if omitted, defaults are chosen based on `dark`. */
   badges?: Partial<BadgeColors>
   toolbar?: Partial<ToolbarColors>

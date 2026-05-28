@@ -203,6 +203,8 @@ function applyTheme(theme: UnderleafTheme) {
   set('--color-overlay-hover', theme.dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)')
   // Pressed/hover state for the danger button (a step darker than --color-error).
   set('--color-error-hover',   theme.dark ? '#dc2626' : '#b71c1c')
+  // Text/glyph on a brand-filled surface (primary button, checked checkbox).
+  set('--color-on-brand',      c.onBrand ?? '#ffffff')
 
   // Editor surface — CodeMirror handles its own colors via theme.theme; we expose
   // bg/fg as CSS vars so the surrounding chrome can paint matching backgrounds.
@@ -239,4 +241,7 @@ function applyTheme(theme: UnderleafTheme) {
   // Git panel focused-row highlight (PyCharm Darcula indigo for dark, IntelliJ blue for light).
   set('--gitpanel-sel-bg', c.gitpanelSelBg ?? (theme.dark ? 'rgba(75, 110, 175, 0.38)' : '#3574F0'))
   set('--gitpanel-sel-fg', c.gitpanelSelFg ?? '#ffffff')
+  // Dimmed secondary text on a selected row (the selection bg is always a
+  // saturated highlight, so a translucent white reads in every theme).
+  set('--gitpanel-sel-fg-muted', 'rgba(255,255,255,0.6)')
 }

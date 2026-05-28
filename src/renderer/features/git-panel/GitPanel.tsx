@@ -539,7 +539,7 @@ function SectionRow({ title, count, collapsed, checkState, selected, onToggleCol
       </button>
       <PyCheckbox checked={checkState === 'all'} indeterminate={checkState === 'some'} onChange={onToggleCheck} />
       <span style={{ fontSize: 12, fontWeight: 700 }}>{title}</span>
-      <span style={{ fontSize: 11, color: selected ? 'rgba(255,255,255,0.65)' : 'var(--color-text-muted)' }}>
+      <span style={{ fontSize: 11, color: selected ? 'var(--gitpanel-sel-fg-muted)' : 'var(--color-text-muted)' }}>
         {count} file{count === 1 ? '' : 's'}
       </span>
     </div>
@@ -595,7 +595,7 @@ function FileRow({ file, checked, selected, onSelect, onToggleCheck, onOpen, onC
       {dir && (
         <span
           style={{
-            color: selected ? 'rgba(255,255,255,0.55)' : 'var(--color-text-muted)',
+            color: selected ? 'var(--gitpanel-sel-fg-muted)' : 'var(--color-text-muted)',
             fontSize: 11,
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           }}
@@ -642,9 +642,9 @@ function PyCheckbox({ checked, indeterminate, onChange }: {
       onMouseLeave={e => { if (!checked && !indeterminate) e.currentTarget.style.borderColor = 'var(--color-border-light)' }}
     >
       {indeterminate ? (
-        <div style={{ width: 7, height: 2, background: 'white' }} />
+        <div style={{ width: 7, height: 2, background: 'var(--color-on-brand)' }} />
       ) : checked ? (
-        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="var(--color-on-brand)" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
           <polyline points="20 6 9 17 4 12"/>
         </svg>
       ) : null}

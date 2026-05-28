@@ -1,20 +1,18 @@
 import React, { useState } from 'react'
 import { FolderPlus, FolderSearch } from 'lucide-react'
 import AppIcon from '@/ui/AppIcon'
+import { useTheme } from '@/theme/ThemeProvider'
 
 interface Props {
   onComplete: () => void
 }
 
-const BRAND_DARK = '#2f6446'
-const BRAND = '#4caf50'
-const BRAND_DEEPER = '#1e4d34'
-const BG = '#f2f2f2'
-const TEXT = '#1a1a1a'
-const TEXT_MUTED = '#6b6b6b'
-const BORDER = '#d0d0d0'
+// Subtle radial lift at the top — bg-card center fading to the app bg. Reads as a
+// light vignette in light themes and a gentle glow in dark ones.
+const BG_GRADIENT = 'radial-gradient(ellipse at top, var(--color-bg-card) 0%, var(--color-bg-app) 70%)'
 
 export default function Onboarding({ onComplete }: Props) {
+  const { theme } = useTheme()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -59,9 +57,9 @@ export default function Onboarding({ onComplete }: Props) {
         alignItems: 'center',
         justifyContent: 'center',
         height: '100vh',
-        background: `radial-gradient(ellipse at top, #ffffff 0%, ${BG} 70%)`,
-        color: TEXT,
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif',
+        background: BG_GRADIENT,
+        color: 'var(--color-text-primary)',
+        fontFamily: 'var(--font-sans)',
       }}
     >
       <div className="titlebar-no-drag" style={{ textAlign: 'center', maxWidth: 520, padding: '0 32px' }}>
@@ -76,12 +74,14 @@ export default function Onboarding({ onComplete }: Props) {
             lineHeight: 1,
           }}>
             <span style={{ display: 'inline-flex' }}>
-              <AppIcon size={80} color={BRAND_DEEPER} />
+              {/* AppIcon's fill is an SVG attribute (no var() support), so pass the
+                  active theme's brand hex directly. */}
+              <AppIcon size={80} color={theme.chrome.brand} />
             </span>
             <span style={{
               fontSize: 72,
               fontWeight: 700,
-              color: BRAND_DEEPER,
+              color: 'var(--color-brand)',
               letterSpacing: -2,
               marginLeft: -24,
               fontFamily: '"Lato", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
@@ -90,7 +90,7 @@ export default function Onboarding({ onComplete }: Props) {
             </span>
           </div>
           <p style={{
-            color: TEXT_MUTED,
+            color: 'var(--color-text-muted)',
             marginTop: 20,
             fontSize: 15,
             letterSpacing: 0.1,
@@ -107,30 +107,30 @@ export default function Onboarding({ onComplete }: Props) {
             style={{
               flex: 1,
               padding: '22px 18px',
-              background: '#ffffff',
-              border: `1px solid ${BORDER}`,
+              background: 'var(--color-bg-card)',
+              border: '1px solid var(--color-border)',
               borderRadius: 8,
               cursor: loading ? 'wait' : 'pointer',
-              color: TEXT,
+              color: 'var(--color-text-primary)',
               textAlign: 'center',
               transition: 'all 150ms ease',
               fontFamily: 'inherit',
-              boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+              boxShadow: 'var(--shadow-sm)',
             }}
             onMouseEnter={e => {
-              e.currentTarget.style.borderColor = BRAND
-              e.currentTarget.style.boxShadow = '0 2px 8px rgba(47,100,70,0.12)'
+              e.currentTarget.style.borderColor = 'var(--color-brand)'
+              e.currentTarget.style.boxShadow = 'var(--shadow-md)'
             }}
             onMouseLeave={e => {
-              e.currentTarget.style.borderColor = BORDER
-              e.currentTarget.style.boxShadow = '0 1px 2px rgba(0,0,0,0.04)'
+              e.currentTarget.style.borderColor = 'var(--color-border)'
+              e.currentTarget.style.boxShadow = 'var(--shadow-sm)'
             }}
           >
-            <div style={{ marginBottom: 10, display: 'flex', justifyContent: 'center', color: BRAND_DARK }}>
+            <div style={{ marginBottom: 10, display: 'flex', justifyContent: 'center', color: 'var(--color-brand)' }}>
               <FolderPlus size={28} strokeWidth={1.5} />
             </div>
             <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>Create New Folder</div>
-            <div style={{ fontSize: 12, color: TEXT_MUTED }}>Start fresh with an empty projects folder</div>
+            <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>Start fresh with an empty projects folder</div>
           </button>
 
           <button
@@ -139,45 +139,45 @@ export default function Onboarding({ onComplete }: Props) {
             style={{
               flex: 1,
               padding: '22px 18px',
-              background: '#ffffff',
-              border: `1px solid ${BORDER}`,
+              background: 'var(--color-bg-card)',
+              border: '1px solid var(--color-border)',
               borderRadius: 8,
               cursor: loading ? 'wait' : 'pointer',
-              color: TEXT,
+              color: 'var(--color-text-primary)',
               textAlign: 'center',
               transition: 'all 150ms ease',
               fontFamily: 'inherit',
-              boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+              boxShadow: 'var(--shadow-sm)',
             }}
             onMouseEnter={e => {
-              e.currentTarget.style.borderColor = BRAND
-              e.currentTarget.style.boxShadow = '0 2px 8px rgba(47,100,70,0.12)'
+              e.currentTarget.style.borderColor = 'var(--color-brand)'
+              e.currentTarget.style.boxShadow = 'var(--shadow-md)'
             }}
             onMouseLeave={e => {
-              e.currentTarget.style.borderColor = BORDER
-              e.currentTarget.style.boxShadow = '0 1px 2px rgba(0,0,0,0.04)'
+              e.currentTarget.style.borderColor = 'var(--color-border)'
+              e.currentTarget.style.boxShadow = 'var(--shadow-sm)'
             }}
           >
-            <div style={{ marginBottom: 10, display: 'flex', justifyContent: 'center', color: BRAND_DARK }}>
+            <div style={{ marginBottom: 10, display: 'flex', justifyContent: 'center', color: 'var(--color-brand)' }}>
               <FolderSearch size={28} strokeWidth={1.5} />
             </div>
             <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>Choose Existing</div>
-            <div style={{ fontSize: 12, color: TEXT_MUTED }}>Open a folder with existing git repos</div>
+            <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>Open a folder with existing git repos</div>
           </button>
         </div>
 
         {loading && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, color: TEXT_MUTED }}>
-            <div className="spinner" style={{ color: BRAND_DARK }} />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, color: 'var(--color-text-muted)' }}>
+            <div className="spinner" style={{ color: 'var(--color-brand)' }} />
             <span>Opening folder...</span>
           </div>
         )}
 
         {error && (
-          <div style={{ color: '#c62828', fontSize: 13 }}>{error}</div>
+          <div className="form-error">{error}</div>
         )}
 
-        <p style={{ color: '#909090', fontSize: 12, marginTop: 28 }}>
+        <p style={{ color: 'var(--color-text-muted)', fontSize: 12, marginTop: 28 }}>
           You can change the projects folder later in Settings
         </p>
       </div>
