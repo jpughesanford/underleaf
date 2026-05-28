@@ -2,11 +2,16 @@ import { spawn } from 'child_process'
 import {
   existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync,
 } from 'fs'
-import { basename, dirname, join, relative } from 'path'
+import { basename, dirname, join, relative, resolve, sep } from 'path'
 import type { CompileConfig, CompileError, CompileResult } from '@shared/types'
 
 // All latexmk build artifacts go here, keeping the project root clean.
 export const BUILD_DIR_NAME = '.underleaf-build'
+
+// latexmk engine flags we allow. A project's `.underleaf` comes from a cloned
+// (untrusted) repo, so the value can't be passed to latexmk unchecked —
+// e.g. `shell-escape` would re-enable \write18 command execution.
+const ALLOWED_ENGINES = new Set(['pdflatex', 'xelatex', 'lualatex'])
 
 // ─── Build dir ────────────────────────────────────────────────────────────
 
@@ -27,7 +32,14 @@ function ensureBuildDir(projectPath: string): string {
  */
 export function findRootDocument(projectPath: string): string | null {
   const config = readConfig(projectPath)
-  if (config.rootDocument) return join(projectPath, config.rootDocument)
+  if (config.rootDocument) {
+    // rootDocument also comes from the repo's .underleaf — confine it so a
+    // crafted config can't point the compiler at a file outside the project.
+    const candidate = resolve(projectPath, config.rootDocument)
+    const projRoot = resolve(projectPath)
+    if (candidate === projRoot || candidate.startsWith(projRoot + sep)) return candidate
+    // Escapes the project root — ignore and fall through to the scan below.
+  }
 
   // Bounded recursion so an unusually deep tree (vendored deps, large
   // dataset directories) can't lock up the IPC handler. Real LaTeX project
@@ -116,7 +128,8 @@ export function parseLog(log: string, projectPath: string): { errors: CompileErr
         const m = rest.match(/^([^\s()]+)/)
         if (m && /\.(tex|sty|cls|ltx|fd|def|cfg|cnf|aux)$/i.test(m[1])) {
           const abs = resolveAbs(m[1])
-          fileStack.push(abs.startsWith(projectPath) ? (relative(projectPath, abs) || m[1]) : null)
+          const inProject = abs === projectPath || abs.startsWith(projectPath + '/')
+          fileStack.push(inProject ? (relative(projectPath, abs) || m[1]) : null)
           i += 1 + m[1].length
         } else {
           // Not a file open — likely something like (Font) or a comment.
@@ -223,8 +236,10 @@ export interface CompileRunOptions {
 export function runCompile(opts: CompileRunOptions): Promise<CompileResult> {
   const { projectPath, file, engine = 'pdflatex', latexmkPath, onProgress, signal } = opts
 
-  // Per-project override beats argument-level engine.
-  const effectiveEngine = readConfig(projectPath).engine ?? engine
+  // Per-project override beats argument-level engine, but only if it's a known
+  // engine — an untrusted .underleaf can't smuggle an arbitrary latexmk flag.
+  const requestedEngine = readConfig(projectPath).engine ?? engine
+  const effectiveEngine = ALLOWED_ENGINES.has(requestedEngine) ? requestedEngine : 'pdflatex'
 
   const targetFile = file ?? findRootDocument(projectPath)
   if (!targetFile) {

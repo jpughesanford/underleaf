@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { extractGitUrl, repoNameFromUrl, isOverleafId, deriveProjectName } from '../src/shared/git-url'
+import { extractGitUrl, repoNameFromUrl, isOverleafId, deriveProjectName, isSafeCloneUrl } from '../src/shared/git-url'
 
 describe('extractGitUrl', () => {
   it('returns a bare URL unchanged', () => {
@@ -20,6 +20,36 @@ describe('extractGitUrl', () => {
 
   it('returns empty string for empty input', () => {
     expect(extractGitUrl('')).toBe('')
+  })
+})
+
+describe('isSafeCloneUrl', () => {
+  it('accepts https and http URLs', () => {
+    expect(isSafeCloneUrl('https://github.com/me/paper.git')).toBe(true)
+    expect(isSafeCloneUrl('http://git.example.com/me/paper.git')).toBe(true)
+  })
+
+  it('accepts ssh and scp-style URLs', () => {
+    expect(isSafeCloneUrl('ssh://git@github.com/me/paper.git')).toBe(true)
+    expect(isSafeCloneUrl('git@github.com:me/paper.git')).toBe(true)
+  })
+
+  it('rejects shell-injection payloads', () => {
+    expect(isSafeCloneUrl('https://github.com/a/b";touch$IFS/tmp/pwned;"')).toBe(false)
+    expect(isSafeCloneUrl('https://github.com/a/b; rm -rf ~')).toBe(false)
+  })
+
+  it('rejects git RCE transports and flag-like URLs', () => {
+    expect(isSafeCloneUrl('ext::sh -c whoami')).toBe(false)
+    expect(isSafeCloneUrl('fd::17/foo')).toBe(false)
+    expect(isSafeCloneUrl('file:///etc/passwd')).toBe(false)
+    expect(isSafeCloneUrl('--upload-pack=touch /tmp/pwned')).toBe(false)
+    expect(isSafeCloneUrl('-oProxyCommand=evil')).toBe(false)
+  })
+
+  it('rejects empty input', () => {
+    expect(isSafeCloneUrl('')).toBe(false)
+    expect(isSafeCloneUrl('   ')).toBe(false)
   })
 })
 

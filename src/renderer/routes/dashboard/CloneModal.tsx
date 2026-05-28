@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import Modal from '@/ui/Modal'
-import { extractGitUrl, repoNameFromUrl } from '@shared/git-url'
+import { extractGitUrl, isSafeCloneUrl, repoNameFromUrl } from '@shared/git-url'
 
 interface Props {
   projectsRoot: string
@@ -25,6 +25,7 @@ export default function CloneModal({ projectsRoot, onClose, onCloned }: Props) {
     const finalUrl = url.trim()
     const finalName = name.trim() || repoNameFromUrl(finalUrl)
     if (!finalUrl) { setError('URL is required'); return }
+    if (!isSafeCloneUrl(finalUrl)) { setError('Enter an http(s), ssh, or git@host: URL'); return }
     if (!finalName) { setError('Project name is required'); return }
     setLoading(true)
     setError(null)
@@ -81,7 +82,7 @@ export default function CloneModal({ projectsRoot, onClose, onCloned }: Props) {
 
         <div className="form-actions">
           <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
-          <button className="btn btn-primary" onClick={handleClone} disabled={loading || !url.trim() || !name.trim()}>
+          <button className="btn btn-primary" onClick={handleClone} disabled={loading || !isSafeCloneUrl(url) || !name.trim()}>
             {loading ? 'Cloning…' : 'Clone'}
           </button>
         </div>

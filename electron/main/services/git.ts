@@ -117,12 +117,12 @@ export async function addRemote(projectPath: string, url: string): Promise<GitAd
     await git.fetch()
 
     // Detect Overleaf's "empty init commit only" case so the caller can offer
-    // a force-push to overwrite it. Use git's HEAD symref to find the remote's
-    // default branch — assuming `origin/main` breaks on master/develop/etc.
-    const headRef = await git.raw(['symbolic-ref', 'refs/remotes/origin/HEAD'])
-      .then(r => r.trim().split('/').pop() ?? 'main')
-      .catch(() => 'main')
-    const log = await git.raw(['log', `origin/${headRef}`, '--oneline', '--max-count=2']).catch(() => '')
+    // a force-push to overwrite it. `git remote add` + fetch doesn't create a
+    // local origin/HEAD, so ask the remote directly for its default branch:
+    // ls-remote --symref prints a "ref: refs/heads/<branch>\tHEAD" line.
+    const symref = await git.raw(['ls-remote', '--symref', 'origin', 'HEAD']).catch(() => '')
+    const branch = symref.match(/^ref:\s+refs\/heads\/(\S+)\s+HEAD/m)?.[1] ?? 'main'
+    const log = await git.raw(['log', `origin/${branch}`, '--oneline', '--max-count=2']).catch(() => '')
     const needsForcePush = log.trim().split('\n').filter(Boolean).length === 1
 
     return { success: true, needsForcePush }

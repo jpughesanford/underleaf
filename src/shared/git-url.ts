@@ -18,6 +18,25 @@ export function extractGitUrl(input: string): string {
   return urlLike ?? tokens[0] ?? ''
 }
 
+/**
+ * Whether a pasted string is safe to hand to `git clone`. Accepts only the
+ * transports git clones over a network — http(s), ssh, and scp-style
+ * `user@host:path` — and rejects everything else. This is a security boundary,
+ * not just UX: a leading `-` is read by git as a flag, and the `ext::`/`fd::`
+ * transports let a remote string execute arbitrary commands, so a clone URL is
+ * attacker-reachable input (e.g. a shared "clone my paper" link).
+ */
+export function isSafeCloneUrl(input: string): boolean {
+  const url = input.trim()
+  if (!url || url.startsWith('-')) return false
+  // Conservative character class — real repo URLs don't contain shell
+  // metacharacters ($ ; " ` & | < > spaces), so requiring this set rejects
+  // `$IFS`-style payloads even though the clone itself no longer uses a shell.
+  if (/^(https?|ssh):\/\/[A-Za-z0-9._~:/@%+-]+$/i.test(url)) return true
+  if (/^[\w.-]+@[\w.-]+:[A-Za-z0-9._~/@%+-]+$/.test(url)) return true // scp-style
+  return false
+}
+
 /** Last path segment of a git URL, with the `.git` suffix and trailing slashes removed. */
 export function repoNameFromUrl(url: string): string {
   const cleaned = url.replace(/\.git$/, '').replace(/\/+$/, '')

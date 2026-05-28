@@ -27,7 +27,7 @@ function createWindow(): BrowserWindow {
     backgroundColor: '#1a2332',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
-      sandbox: false,
+      sandbox: true,
       contextIsolation: true,
     },
     show: false,
@@ -57,7 +57,7 @@ app.whenReady().then(() => {
   })
 
   registerProjectIPC(store)
-  registerFileIPC()
+  registerFileIPC(store)
   registerGitIPC()
   registerCompileIPC(store)
 

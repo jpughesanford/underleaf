@@ -22,7 +22,7 @@ export function resolveErrorPath(projectPath: string, file: string): string {
   }
   const normalized = resolved.join('/')
 
-  return normalized.startsWith(projectPath)
+  return (normalized === projectPath || normalized.startsWith(projectPath + '/'))
     ? normalized
     : `${projectPath}/${file.split('/').pop() ?? file}`
 }

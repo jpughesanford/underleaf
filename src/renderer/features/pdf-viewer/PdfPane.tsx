@@ -287,7 +287,9 @@ export default function PdfPane({ pdfPath, version = 0 }: Props) {
       const { getDocument, GlobalWorkerOptions } = await import('pdfjs-dist')
       GlobalWorkerOptions.workerSrc = pdfWorkerUrl
 
-      const loadingTask = getDocument({ data: arrayBuffer })
+      // isEvalSupported:false lets the renderer's CSP drop 'unsafe-eval' —
+      // PDF.js falls back to a non-eval path for font/CMap handling.
+      const loadingTask = getDocument({ data: arrayBuffer, isEvalSupported: false })
       const pdfDoc = await loadingTask.promise
 
       // Measure natural page dimensions for fit-to-width / fit-to-height

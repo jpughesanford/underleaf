@@ -2,8 +2,23 @@ import {
   copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync,
   rmSync, statSync, unlinkSync, writeFileSync,
 } from 'fs'
-import { extname, join, relative, resolve } from 'path'
+import { extname, join, relative, resolve, sep } from 'path'
 import type { FileNode } from '@shared/types'
+
+/**
+ * Throw if `target` resolves outside `root`. A null root means onboarding
+ * hasn't picked a projects folder yet — there's nothing to confine to, so the
+ * check is skipped (no file operation is reachable in that state anyway).
+ * Exported for unit testing.
+ */
+export function assertWithinRoot(root: string | null, target: string): void {
+  if (!root) return
+  const r = resolve(root)
+  const t = resolve(target)
+  if (t !== r && !t.startsWith(r + sep)) {
+    throw new Error('Path is outside the projects folder')
+  }
+}
 
 // Always hidden from the file tree — would either dwarf the view (node_modules)
 // or are pure noise no user wants to browse (.git). Everything else, including

@@ -1,11 +1,10 @@
-import { execSync } from 'child_process'
 import {
   existsSync, mkdirSync, readdirSync, renameSync, rmSync, statSync, writeFileSync,
 } from 'fs'
 import { basename, dirname, join } from 'path'
 import simpleGit, { type SimpleGit } from 'simple-git'
 import type { ProjectInfo, ProjectTemplate } from '@shared/types'
-import { deriveProjectName } from '@shared/git-url'
+import { deriveProjectName, isSafeCloneUrl, repoNameFromUrl } from '@shared/git-url'
 
 // ─── Project discovery ────────────────────────────────────────────────────
 
@@ -126,8 +125,9 @@ function sanitizeName(raw: string, fallback: string): string {
 }
 
 /** Create a new project from a template; initializes a git repo with one commit. */
-export function createProject(opts: { root: string; name: string; template: ProjectTemplate }): string {
-  const { root, name, template } = opts
+export async function createProject(opts: { root: string; name: string; template: ProjectTemplate }): Promise<string> {
+  const { root, template } = opts
+  const name = sanitizeName(opts.name, 'project')
   const projectPath = join(root, name)
   if (existsSync(projectPath)) throw new Error(`Folder "${name}" already exists`)
 
@@ -140,23 +140,27 @@ export function createProject(opts: { root: string; name: string; template: Proj
     writeFileSync(filePath, content.replace(/%NAME%/g, name), 'utf8')
   }
 
-  execSync('git init', { cwd: projectPath })
-  execSync('git add -A', { cwd: projectPath })
-  execSync('git commit -m "Initial commit"', { cwd: projectPath })
+  const git = simpleGit(projectPath)
+  await git.init()
+  await git.add('.')
+  await git.commit('Initial commit')
 
   return projectPath
 }
 
-/** Clone a git remote into the projects root. URL is passed through to git unchanged. */
-export function cloneProject(opts: { root: string; url: string; name?: string }): string {
+/** Clone a git remote into the projects root. */
+export async function cloneProject(opts: { root: string; url: string; name?: string }): Promise<string> {
   const { root, url } = opts
-  const fallback = url.replace(/\.git$/, '').split('/').pop() || 'project'
-  const name = sanitizeName(opts.name ?? '', fallback)
+  if (!isSafeCloneUrl(url)) throw new Error('Unsupported or unsafe git URL')
+
+  const name = sanitizeName(opts.name ?? '', repoNameFromUrl(url) || 'project')
   const dest = join(root, name)
 
   if (existsSync(dest)) throw new Error(`Folder "${name}" already exists`)
 
-  execSync(`git clone "${url}" "${dest}"`, { encoding: 'utf8' })
+  // simple-git spawns git with an argv array (no shell), so URL metacharacters
+  // are inert. The scheme allowlist above blocks `-`-flags and ext::/fd:: RCE.
+  await simpleGit().clone(url, dest)
   return dest
 }
 
