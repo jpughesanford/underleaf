@@ -69,16 +69,28 @@ Underleaf is built with Electron, React, TypeScript, and electron-vite. Contribu
 
 ```bash
 npm install
-npm run dev     # launch in development mode
-npm run build   # package the app
+npm run dev       # launch in development mode
+npm run build     # package the app
+
+npm run typecheck # tsc across main, preload, renderer, and shared projects
+npm run lint      # eslint
+npm run test      # vitest (unit tests for the pure service logic)
+npm run check     # all three of the above — the pre-commit / CI gate
 ```
 
 **Project layout**
 
 ```
-electron/          # Main process — IPC handlers, file system, git, compile
-src/renderer/      # React UI — pages, components, styles
-resources/         # App icons and static assets
+electron/main/ipc/        # Thin IPC dispatchers
+electron/main/services/   # Core logic (git, compile, projects, files) — no Electron deps, unit-tested
+electron/preload/         # Namespaced window.api bridge, typed from the IPC contract
+src/shared/               # Types + IPC contract shared by main and renderer
+src/renderer/routes/      # Top-level destinations (onboarding, dashboard, editor)
+src/renderer/features/    # Reusable feature modules (code-editor, pdf-viewer, git-panel, …)
+src/renderer/ui/          # Headless UI primitives (Modal, ContextMenu, IconButton, …)
+src/renderer/theme/       # Theme JSONs, provider, schema
+tests/                    # Vitest unit tests for src/shared + electron/main/services
+resources/                # App icons and static assets
 ```
 
 The git integration uses `simple-git`, the editor is CodeMirror 6, and PDF rendering uses PDF.js. Build artifacts are written to `.underleaf-build/` inside each project folder (gitignored).

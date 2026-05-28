@@ -5,6 +5,9 @@ node_modules/
 out/
 dist/
 
+# Test coverage
+coverage/
+
 # electron-vite cache
 .vite/
 

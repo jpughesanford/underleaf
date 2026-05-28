@@ -5,6 +5,7 @@ import {
 import { basename, dirname, join } from 'path'
 import simpleGit, { type SimpleGit } from 'simple-git'
 import type { ProjectInfo, ProjectTemplate } from '@shared/types'
+import { deriveProjectName } from '@shared/git-url'
 
 // ─── Project discovery ────────────────────────────────────────────────────
 
@@ -50,18 +51,6 @@ async function getGitInfo(repoPath: string): Promise<Omit<ProjectInfo, 'id' | 'n
   return { branch, lastCommit, lastCommitDate, dirtyCount, remoteUrl, hasRemote, aheadBy, behindBy, hasConflicts, syncStatusKnown }
 }
 
-function deriveName(repoPath: string, remoteUrl: string | null): string {
-  const dirName = repoPath.split('/').pop() || repoPath
-  if (remoteUrl) {
-    const parts = remoteUrl.replace(/\.git$/, '').split('/')
-    const segment = parts[parts.length - 1]
-    // Overleaf git bridge IDs are hex strings — not human-readable, fall back to dirname
-    const isOverleafId = /^[0-9a-f]{20,}$/i.test(segment)
-    if (segment && !isOverleafId) return segment
-  }
-  return dirName
-}
-
 /**
  * Scan a root folder for git repositories; returns one ProjectInfo per repo.
  *
@@ -91,7 +80,7 @@ export async function scanProjects(rootPath: string): Promise<ProjectInfo[]> {
         const gitInfo = await getGitInfo(fullPath)
         return {
           id: fullPath,
-          name: deriveName(fullPath, gitInfo.remoteUrl),
+          name: deriveProjectName(fullPath, gitInfo.remoteUrl),
           path: fullPath,
           ...gitInfo,
         }

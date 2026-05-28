@@ -1,24 +1,11 @@
 import React, { useState } from 'react'
 import Modal from '@/ui/Modal'
+import { extractGitUrl, repoNameFromUrl } from '@shared/git-url'
 
 interface Props {
   projectsRoot: string
   onClose: () => void
   onCloned: (path: string, name: string) => void
-}
-
-// Strip "git clone " prefix and trailing dest-folder/args from pasted GitHub commands.
-function extractGitUrl(input: string): string {
-  let s = input.trim()
-  s = s.replace(/^git\s+clone\s+(?:--?\S+\s+)*/i, '')
-  return s.split(/\s+/)[0] ?? ''
-}
-
-// Best-effort repo name from any git URL we recognize.
-function deriveName(url: string): string {
-  const cleaned = url.replace(/\.git$/, '').replace(/\/+$/, '')
-  const last = cleaned.split('/').pop() ?? ''
-  return last
 }
 
 export default function CloneModal({ projectsRoot, onClose, onCloned }: Props) {
@@ -31,12 +18,12 @@ export default function CloneModal({ projectsRoot, onClose, onCloned }: Props) {
   function handleUrlChange(value: string) {
     const parsed = extractGitUrl(value)
     setUrl(parsed)
-    if (!nameTouched) setName(deriveName(parsed))
+    if (!nameTouched) setName(repoNameFromUrl(parsed))
   }
 
   async function handleClone() {
     const finalUrl = url.trim()
-    const finalName = name.trim() || deriveName(finalUrl)
+    const finalName = name.trim() || repoNameFromUrl(finalUrl)
     if (!finalUrl) { setError('URL is required'); return }
     if (!finalName) { setError('Project name is required'); return }
     setLoading(true)

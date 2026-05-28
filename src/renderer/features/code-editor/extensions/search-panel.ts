@@ -14,7 +14,8 @@ const SVG_NEXT    = `<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" 
 const SVG_CLOSE   = `<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M2.5 2.5l7 7m0-7-7 7"/></svg>`
 
 // ─── Match counting ───────────────────────────────────────────────────────
-function countMatches(state: EditorState, query: SearchQuery): { current: number; total: number } {
+// Exported for unit testing.
+export function countMatches(state: EditorState, query: SearchQuery): { current: number; total: number } {
   if (!query.search || !query.valid) return { current: 0, total: 0 }
   try {
     const cursor = query.getCursor(state) as Iterator<{ from: number; to: number }>

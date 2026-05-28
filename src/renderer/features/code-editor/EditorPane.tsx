@@ -16,6 +16,7 @@ import { RangeSetBuilder } from '@codemirror/state'
 import { overleafLatexLanguage, overleafClassHighlighter } from './extensions/latex-language'
 import { latexCompletions } from './extensions/completions'
 import { createUnderleafSearchPanel, underleafSearchPanelTheme } from './extensions/search-panel'
+import { classifyConflictLines } from './extensions/conflicts'
 import { useTheme } from '@/theme/ThemeProvider'
 import { UnderleafTheme } from '@/theme/schema'
 
@@ -104,30 +105,22 @@ const conflictOursMark    = Decoration.line({ attributes: { style: 'background: 
 const conflictTheirsMark  = Decoration.line({ attributes: { style: 'background: rgba(239,68,68,0.1); border-left: 3px solid #c62828;' } })
 const conflictMarkerMark  = Decoration.line({ attributes: { style: 'background: rgba(245,158,11,0.12); border-left: 3px solid #f59e0b;' } })
 
+const conflictMarkByKind = {
+  marker: conflictMarkerMark,
+  ours: conflictOursMark,
+  theirs: conflictTheirsMark,
+} as const
+
 function conflictDecorations(doc: Text): DecorationSet {
+  const lines: string[] = []
+  for (let i = 1; i <= doc.lines; i++) lines.push(doc.line(i).text)
+  const kinds = classifyConflictLines(lines)
+
   const builder = new RangeSetBuilder<Decoration>()
-  let inOurs = false, inTheirs = false
-
   for (let i = 1; i <= doc.lines; i++) {
-    const line = doc.line(i)
-    const text = line.text
-    const from = line.from
-    if (text.startsWith('<<<<<<<')) {
-      inOurs = true
-      builder.add(from, from, conflictMarkerMark)
-    } else if (text.startsWith('=======') && inOurs) {
-      inOurs = false; inTheirs = true
-      builder.add(from, from, conflictMarkerMark)
-    } else if (text.startsWith('>>>>>>>') && inTheirs) {
-      inTheirs = false
-      builder.add(from, from, conflictMarkerMark)
-    } else if (inOurs) {
-      builder.add(from, from, conflictOursMark)
-    } else if (inTheirs) {
-      builder.add(from, from, conflictTheirsMark)
-    }
+    const kind = kinds[i - 1]
+    if (kind) builder.add(doc.line(i).from, doc.line(i).from, conflictMarkByKind[kind])
   }
-
   return builder.finish()
 }
 

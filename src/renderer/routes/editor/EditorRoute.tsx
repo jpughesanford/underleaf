@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import type { CompileTarget } from '@shared/types'
+import { resolveErrorPath } from '@shared/error-path'
 
 import { SettingsModal } from '@/features/settings'
 import { EditorPane, type EditorPaneHandle } from '@/features/code-editor'
@@ -89,26 +90,7 @@ export default function EditorRoute({ projectPath, projectName, onBack, onRename
   // ── Jump-to-error from the compile panel ───────────────────────────────
   const jumpToError = useCallback(async (file: string, line: number | null) => {
     if (!line) return
-
-    let targetPath: string
-    if (file.startsWith('/')) {
-      targetPath = file
-    } else {
-      // Normalize ../.. segments from LaTeX log relative paths
-      const segments = `${projectPath}/${file}`.split('/')
-      const resolved: string[] = []
-      for (const seg of segments) {
-        if (seg === '..') resolved.pop()
-        else if (seg !== '.') resolved.push(seg)
-      }
-      const normalized = resolved.join('/')
-      // If normalization escaped the project, the log path was outside the
-      // project — fall back to looking for the bare filename inside.
-      targetPath = normalized.startsWith(projectPath)
-        ? normalized
-        : `${projectPath}/${file.split('/').pop() ?? file}`
-    }
-    await tabs.openFile(targetPath)
+    await tabs.openFile(resolveErrorPath(projectPath, file))
     // rAF lets React commit a fresh EditorPane (if a new tab opened) before jump.
     requestAnimationFrame(() => editorRef.current?.jump(line))
   }, [projectPath, tabs])
