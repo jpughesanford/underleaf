@@ -20,6 +20,8 @@ import type {
   ProjectInfo,
   ProjectTemplate,
   SaveDialogChoice,
+  SyncForwardResult,
+  SyncInverseResult,
 } from './types'
 
 // Each entry: 'channel-name': (args) => Promise<return>.
@@ -88,6 +90,12 @@ export interface IpcContract {
   'compile:detectMainDoc': (projectPath: string) => Promise<string | null>
   'compile:getConfig': (projectPath: string) => Promise<CompileConfig>
   'compile:setConfig': (projectPath: string, config: CompileConfig) => Promise<void>
+
+  // ── synctex (editor ↔ PDF jump) ──────────────────────────────────────────
+  /** Forward search: source position → PDF location. Null if synctex/data missing. */
+  'synctex:forward': (projectPath: string, args: { file: string; line: number; column: number }) => Promise<SyncForwardResult | null>
+  /** Inverse search: PDF location → source position. Null if synctex/data missing. */
+  'synctex:inverse': (projectPath: string, args: { page: number; x: number; y: number }) => Promise<SyncInverseResult | null>
 }
 
 export type IpcChannel = keyof IpcContract

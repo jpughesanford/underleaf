@@ -110,6 +110,22 @@ export type SidebarTab = 'files' | 'git' | 'compile'
 export type CompileTarget = 'root' | 'active'
 export type ViewMode = 'editor' | 'split' | 'pdf'
 
+// ─── SyncTeX (editor ↔ PDF jump) ───────────────────────────────────────────
+// Coordinates are PDF points (72dpi), origin at the page's top-left, y down —
+// the same scale as pdf.js getViewport({ scale: 1 }), so renderer math is just
+// `point * scale`.
+export interface SyncForwardResult {
+  page: number      // 1-based
+  x: number         // points from left
+  y: number         // points from top
+  height: number    // box height in points (for the highlight band)
+}
+export interface SyncInverseResult {
+  file: string      // absolute path to the source .tex
+  line: number      // 1-based
+  column: number    // 0-based; -1 when synctex can't determine it
+}
+
 // ─── Dialog ───────────────────────────────────────────────────────────────
 export type SaveDialogChoice = 'save' | 'discard' | 'cancel'
 

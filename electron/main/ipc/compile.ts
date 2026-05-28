@@ -1,6 +1,7 @@
 import { ipcMain, BrowserWindow } from 'electron'
 import type Store from 'electron-store'
 import * as compile from '../services/compile'
+import { resolveSynctexPath, synctexForward, synctexInverse } from '../services/synctex'
 import { resolveLatexmkPath } from '../services/tex-live'
 import type { CompileConfig, CompileOptions } from '@shared/types'
 
@@ -46,4 +47,16 @@ export function registerCompileIPC(store: Store): void {
   ipcMain.handle('compile:getConfig', (_, projectPath: string) => compile.readConfig(projectPath))
   ipcMain.handle('compile:setConfig', (_, projectPath: string, config: CompileConfig) =>
     compile.writeConfig(projectPath, config))
+
+  // ── synctex ───────────────────────────────────────────────────────────────
+  const synctexPathFor = () => {
+    const latexmkPath = resolveLatexmkPath(store.get('latexmkPath') as string | undefined) ?? 'latexmk'
+    return resolveSynctexPath(latexmkPath)
+  }
+
+  ipcMain.handle('synctex:forward', (_, projectPath: string, args: { file: string; line: number; column: number }) =>
+    synctexForward({ projectPath, synctexPath: synctexPathFor(), ...args }))
+
+  ipcMain.handle('synctex:inverse', (_, projectPath: string, args: { page: number; x: number; y: number }) =>
+    synctexInverse({ projectPath, synctexPath: synctexPathFor(), ...args }))
 }

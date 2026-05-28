@@ -101,6 +101,13 @@ const api = {
       invoke('compile:setConfig', projectPath, config),
   },
 
+  synctex: {
+    forward: (projectPath: string, args: { file: string; line: number; column: number }) =>
+      invoke('synctex:forward', projectPath, args),
+    inverse: (projectPath: string, args: { page: number; x: number; y: number }) =>
+      invoke('synctex:inverse', projectPath, args),
+  },
+
   events: {
     onCompileProgress: (cb: (chunk: string) => void) => {
       const handler = (_: Electron.IpcRendererEvent, chunk: string) => cb(chunk)

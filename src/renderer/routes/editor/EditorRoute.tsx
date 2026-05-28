@@ -7,7 +7,7 @@ import { EditorPane, type EditorPaneHandle } from '@/features/code-editor'
 import { FileExplorer } from '@/features/file-explorer'
 import { GitPanel } from '@/features/git-panel'
 import { CompilePanel } from '@/features/compile-panel'
-import { PdfPane } from '@/features/pdf-viewer'
+import { PdfPane, type PdfPaneHandle } from '@/features/pdf-viewer'
 import { DiffView, type DiffTarget } from '@/features/diff-view'
 
 import Toolbar from './components/Toolbar'
@@ -39,6 +39,7 @@ export default function EditorRoute({ projectPath, projectName, onBack, onRename
   const [diffTarget, setDiffTarget] = useState<DiffTarget | null>(null)
   const [gitRefresh, setGitRefresh] = useState(0)
   const editorRef = useRef<EditorPaneHandle>(null)
+  const pdfRef = useRef<PdfPaneHandle>(null)
 
   // Load compile-on-save preference; reloaded after the settings modal closes.
   useEffect(() => {
@@ -117,6 +118,30 @@ export default function EditorRoute({ projectPath, projectName, onBack, onRename
     await tabs.openFile(resolveErrorPath(projectPath, file))
     // rAF lets React commit a fresh EditorPane (if a new tab opened) before jump.
     requestAnimationFrame(() => editorRef.current?.jump(line))
+  }, [projectPath, tabs])
+
+  // ── SyncTeX (editor ↔ PDF jump) ─────────────────────────────────────────
+  // Forward: caret in the editor → flash the matching spot in the PDF. Make
+  // sure the PDF is on screen first (rAF lets a freshly-split PDF pane lay out).
+  const findInPdf = useCallback(async () => {
+    const cursor = editorRef.current?.getCursor()
+    const active = tabs.activeTab
+    if (!cursor || !active || diffTarget) return
+    if (layout.viewMode === 'editor') layout.setViewMode('split')
+    const res = await window.api.synctex.forward(projectPath, {
+      file: active, line: cursor.line, column: cursor.column,
+    })
+    if (res) requestAnimationFrame(() => pdfRef.current?.goToPdfLocation(res))
+  }, [projectPath, tabs.activeTab, diffTarget, layout])
+
+  // Inverse: a PDF location (⌘-click, or the divider's ← button via
+  // inverseSearchAtCenter) → open that source file and jump to the line.
+  const findInSource = useCallback(async (page: number, x: number, y: number) => {
+    const res = await window.api.synctex.inverse(projectPath, { page, x, y })
+    if (!res) return
+    setDiffTarget(null)
+    await tabs.openFile(res.file)
+    requestAnimationFrame(() => editorRef.current?.jump(res.line))
   }, [projectPath, tabs])
 
   // ── Menu actions (refs keep latest fns without re-binding the listener) ─
@@ -316,8 +341,10 @@ export default function EditorRoute({ projectPath, projectName, onBack, onRename
         {!diffTarget && layout.viewMode === 'split' && (
           <ResizeHandle
             onDrag={layout.onPdfDrag}
-            onCollapse={() => layout.setViewMode('editor')}
-            collapseDirection="right"
+            syncButtons={{
+              onForward: findInPdf,
+              onInverse: () => pdfRef.current?.inverseSearchAtCenter(),
+            }}
           />
         )}
 
@@ -331,7 +358,9 @@ export default function EditorRoute({ projectPath, projectName, onBack, onRename
             flexShrink: 0,
             borderLeft: '1px solid var(--color-border)',
           }}>
-            {pdfPath ? <PdfPane pdfPath={pdfPath} version={pdfVersion} /> : <EmptyPdf />}
+            {pdfPath
+              ? <PdfPane ref={pdfRef} pdfPath={pdfPath} version={pdfVersion} onInverseSearch={findInSource} />
+              : <EmptyPdf />}
           </div>
         )}
       </div>

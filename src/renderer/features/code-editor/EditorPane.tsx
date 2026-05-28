@@ -29,6 +29,8 @@ interface Props {
 
 export interface EditorPaneHandle {
   jump: (line: number) => void
+  /** Current caret position as 1-based line + 0-based column, or null if unmounted. */
+  getCursor: () => { line: number; column: number } | null
 }
 
 // Overleaf-identical language pipeline lives in ./extensions/latex-language.ts.
@@ -238,6 +240,13 @@ const EditorPane = forwardRef<EditorPaneHandle, Props>(function EditorPane(
         // and replayed in the mount effect below.
         pendingJumpRef.current = line
       }
+    },
+    getCursor() {
+      const view = viewRef.current
+      if (!view) return null
+      const head = view.state.selection.main.head
+      const line = view.state.doc.lineAt(head)
+      return { line: line.number, column: head - line.from }
     },
   }), [])
 

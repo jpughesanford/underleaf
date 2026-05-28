@@ -1,1 +1,1 @@
-export { default as PdfPane } from './PdfPane'
+export { default as PdfPane, type PdfPaneHandle } from './PdfPane'

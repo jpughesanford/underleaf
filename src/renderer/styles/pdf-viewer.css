@@ -50,6 +50,23 @@
   box-shadow: 0 1px 4px rgba(0,0,0,0.35);
 }
 
+/* SyncTeX forward-search flash — a brand-tinted band over the target line that
+   fades out on its own. pointer-events:none so it never blocks ⌘-click inverse. */
+.synctex-highlight {
+  position: absolute;
+  pointer-events: none;
+  z-index: 4;
+  background: var(--color-brand);
+  border-radius: 3px;
+  mix-blend-mode: multiply;
+  animation: underleaf-synctex-flash 2s ease-out forwards;
+}
+@keyframes underleaf-synctex-flash {
+  0%   { opacity: 0; }
+  12%  { opacity: 0.5; }
+  100% { opacity: 0; }
+}
+
 /* pdfjs AnnotationLayer — turns \ref / \autoref / \url / \href into clickable
    links by overlaying <section> elements on the rendered canvas. AnnotationLayer.render()
    positions via inline calc(... * var(--scale-factor)), so the parent must

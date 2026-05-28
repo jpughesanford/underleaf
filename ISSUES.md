@@ -8,7 +8,7 @@
 
 ## Mid Term
 
-- [ ] can we add the "Find in PDF" and "Find in Source" buttons that over leaf has that jump between the editor and pdf?
+- [x] can we add the "Find in PDF" and "Find in Source" buttons that over leaf has that jump between the editor and pdf? (SyncTeX forward/inverse: two buttons on the editor/PDF divider + ⌘-click on the PDF)
 - [ ] add spell check to editor. 
 
 ## Deffered 

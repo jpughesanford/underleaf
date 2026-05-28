@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
+import React, { useEffect, useRef, useState, useCallback, useMemo, forwardRef, useImperativeHandle } from 'react'
+import type { SyncForwardResult } from '@shared/types'
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 import { useTheme } from '@/theme/ThemeProvider'
 import IconButton from '@/ui/IconButton'
@@ -30,6 +31,16 @@ interface PDFPageProxy {
 interface Props {
   pdfPath: string
   version?: number
+  /** ⌘-click on the PDF, or the divider's "find in source" button, reports a
+      PDF location (page + points) so the route can run inverse SyncTeX. */
+  onInverseSearch?: (page: number, x: number, y: number) => void
+}
+
+export interface PdfPaneHandle {
+  /** Forward SyncTeX: scroll to a PDF location and flash a highlight band. */
+  goToPdfLocation: (loc: SyncForwardResult) => void
+  /** Run inverse search from the point at the centre of the current viewport. */
+  inverseSearchAtCenter: () => void
 }
 
 function PdfPage({
@@ -138,7 +149,7 @@ function PdfPage({
   )
 }
 
-export default function PdfPane({ pdfPath, version = 0 }: Props) {
+const PdfPane = forwardRef<PdfPaneHandle, Props>(function PdfPane({ pdfPath, version = 0, onInverseSearch }, ref) {
   const [doc, setDoc] = useState<PDFDocumentProxy | null>(null)
   const [numPages, setNumPages] = useState(0)
   const [currentPage, setCurrentPage] = useState(1)
@@ -363,6 +374,73 @@ export default function PdfPane({ pdfPath, version = 0 }: Props) {
     const available = scrollRef.current.clientHeight - 40
     setScale(+(available / naturalSize.height).toFixed(2))
   }, [naturalSize])
+
+  // ── SyncTeX ────────────────────────────────────────────────────────────────
+  // Transient highlight band drawn over the target line after a forward jump.
+  // `key` bumps each jump so re-jumping to the same spot restarts the flash.
+  const [highlight, setHighlight] = useState<{ top: number; left: number; width: number; height: number; key: number } | null>(null)
+  const highlightKey = useRef(0)
+
+  // The inner page box (the div that wraps the canvas) for a given page number.
+  // Its offset* are relative to the positioned content div, so they translate
+  // PDF points (×scale) into scroll-content pixels.
+  const pageBox = useCallback((pageNum: number): HTMLElement | null => {
+    const wrapper = scrollRef.current?.querySelector<HTMLElement>(`[data-page="${pageNum}"]`)
+    return (wrapper?.firstElementChild as HTMLElement | null) ?? null
+  }, [])
+
+  const goToPdfLocation = useCallback((loc: SyncForwardResult) => {
+    const scrollEl = scrollRef.current
+    const box = pageBox(loc.page)
+    if (!scrollEl || !box) return
+    const yPx = loc.y * scale
+    // Band straddles the point: synctex y is line-relative, so centring on it
+    // keeps the highlight on the right line even if y is a baseline vs. a top.
+    const bandH = Math.max(loc.height * scale, 16)
+    const top = box.offsetTop + yPx
+    scrollEl.scrollTo({ top: Math.max(0, top - scrollEl.clientHeight / 3), behavior: 'smooth' })
+    setHighlight({
+      top: top - bandH / 2,
+      left: box.offsetLeft,
+      width: box.offsetWidth,
+      height: bandH,
+      key: (highlightKey.current += 1),
+    })
+  }, [scale, pageBox])
+
+  // Clear the flash once its CSS animation finishes.
+  useEffect(() => {
+    if (!highlight) return
+    const t = setTimeout(() => setHighlight(null), 2000)
+    return () => clearTimeout(t)
+  }, [highlight])
+
+  const inverseSearchAtCenter = useCallback(() => {
+    const scrollEl = scrollRef.current
+    if (!scrollEl || !onInverseSearch) return
+    const centerY = scrollEl.scrollTop + scrollEl.clientHeight / 2
+    const wrappers = Array.from(scrollEl.querySelectorAll<HTMLElement>('[data-page]'))
+    for (const wrapper of wrappers) {
+      if (centerY < wrapper.offsetTop + wrapper.offsetHeight) {
+        const box = wrapper.firstElementChild as HTMLElement
+        onInverseSearch(Number(wrapper.dataset.page), (box.offsetWidth / 2) / scale, (centerY - box.offsetTop) / scale)
+        return
+      }
+    }
+  }, [scale, onInverseSearch])
+
+  useImperativeHandle(ref, () => ({ goToPdfLocation, inverseSearchAtCenter }), [goToPdfLocation, inverseSearchAtCenter])
+
+  // ⌘/Ctrl-click reports the clicked PDF point for inverse search.
+  const onContentClick = useCallback((e: React.MouseEvent) => {
+    if ((!e.metaKey && !e.ctrlKey) || !onInverseSearch) return
+    const wrapper = (e.target as HTMLElement).closest('[data-page]') as HTMLElement | null
+    const box = wrapper?.firstElementChild as HTMLElement | null
+    if (!wrapper || !box) return
+    const rect = box.getBoundingClientRect()
+    e.preventDefault()
+    onInverseSearch(Number(wrapper.dataset.page), (e.clientX - rect.left) / scale, (e.clientY - rect.top) / scale)
+  }, [scale, onInverseSearch])
 
   const pages = doc ? Array.from({ length: numPages }, (_, i) => i + 1) : []
 
@@ -591,13 +669,22 @@ export default function PdfPane({ pdfPath, version = 0 }: Props) {
 
         {!loading && !error && doc && pages.length > 0 && (
           <div
+            onClick={onContentClick}
             style={{
+              position: 'relative',
               minWidth: 'min-content',
               padding: '20px',
               filter: brightness < 1 ? `brightness(${brightness})` : undefined,
               transition: 'filter 160ms ease-out',
             }}
           >
+            {highlight && (
+              <div
+                key={highlight.key}
+                className="synctex-highlight"
+                style={{ top: highlight.top, left: highlight.left, width: highlight.width, height: highlight.height }}
+              />
+            )}
             {pages.map(pageNum => (
               <PdfPage
                 // Intentionally omits `version`: the canvas re-renders via its own
@@ -617,5 +704,7 @@ export default function PdfPane({ pdfPath, version = 0 }: Props) {
       </div>
     </div>
   )
-}
+})
+
+export default PdfPane
 
