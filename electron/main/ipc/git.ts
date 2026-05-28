@@ -19,6 +19,8 @@ export function registerGitIPC(): void {
   ipcMain.handle('git:log', (_, projectPath: string, maxCount?: number) => git.log(projectPath, maxCount))
   ipcMain.handle('git:diff', (_, projectPath: string, filePath: string, staged: boolean) =>
     git.diff(projectPath, filePath, staged))
+  ipcMain.handle('git:showStaged', (_, projectPath: string, filePath: string) =>
+    git.showStaged(projectPath, filePath))
 
   ipcMain.handle('git:resolveConflict', (_, projectPath: string, filePath: string, resolution: ConflictResolution) =>
     git.resolveConflict(projectPath, filePath, resolution))

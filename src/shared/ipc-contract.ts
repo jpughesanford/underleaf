@@ -75,6 +75,9 @@ export interface IpcContract {
   'git:forcePush': (projectPath: string) => Promise<GitOpResult>
   'git:log': (projectPath: string, maxCount?: number) => Promise<GitLogEntry[]>
   'git:diff': (projectPath: string, filePath: string, staged: boolean) => Promise<string>
+  /** Contents of a file as currently staged (the index version), or null if it
+      isn't in the index. Used to reveal collapsed context in a staged diff. */
+  'git:showStaged': (projectPath: string, filePath: string) => Promise<string | null>
   'git:resolveConflict': (projectPath: string, filePath: string, resolution: ConflictResolution) => Promise<void>
 
   // ── compile ─────────────────────────────────────────────────────────────

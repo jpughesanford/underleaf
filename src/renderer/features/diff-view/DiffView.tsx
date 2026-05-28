@@ -57,10 +57,15 @@ export default function DiffView({ projectPath, target, onClose, onOpenInEditor,
         } else {
           const patch = await window.api.git.diff(projectPath, filePath, staged)
           let parsed = parseUnifiedDiff(patch)
-          // The working-tree file doubles as the source for revealing the
-          // unchanged lines git collapsed between hunks (they're identical on
-          // both sides, so the new-side line numbers index straight into it).
-          const content = parsed.binary ? null : await window.api.files.read(absPath)
+          // Source for revealing the unchanged lines git collapsed between hunks.
+          // It must match the new side of *this* comparison so the revealed text
+          // is exact: the staged snapshot for a staged diff, otherwise the
+          // working tree. (New-side line numbers index straight into it.)
+          const content = parsed.binary
+            ? null
+            : staged
+              ? await window.api.git.showStaged(projectPath, filePath)
+              : await window.api.files.read(absPath)
           // No textual hunks + not binary ⇒ untracked file (git diff is empty);
           // show its whole contents as additions so "click to see changes" works.
           if (parsed.hunks.length === 0 && !parsed.binary && content && content.length) {

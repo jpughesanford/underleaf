@@ -148,6 +148,19 @@ export async function diff(projectPath: string, filePath: string, staged: boolea
   return staged ? git.diff(['--cached', filePath]) : git.diff([filePath])
 }
 
+/**
+ * Read a file's staged (index) contents via `git show :<path>`. Returns null if
+ * the path isn't in the index (e.g. unmerged or never staged), so callers can
+ * fall back gracefully rather than treating it as an error.
+ */
+export async function showStaged(projectPath: string, filePath: string): Promise<string | null> {
+  try {
+    return await simpleGit(projectPath).show([`:${filePath}`])
+  } catch {
+    return null
+  }
+}
+
 // ─── Conflicts ───────────────────────────────────────────────────────────
 
 export async function resolveConflict(projectPath: string, filePath: string, resolution: ConflictResolution): Promise<void> {

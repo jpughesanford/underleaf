@@ -84,6 +84,8 @@ const api = {
     log: (projectPath: string, maxCount?: number) => invoke('git:log', projectPath, maxCount),
     diff: (projectPath: string, file: string, staged: boolean) =>
       invoke('git:diff', projectPath, file, staged),
+    showStaged: (projectPath: string, file: string) =>
+      invoke('git:showStaged', projectPath, file),
     resolveConflict: (projectPath: string, file: string, resolution: ConflictResolution) =>
       invoke('git:resolveConflict', projectPath, file, resolution),
   },
