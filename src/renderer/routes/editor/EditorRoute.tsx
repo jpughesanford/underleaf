@@ -254,8 +254,10 @@ export default function EditorRoute({ projectPath, projectName, onBack, onRename
           />
         )}
 
-        {/* Editor */}
-        {layout.viewMode !== 'pdf' && (
+        {/* Editor / diff. The diff view spans the whole main area (occluding the
+            PDF pane too) — so it renders whenever a diff is open, regardless of
+            view mode, and the PDF handle + pane below are suppressed while it's up. */}
+        {(diffTarget || layout.viewMode !== 'pdf') && (
           // 320px minWidth = the search panel's smallest legible width.
           // Below that the PDF resize handle starts breaking the layout,
           // so the flex item refuses to shrink past it.
@@ -309,7 +311,7 @@ export default function EditorRoute({ projectPath, projectName, onBack, onRename
           </div>
         )}
 
-        {pdfPath && layout.viewMode === 'split' && (
+        {!diffTarget && pdfPath && layout.viewMode === 'split' && (
           <ResizeHandle
             onDrag={layout.onPdfDrag}
             onCollapse={() => layout.setViewMode('editor')}
@@ -317,7 +319,7 @@ export default function EditorRoute({ projectPath, projectName, onBack, onRename
           />
         )}
 
-        {pdfPath && (layout.viewMode === 'split' || layout.viewMode === 'pdf') && (
+        {!diffTarget && pdfPath && (layout.viewMode === 'split' || layout.viewMode === 'pdf') && (
           <div style={{
             width: layout.viewMode === 'pdf' ? undefined : layout.pdfWidth,
             flex: layout.viewMode === 'pdf' ? 1 : undefined,

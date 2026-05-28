@@ -1,11 +1,15 @@
 /* Diff & conflict viewer — modeled on VS Code's side-by-side diff: quiet chrome,
-   whole-line background tints for add/delete, and a clearly stronger word-level
-   highlight layered on top so the eye lands on the exact tokens that changed.
+   whole-line background tints for add/delete (no per-word highlight — authors
+   found it distracting), a coloured +/− sign per changed line, and a change-
+   overview minimap rail down the right edge.
 
    Layout is driven by fixed-width gutters so the left and right halves stay
    aligned across rows without any JS scroll syncing — one scroll container holds
    everything, and each `.dv-row` is a single CSS grid spanning both panes, so a
    wrapped line grows both sides together and alignment never drifts.
+
+   Collapsed unchanged stretches are marked by "the fold" (.dv-fold): a quiet
+   centred rule + capsule in plain language, not git's "@@ … @@".
 
    Per STYLE_GUIDE: all chrome colors come from --color-* / --badge-* vars; only
    the add/delete *tints* are rgba literals, because (like git itself) green = added
@@ -38,13 +42,14 @@
   overflow: hidden;
 }
 
-/* Mode bar. Reads like the editor tab strip (§6.4): app bg, hairline bottom. */
+/* Mode bar. Matches the panel section-header height (--header-h, §6.2) so it
+   lines up with the Source Control header in the column to its left. */
 .dv-header {
   display: flex;
   align-items: center;
   gap: 10px;
-  height: var(--toolbar-height);
-  padding: 0 8px 0 14px;
+  height: var(--header-h);
+  padding: 0 6px 0 14px;
   border-bottom: 1px solid var(--color-border);
   background: var(--color-bg-app);
   flex-shrink: 0;
@@ -117,49 +122,120 @@
 }
 .dv-seg button + button { border-left: 1px solid var(--color-border); }
 .dv-seg button:hover:not(.on) { background: var(--color-bg-card-hover); color: var(--color-text-primary); }
-.dv-seg button.on { background: rgba(76, 175, 80, 0.15); color: var(--color-brand); }
+.dv-seg button.on { background: var(--color-brand-tint); color: var(--color-brand); }
 
-/* ── Scroll body ───────────────────────────────────────────────────────── */
+/* ── Scroll body + change-overview rail ────────────────────────────────── */
+/* The file diff lays the scroll body and the minimap rail side by side; the
+   conflict view uses .dv-body on its own (no rail). */
+.dv-stage {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
 /* Scrollbar is intentionally NOT restyled here — the global thin 6px bar from
-   reset.css applies (§7). */
+   reset.css applies (§7). position:relative anchors row offsetTop measurement
+   used by the minimap. */
 .dv-body {
   flex: 1;
+  min-width: 0;
+  position: relative;
   overflow: auto;
   font-family: var(--font-mono);
   font-size: 13px;
   line-height: 1.5;
 }
 
-/* ── Skipped-region divider ────────────────────────────────────────────── */
-/* Marks where unchanged text was collapsed. Plain-language label (not git's
-   "@@ … @@") so non-technical authors understand the line-number jump; the raw
-   coordinates live in the title tooltip. Clicking reveals the hidden lines. */
-.dv-expand {
+/* Minimap: the whole scrollable diff compressed onto a thin rail. Ticks mark
+   changed rows; the box is the current viewport. Click/drag to navigate. */
+.dv-map {
+  position: relative;
+  width: 14px;
+  flex-shrink: 0;
+  background: var(--color-bg-panel);
+  border-left: 1px solid var(--color-border);
+  cursor: pointer;
+}
+.dv-map-view {
+  position: absolute;
+  left: 1px;
+  right: 1px;
+  min-height: 14px;
+  background: var(--color-brand-tint);
+  border: 1px solid var(--color-brand);
+  border-radius: 2px;
+  pointer-events: none;
+}
+.dv-map-tick {
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  height: 2px;
+  border-radius: 1px;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+.dv-map-tick.add    { background: var(--dv-add-accent); }
+.dv-map-tick.del    { background: var(--dv-del-accent); }
+.dv-map-tick.change { background: linear-gradient(90deg, var(--dv-del-accent) 50%, var(--dv-add-accent) 50%); }
+
+/* ── Skipped-region separator · "the fold" ─────────────────────────────── */
+/* Marks where unchanged text was collapsed. A quiet centred rule with a floating
+   capsule, in plain language (not git's "@@ … @@") so non-technical authors get
+   it; the raw coordinates live in the title tooltip. The little green bar is the
+   Underleaf accent. Clicking reveals the hidden lines; on hover the capsule lifts
+   and an unfold chevron fades in. */
+.dv-fold {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
   width: 100%;
-  padding: 5px 14px;
-  font-family: var(--font-sans);
-  font-size: 11px;
-  color: var(--color-text-muted);
-  background: var(--color-bg-sidebar);
+  padding: 13px 0;
+  background: var(--color-bg-app);
   border: none;
-  border-top: 1px solid var(--color-border);
-  border-bottom: 1px solid var(--color-border);
+  font-family: var(--font-sans);
 }
-button.dv-expand {
-  cursor: pointer;
-  transition: background 120ms ease, color 120ms ease;
+.dv-fold::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--color-border) 14%, var(--color-border) 86%, transparent);
 }
-button.dv-expand:hover { background: var(--color-bg-card-hover); color: var(--color-text-secondary); }
-button.dv-expand:hover svg { color: var(--color-brand); }
-.dv-expand svg { flex-shrink: 0; color: var(--color-text-muted); }
+.dv-fold-chip {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 3px 14px;
+  background: var(--color-bg-app);
+  border: 1px solid transparent;
+  border-radius: 999px;
+  transition: background 140ms ease, border-color 140ms ease, transform 140ms ease;
+}
+.dv-fold-bar {
+  width: 3px;
+  height: 13px;
+  border-radius: 2px;
+  background: var(--color-brand);
+  flex-shrink: 0;
+}
+.dv-fold-n { font-size: 12px; font-weight: 600; color: var(--color-text-primary); }
+.dv-fold-chev { flex-shrink: 0; color: var(--color-text-muted); opacity: 0; transition: opacity 140ms ease, color 140ms ease; }
+button.dv-fold { cursor: pointer; }
+button.dv-fold:hover .dv-fold-chip {
+  background: var(--color-bg-card);
+  border-color: var(--color-border);
+  transform: translateY(-1px);
+}
+button.dv-fold:hover .dv-fold-chev { opacity: 1; color: var(--color-brand); }
 
 /* ── Rows ──────────────────────────────────────────────────────────────── */
 .dv-row { display: grid; }
-.dv-row.sxs    { grid-template-columns: var(--dv-gutter-w) 1fr var(--dv-gutter-w) 1fr; }
+.dv-row.sxs    { grid-template-columns: var(--dv-gutter-w) 1.4em 1fr var(--dv-gutter-w) 1.4em 1fr; }
 .dv-row.inline { grid-template-columns: var(--dv-gutter-w) var(--dv-gutter-w) 1.3em 1fr; }
 
 .dv-num {
@@ -199,8 +275,8 @@ button.dv-expand:hover svg { color: var(--color-brand); }
 .dv-num.dv-add  { background: var(--dv-add-gutter); }
 .dv-code.dv-del { background: var(--dv-del-line); }
 .dv-num.dv-del  { background: var(--dv-del-gutter); }
-.dv-sign.dv-add { color: var(--dv-add-accent); }
-.dv-sign.dv-del { color: var(--dv-del-accent); }
+.dv-sign.dv-add { color: var(--dv-add-accent); background: var(--dv-add-line); }
+.dv-sign.dv-del { color: var(--dv-del-accent); background: var(--dv-del-line); }
 .dv-filler { background: var(--dv-filler-bg); }
 
 /* Lightweight LaTeX syntax tint (text color only — composes over any bg). */

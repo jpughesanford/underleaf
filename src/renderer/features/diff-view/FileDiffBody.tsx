@@ -44,17 +44,23 @@ export default function FileDiffBody({ diff, layout, sourceText }: Props) {
                   ? (
                     <button
                       type="button"
-                      className="dv-expand unselectable"
+                      className="dv-fold unselectable"
                       onClick={() => reveal(i)}
                       title={`@@ -${hunk.oldStart} +${hunk.newStart} @@${hunk.header ? '  ' + hunk.header : ''}`}
                     >
-                      <ChevronsUpDown size={13} strokeWidth={2} />
-                      Click to expand {hidden.toLocaleString()} line{hidden === 1 ? '' : 's'} of unchanged text
+                      <span className="dv-fold-chip">
+                        <span className="dv-fold-bar" />
+                        <span className="dv-fold-n">{hidden.toLocaleString()} unchanged line{hidden === 1 ? '' : 's'}</span>
+                        <ChevronsUpDown className="dv-fold-chev" size={13} strokeWidth={2} />
+                      </span>
                     </button>
                   )
                   : (
-                    <div className="dv-expand is-static">
-                      {hidden.toLocaleString()} unchanged line{hidden === 1 ? '' : 's'} hidden
+                    <div className="dv-fold is-static">
+                      <span className="dv-fold-chip">
+                        <span className="dv-fold-bar" />
+                        <span className="dv-fold-n">{hidden.toLocaleString()} unchanged line{hidden === 1 ? '' : 's'}</span>
+                      </span>
                     </div>
                   )
             )}
@@ -106,12 +112,14 @@ function SplitRow({ row }: { row: SideRow }) {
   const rightKind = row.kind === 'change' || row.kind === 'add' ? 'dv-add' : row.kind === 'context' ? '' : 'dv-filler'
 
   return (
-    <div className="dv-row sxs">
+    <div className="dv-row sxs" data-chg={row.kind === 'context' ? undefined : row.kind}>
       <div className={`dv-num left ${leftKind}`}>{row.left?.no ?? ''}</div>
+      <div className={`dv-sign ${leftKind}`}>{leftKind === 'dv-del' ? '−' : ''}</div>
       <div className={`dv-code left ${leftKind}`}>
         {row.left ? <CodeContent text={row.left.text} /> : ' '}
       </div>
       <div className={`dv-num right ${rightKind}`}>{row.right?.no ?? ''}</div>
+      <div className={`dv-sign ${rightKind}`}>{rightKind === 'dv-add' ? '+' : ''}</div>
       <div className={`dv-code right ${rightKind}`}>
         {row.right ? <CodeContent text={row.right.text} /> : ' '}
       </div>
@@ -153,8 +161,9 @@ function InlineLine({ oldNo, newNo, sign, kind, text }: {
   kind: string
   text: string
 }) {
+  const chg = kind === 'dv-add' ? 'add' : kind === 'dv-del' ? 'del' : undefined
   return (
-    <div className={`dv-row inline ${kind}`}>
+    <div className={`dv-row inline ${kind}`} data-chg={chg}>
       <div className={`dv-num ${kind}`}>{oldNo ?? ''}</div>
       <div className={`dv-num ${kind}`}>{newNo ?? ''}</div>
       <div className={`dv-sign ${kind}`}>{sign.trim() ? sign : ''}</div>

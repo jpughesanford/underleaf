@@ -323,6 +323,44 @@ PDF tools, 36 in rails; hover bg `--color-bg-card-hover`, `.active` = toggled-on
 - `.spinner`: `16×16`, `2px` ring with `currentColor` top, `spin 0.6s`.
 - Dot indicator (rail): `7×7` circle, status color, app-bg ring.
 
+### 6.10 Diff & conflict view (`features/diff-view/`, `styles/diff-view.css`)
+The Source Control diff. Opened from the git panel; **occludes the whole main
+area** — editor *and* PDF pane — so the author sees only the diff (EditorRoute
+suppresses the PDF handle + pane while `diffTarget` is set). Reference mockup:
+`dev/design-mockups/diff-views.html`.
+- **Shell** (`.dv-root`): column, `background: var(--color-bg-app)`.
+- **Header** (`.dv-header`): `height: var(--header-h)` (34px) so it lines up with
+  the Source Control panel header to its left (§6.2); app bg, hairline bottom.
+  Holds filename (13/600) + dir (11 muted), a status pill, a `+N −M` stat, the
+  Split/Unified segmented control, and `IconButton`s (open-in-editor, close).
+- **Status pill** (`.dv-pill`): badge pill reusing `--badge-*` sets —
+  `unstaged`=info, `staged`=sync/green, `conflict`=error.
+- **Split/Unified toggle** (`.dv-seg`): segmented control; active button =
+  `var(--color-brand-tint)` + brand text (the app's toggle convention, §6.1).
+- **Color semantics — the one theme-independent exception:** add/delete use fixed
+  green/red rgba tints (`--dv-add-*`/`--dv-del-*` in `diff-view.css`), because
+  green = added / red = removed regardless of theme, and they must read over both
+  editor backgrounds. Layered: whole-line tint (~13%) < gutter (~24%) < accent
+  glyph. **No word-level/intra-line highlight** — authors found it distracting
+  ([[feedback_diff_no_word_highlight]]); change emphasis is the whole-line tint
+  plus a colored **+/−** sign per line (both split and unified).
+- **The fold** (`.dv-fold`): the skipped-region separator. A quiet centered rule
+  (`::before` gradient hairline) with a floating capsule — a brand-green bar +
+  plain-language **"N unchanged lines"** (never git's `@@ … @@`, which only
+  survives in the title tooltip; authors aren't git users —
+  [[feedback_plain_language_for_authors]]). Clickable to reveal hidden context;
+  on hover the capsule lifts and an unfold chevron fades in.
+- **Conflict block** (`.dv-conflict`): card bordered with `--badge-err-border`;
+  *ours* (`HEAD (current)`) red-tinted, *theirs* (`incoming`) green-tinted, common
+  lines flowing quietly around it. Accept buttons (`.dv-accept`) are neutral and
+  take the side's accent on hover (ours→red, theirs→green, both→brand). Labels are
+  plain ("Accept Current / Incoming / Both"), not "ours/theirs".
+- **Minimap rail** (`.dv-map`, `DiffMinimap.tsx`): 14px change-overview on the
+  right edge mapping the *rendered/scrollable* content (not the whole file, so the
+  viewport box is exact and there are no dead zones). Green/red ticks at changed
+  rows, a brand viewport box; click-to-jump + drag-to-scrub; hides itself when
+  nothing overflows.
+
 ---
 
 ## 7. Cross-cutting rules

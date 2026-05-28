@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  parseUnifiedDiff, wholeFileAsAdditions, alignHunk, wordDiff, parseConflicts, hasConflictMarkers,
+  parseUnifiedDiff, wholeFileAsAdditions, alignHunk, parseConflicts, hasConflictMarkers,
 } from '../src/renderer/features/diff-view/diff-engine'
 
 describe('parseUnifiedDiff', () => {
@@ -103,28 +103,6 @@ describe('alignHunk', () => {
     const rows = alignHunk(h)
     expect(rows[0]).toEqual({ kind: 'change', left: { no: 1, text: 'x' }, right: { no: 1, text: 'a' } })
     expect(rows[1]).toEqual({ kind: 'add', left: null, right: { no: 2, text: 'b' } })
-  })
-})
-
-describe('wordDiff', () => {
-  it('flags nothing changed for identical strings', () => {
-    const { old, new: nw } = wordDiff('hello world', 'hello world')
-    expect(old.every(s => !s.changed)).toBe(true)
-    expect(nw.every(s => !s.changed)).toBe(true)
-  })
-
-  it('isolates the changed word', () => {
-    const { old, new: nw } = wordDiff('the quick fox', 'the slow fox')
-    expect(old.filter(s => s.changed).map(s => s.text)).toEqual(['quick'])
-    expect(nw.filter(s => s.changed).map(s => s.text)).toEqual(['slow'])
-    // Unchanged surroundings are preserved verbatim.
-    expect(old.map(s => s.text).join('')).toBe('the quick fox')
-    expect(nw.map(s => s.text).join('')).toBe('the slow fox')
-  })
-
-  it('treats a whole LaTeX command as one token', () => {
-    const { new: nw } = wordDiff('\\alpha + \\beta', '\\alpha + \\gamma')
-    expect(nw.filter(s => s.changed).map(s => s.text)).toEqual(['\\gamma'])
   })
 })
 

@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AlertTriangle, Columns, AlignJustify, X, ExternalLink, SquarePen, CheckCircle } from 'lucide-react'
 import IconButton from '@/ui/IconButton'
 import FileDiffBody from './FileDiffBody'
+import DiffMinimap from './DiffMinimap'
 import ConflictBody from './ConflictBody'
 import {
   parseUnifiedDiff, wholeFileAsAdditions, parseConflicts, hasConflictMarkers,
@@ -42,6 +43,7 @@ export default function DiffView({ projectPath, target, onClose, onOpenInEditor,
   const [diff, setDiff] = useState<ParsedDiff | null>(null)
   const [text, setText] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const bodyRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -193,8 +195,11 @@ export default function DiffView({ projectPath, target, onClose, onOpenInEditor,
       ) : diff && diff.hunks.length === 0 ? (
         <div className="dv-state"><div className="big">No changes to show</div></div>
       ) : diff ? (
-        <div className="dv-body">
-          <FileDiffBody key={`${filePath}:${staged}`} diff={diff} layout={layout} sourceText={text} />
+        <div className="dv-stage">
+          <div className="dv-body" ref={bodyRef}>
+            <FileDiffBody key={`${filePath}:${staged}`} diff={diff} layout={layout} sourceText={text} />
+          </div>
+          <DiffMinimap key={`${filePath}:${staged}:${layout}`} scrollRef={bodyRef} />
         </div>
       ) : null}
     </div>

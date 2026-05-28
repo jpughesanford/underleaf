@@ -125,7 +125,7 @@ export interface SideCell {
 }
 
 export interface SideRow {
-  /** 'change' is a paired deletion+addition (gets word-level highlighting). */
+  /** 'change' is a paired deletion+addition, shown side by side. */
   kind: 'context' | 'add' | 'del' | 'change'
   left: SideCell | null
   right: SideCell | null
@@ -174,72 +174,6 @@ export function alignHunk(hunk: Hunk): SideRow[] {
   }
   flush()
   return rows
-}
-
-// ─── Word-level diff ────────────────────────────────────────────────────────
-
-export interface WordSpan {
-  text: string
-  changed: boolean
-}
-
-// Split into LaTeX-aware tokens: whole commands (\alpha), words, runs of
-// whitespace, and single punctuation chars. Keeps highlight boundaries natural.
-function tokenize(s: string): string[] {
-  return s.match(/\\[a-zA-Z]+\*?|[A-Za-z0-9]+|\s+|[^\sA-Za-z0-9]/g) ?? []
-}
-
-/**
- * Token-level diff between two strings via an LCS table. Returns, for each side,
- * a coalesced list of spans flagged changed/unchanged — used to highlight just
- * the words that differ within a modified line pair.
- */
-export function wordDiff(oldText: string, newText: string): { old: WordSpan[]; new: WordSpan[] } {
-  const a = tokenize(oldText)
-  const b = tokenize(newText)
-  const n = a.length
-  const m = b.length
-
-  // LCS length table.
-  const lcs: number[][] = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0))
-  for (let i = n - 1; i >= 0; i--) {
-    for (let j = m - 1; j >= 0; j--) {
-      lcs[i][j] = a[i] === b[j] ? lcs[i + 1][j + 1] + 1 : Math.max(lcs[i + 1][j], lcs[i][j + 1])
-    }
-  }
-
-  const oldFlags: boolean[] = []
-  const newFlags: boolean[] = []
-  let i = 0
-  let j = 0
-  while (i < n && j < m) {
-    if (a[i] === b[j]) {
-      oldFlags.push(false)
-      newFlags.push(false)
-      i++
-      j++
-    } else if (lcs[i + 1][j] >= lcs[i][j + 1]) {
-      oldFlags.push(true) // deletion from old
-      i++
-    } else {
-      newFlags.push(true) // insertion into new
-      j++
-    }
-  }
-  while (i < n) { oldFlags.push(true); i++ }
-  while (j < m) { newFlags.push(true); j++ }
-
-  return { old: coalesce(a, oldFlags), new: coalesce(b, newFlags) }
-}
-
-function coalesce(tokens: string[], flags: boolean[]): WordSpan[] {
-  const spans: WordSpan[] = []
-  for (let k = 0; k < tokens.length; k++) {
-    const last = spans[spans.length - 1]
-    if (last && last.changed === flags[k]) last.text += tokens[k]
-    else spans.push({ text: tokens[k], changed: flags[k] })
-  }
-  return spans
 }
 
 // ─── Conflict parsing ───────────────────────────────────────────────────────
