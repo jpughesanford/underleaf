@@ -85,7 +85,7 @@
 }
 .template-card.selected {
   border-color: var(--color-brand);
-  background: rgba(76, 175, 80, 0.1);
+  background: var(--color-brand-tint-soft);
   color: var(--color-brand);
 }
 .template-card-title {
@@ -128,12 +128,12 @@
 
 .btn-ghost { background: transparent; color: var(--color-text-secondary); }
 .btn-ghost:hover:not(:disabled) {
-  background: rgba(255,255,255,0.08);
+  background: var(--color-overlay-hover);
   color: var(--color-text-primary);
 }
 
 .btn-danger { background: var(--color-error); color: white; }
-.btn-danger:hover:not(:disabled) { background: #dc2626; }
+.btn-danger:hover:not(:disabled) { background: var(--color-error-hover); }
 
 .btn-sm   { padding: 4px 10px; font-size: 12px; }
 .btn-icon { padding: 6px; }

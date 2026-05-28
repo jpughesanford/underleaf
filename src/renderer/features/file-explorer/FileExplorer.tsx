@@ -166,9 +166,9 @@ function FileTreeNode({
             color: isDragOver ? 'var(--color-brand)' : 'var(--color-text-secondary)',
             fontSize: 12,
             userSelect: 'none',
-            background: isDragOver ? 'rgba(76,175,80,0.1)' : 'transparent',
+            background: isDragOver ? 'var(--color-brand-tint-soft)' : 'transparent',
             borderRadius: isDragOver ? 4 : 0,
-            outline: isDragOver ? '1px dashed rgba(76,175,80,0.5)' : 'none',
+            outline: isDragOver ? '1px dashed var(--color-brand-edge-strong)' : 'none',
           }}
           onMouseEnter={e => { if (!isDragOver) e.currentTarget.style.background = 'var(--color-bg-card-hover)' }}
           onMouseLeave={e => { if (!isDragOver) e.currentTarget.style.background = 'transparent' }}
@@ -242,7 +242,7 @@ function FileTreeNode({
         paddingLeft: 8 + depth * 14 + 14,
         cursor: isEditable ? 'pointer' : 'default',
         color: isActive ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
-        background: isActive ? 'rgba(76,175,80,0.15)' : 'transparent',
+        background: isActive ? 'var(--color-brand-tint)' : 'transparent',
         fontSize: 12,
         userSelect: 'none',
         borderLeft: isActive ? '2px solid var(--color-brand)' : '2px solid transparent',
@@ -257,9 +257,9 @@ function FileTreeNode({
       </span>
       {isMain && (
         <span style={{
-          fontSize: 9, fontWeight: 700, color: '#4CAF50',
-          background: 'rgba(76,175,80,0.15)',
-          border: '1px solid rgba(76,175,80,0.4)',
+          fontSize: 9, fontWeight: 700, color: 'var(--color-brand)',
+          background: 'var(--color-brand-tint)',
+          border: '1px solid var(--color-brand-edge)',
           borderRadius: 3, padding: '1px 4px',
           flexShrink: 0, letterSpacing: 0.3,
         }}>
@@ -472,8 +472,8 @@ export default function FileExplorer({ projectPath, activeFile, onOpenFile, main
       <div
         style={{
           flex: 1, overflow: 'auto', paddingTop: 4, paddingBottom: 8,
-          outline: dragOverPath === projectPath ? '1px dashed rgba(76,175,80,0.4)' : 'none',
-          background: dragOverPath === projectPath ? 'rgba(76,175,80,0.03)' : 'transparent',
+          outline: dragOverPath === projectPath ? '1px dashed var(--color-brand-edge)' : 'none',
+          background: dragOverPath === projectPath ? 'var(--color-brand-tint-faint)' : 'transparent',
         }}
         onDragEnter={handleRootDragEnter}
         onDragOver={handleRootDragOver}

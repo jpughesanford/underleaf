@@ -1,0 +1,302 @@
+/* Diff & conflict viewer — modeled on VS Code's side-by-side diff: quiet chrome,
+   whole-line background tints for add/delete, and a clearly stronger word-level
+   highlight layered on top so the eye lands on the exact tokens that changed.
+
+   Layout is driven by fixed-width gutters so the left and right halves stay
+   aligned across rows without any JS scroll syncing — one scroll container holds
+   everything, and each `.dv-row` is a single CSS grid spanning both panes, so a
+   wrapped line grows both sides together and alignment never drifts.
+
+   Per STYLE_GUIDE: all chrome colors come from --color-* / --badge-* vars; only
+   the add/delete *tints* are rgba literals, because (like git itself) green = added
+   and red = removed regardless of the active theme, and these must read over both
+   light and dark editor backgrounds. Loaded globally from main.tsx. */
+
+:root {
+  --dv-gutter-w: 3.6em;
+
+  /* Whole-line fills (subtle) → gutter fills (a touch stronger). Change emphasis
+     is the line tint alone — no per-word highlight. */
+  --dv-add-line:   rgba(70, 168, 90, 0.15);
+  --dv-add-gutter: rgba(70, 168, 90, 0.24);
+  --dv-add-accent: #3fb950;   /* +/sign glyph, sits over the green tint */
+
+  --dv-del-line:   rgba(224, 86, 96, 0.15);
+  --dv-del-gutter: rgba(224, 86, 96, 0.24);
+  --dv-del-accent: #e5484d;
+
+  /* The empty half opposite an unpaired add/delete: barely-there, not hatched. */
+  --dv-filler-bg: rgba(128, 128, 128, 0.045);
+}
+
+/* ── Shell ─────────────────────────────────────────────────────────────── */
+.dv-root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--color-bg-app);
+  overflow: hidden;
+}
+
+/* Mode bar. Reads like the editor tab strip (§6.4): app bg, hairline bottom. */
+.dv-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: var(--toolbar-height);
+  padding: 0 8px 0 14px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg-app);
+  flex-shrink: 0;
+}
+.dv-title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+.dv-filename {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+}
+.dv-filedir {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dv-spacer { flex: 1; }
+
+/* Status pill — reuses the badge token sets (§6.9). */
+.dv-pill {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.dv-pill.staged   { color: var(--badge-sync-color); background: var(--badge-sync-bg); border-color: var(--badge-sync-border); }
+.dv-pill.unstaged { color: var(--badge-info-color); background: var(--badge-info-bg); border-color: var(--badge-info-border); }
+.dv-pill.conflict { color: var(--color-text-error); background: var(--badge-err-bg); border-color: var(--badge-err-border); }
+
+/* +N −M counters. Theme success/error keep good contrast on the app bg
+   (the brighter --dv-*-accent greens/reds are reserved for sitting over a tint). */
+.dv-stat { font-size: 11px; font-family: var(--font-mono); white-space: nowrap; }
+.dv-stat .add { color: var(--color-success); font-weight: 600; }
+.dv-stat .del { color: var(--color-error);   font-weight: 600; }
+
+/* Split / Unified toggle. Active state follows the app's toggle convention
+   (§6.1 rail / IconButton.active): brand-tinted fill + brand text — never a
+   solid brand fill with hardcoded white. */
+.dv-seg {
+  display: inline-flex;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--color-bg-input);
+}
+.dv-seg button {
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 9px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: background 120ms ease, color 120ms ease;
+}
+.dv-seg button + button { border-left: 1px solid var(--color-border); }
+.dv-seg button:hover:not(.on) { background: var(--color-bg-card-hover); color: var(--color-text-primary); }
+.dv-seg button.on { background: rgba(76, 175, 80, 0.15); color: var(--color-brand); }
+
+/* ── Scroll body ───────────────────────────────────────────────────────── */
+/* Scrollbar is intentionally NOT restyled here — the global thin 6px bar from
+   reset.css applies (§7). */
+.dv-body {
+  flex: 1;
+  overflow: auto;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* ── Skipped-region divider ────────────────────────────────────────────── */
+/* Marks where unchanged text was collapsed. Plain-language label (not git's
+   "@@ … @@") so non-technical authors understand the line-number jump; the raw
+   coordinates live in the title tooltip. Clicking reveals the hidden lines. */
+.dv-expand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: 100%;
+  padding: 5px 14px;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  color: var(--color-text-muted);
+  background: var(--color-bg-sidebar);
+  border: none;
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+}
+button.dv-expand {
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+button.dv-expand:hover { background: var(--color-bg-card-hover); color: var(--color-text-secondary); }
+button.dv-expand:hover svg { color: var(--color-brand); }
+.dv-expand svg { flex-shrink: 0; color: var(--color-text-muted); }
+
+/* ── Rows ──────────────────────────────────────────────────────────────── */
+.dv-row { display: grid; }
+.dv-row.sxs    { grid-template-columns: var(--dv-gutter-w) 1fr var(--dv-gutter-w) 1fr; }
+.dv-row.inline { grid-template-columns: var(--dv-gutter-w) var(--dv-gutter-w) 1.3em 1fr; }
+
+.dv-num {
+  text-align: right;
+  padding: 0 8px;
+  color: var(--color-text-muted);
+  opacity: 0.7;
+  user-select: none;
+  -webkit-user-select: none;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.dv-code {
+  padding: 0 10px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  color: var(--color-text-primary);
+  tab-size: 2;
+}
+.dv-sign {
+  text-align: center;
+  user-select: none;
+  -webkit-user-select: none;
+  font-weight: 700;
+}
+
+/* Hairline between the two halves in side-by-side. */
+.dv-row.sxs > .dv-num.right { border-left: 1px solid var(--color-border); }
+
+/* Whole-line tints: gutter slightly stronger than the code, so the line-number
+   column reads as a continuous edge bar down a run of changes. The kind class
+   (dv-add/dv-del) sits on each cell in BOTH layouts, so we target the cell
+   directly with a compound selector — in side-by-side there is no kind class on
+   the row to hang a descendant rule on. */
+.dv-code.dv-add { background: var(--dv-add-line); }
+.dv-num.dv-add  { background: var(--dv-add-gutter); }
+.dv-code.dv-del { background: var(--dv-del-line); }
+.dv-num.dv-del  { background: var(--dv-del-gutter); }
+.dv-sign.dv-add { color: var(--dv-add-accent); }
+.dv-sign.dv-del { color: var(--dv-del-accent); }
+.dv-filler { background: var(--dv-filler-bg); }
+
+/* Lightweight LaTeX syntax tint (text color only — composes over any bg). */
+.dv-cmd     { color: var(--color-brand); }
+.dv-comment { color: var(--color-text-muted); font-style: italic; }
+.dv-math    { color: var(--badge-info-color, #93c5fd); }
+.dv-brace   { color: var(--color-text-secondary); }
+
+/* ── Conflict view ─────────────────────────────────────────────────────── */
+.dv-common .dv-code { color: var(--color-text-primary); }
+.dv-common .dv-num  { color: var(--color-text-muted); }
+
+.dv-conflict {
+  margin: 8px 10px;
+  border: 1px solid var(--badge-err-border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--color-bg-card);
+  box-shadow: var(--shadow-sm);
+}
+.dv-conflict-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  background: var(--badge-err-bg);
+  border-bottom: 1px solid var(--badge-err-border);
+  flex-wrap: wrap;
+}
+.dv-conflict-bar .label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  color: var(--color-text-error);
+  text-transform: uppercase;
+}
+.dv-conflict-bar .bar-spacer { flex: 1; }
+
+/* Block-resolution buttons. Compact ghost-ish controls that take on the
+   ours/theirs/both accent on hover so the action's effect is colour-coded. */
+.dv-accept {
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+  border: 1px solid var(--color-border-light);
+  background: var(--color-bg-input);
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+.dv-accept:hover { background: var(--color-bg-card-hover); }
+.dv-accept:disabled { opacity: 0.5; cursor: default; }
+.dv-accept.ours:hover   { border-color: var(--dv-del-accent); color: var(--dv-del-accent); }
+.dv-accept.theirs:hover { border-color: var(--dv-add-accent); color: var(--dv-add-accent); }
+.dv-accept.both:hover   { border-color: var(--color-brand);   color: var(--color-brand); }
+
+.dv-conflict-sides { display: grid; grid-template-columns: 1fr 1fr; }
+.dv-conflict-sides .side-head {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  padding: 4px 12px;
+  color: var(--color-text-secondary);
+  background: var(--color-bg-panel, var(--color-bg-sidebar));
+}
+.dv-conflict-sides .side-head.ours   { border-bottom: 2px solid var(--dv-del-accent); }
+.dv-conflict-sides .side-head.theirs { border-bottom: 2px solid var(--dv-add-accent); border-left: 1px solid var(--color-border); }
+.dv-conflict-sides .side-body { padding: 4px 0; }
+.dv-conflict-sides .side-body.ours   { background: var(--dv-del-line); }
+.dv-conflict-sides .side-body.theirs { background: var(--dv-add-line); border-left: 1px solid var(--color-border); }
+.dv-conflict-sides .cline {
+  padding: 0 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  min-height: 1.5em;
+}
+
+/* ── States (loading / error / empty / resolved) ───────────────────────── */
+.dv-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 40px;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+.dv-state .big { color: var(--color-text-secondary); font-size: 13px; }
+.dv-resolved-actions { display: flex; gap: 8px; }

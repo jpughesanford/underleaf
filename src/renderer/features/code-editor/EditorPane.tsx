@@ -56,7 +56,7 @@ const baseEditorTheme = EditorView.theme({
   '.cm-tooltip-autocomplete': { backgroundColor: 'var(--color-bg-modal)' },
   '.cm-tooltip-autocomplete ul li': { color: 'var(--color-text-primary)' },
   '.cm-tooltip-autocomplete ul li[aria-selected]': {
-    backgroundColor: 'rgba(76,175,80,0.15)',
+    backgroundColor: 'var(--color-brand-tint)',
     color: 'var(--color-brand)',
   },
   // CodeMirror prepends a glyph for each completion type via ::before. Hide it

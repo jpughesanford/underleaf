@@ -1,4 +1,5 @@
 import React from 'react'
+import styles from './RailButton.module.css'
 
 interface Props {
   active: boolean
@@ -17,32 +18,10 @@ export default function RailButton({ active, title, onClick, children, badge }: 
     <button
       title={title}
       onClick={onClick}
-      style={{
-        position: 'relative',
-        width: 36, height: 36,
-        borderRadius: 8,
-        border: 'none',
-        background: active ? 'rgba(76,175,80,0.15)' : 'transparent',
-        color: active ? 'var(--color-brand)' : 'var(--color-text-muted)',
-        cursor: 'pointer',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        transition: 'all 150ms ease',
-      }}
-      onMouseEnter={e => { if (!active) e.currentTarget.style.color = 'var(--color-text-secondary)' }}
-      onMouseLeave={e => { if (!active) e.currentTarget.style.color = 'var(--color-text-muted)' }}
+      className={`${styles.btn} ${active ? styles.active : ''}`}
     >
       {children}
-      {badgeColor && (
-        <span
-          style={{
-            position: 'absolute',
-            top: 6, right: 6,
-            width: 7, height: 7, borderRadius: '50%',
-            background: badgeColor,
-            boxShadow: '0 0 0 1.5px var(--color-bg-app)',
-          }}
-        />
-      )}
+      {badgeColor && <span className={styles.badge} style={{ background: badgeColor }} />}
     </button>
   )
 }

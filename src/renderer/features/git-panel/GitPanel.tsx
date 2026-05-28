@@ -14,6 +14,11 @@ interface ContextMenuState {
 interface Props {
   projectPath: string
   onOpenFile: (path: string) => void
+  /** Single-click a changed/conflicted file → bring up the diff view. */
+  onShowDiff: (relPath: string, opts: { staged: boolean; conflict: boolean }) => void
+  /** Bumped by the parent to force a status refresh (e.g. after a conflict is
+      resolved in the diff view). */
+  refreshToken?: number
 }
 
 // PyCharm file-status palette. Modified=blue, Added=green, Deleted/Untracked=red,
@@ -28,7 +33,7 @@ const STATUS_COLOR: Record<string, string> = {
 
 type SectionKey = 'staged' | 'changes' | 'unversioned' | 'conflicts'
 
-export default function GitPanel({ projectPath, onOpenFile }: Props) {
+export default function GitPanel({ projectPath, onOpenFile, onShowDiff, refreshToken }: Props) {
   const [status, setStatus] = useState<GitStatus | null>(null)
   const [loading, setLoading] = useState(true)
   const [commitMsg, setCommitMsg] = useState('')
@@ -87,7 +92,7 @@ export default function GitPanel({ projectPath, onOpenFile }: Props) {
     }
   }, [projectPath])
 
-  useEffect(() => { refresh() }, [refresh])
+  useEffect(() => { refresh() }, [refresh, refreshToken])
 
   function flash(text: string, type: 'success' | 'error') {
     setStatusMsg({ text, type })
@@ -226,7 +231,7 @@ export default function GitPanel({ projectPath, onOpenFile }: Props) {
               file={f}
               checked={staged}
               selected={selected === rowId}
-              onSelect={() => setSelected(rowId)}
+              onSelect={() => { setSelected(rowId); onShowDiff(f.path, { staged, conflict: false }) }}
               onToggleCheck={() => staged ? unstage(f.path) : stage(f.path)}
               onOpen={() => onOpenFile(`${projectPath}/${f.path}`)}
               onContextMenu={e => { e.preventDefault(); e.stopPropagation(); setContextMenu({ x: e.clientX, y: e.clientY, file: f }) }}
@@ -298,18 +303,23 @@ export default function GitPanel({ projectPath, onOpenFile }: Props) {
                   <AlertTriangle size={11} strokeWidth={2.5} />
                   MERGE CONFLICTS
                 </div>
-                {conflicts.map(f => (
-                  <div
-                    key={f}
-                    onClick={() => onOpenFile(`${projectPath}/${f}`)}
-                    style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 4px', cursor: 'pointer', borderRadius: 4, fontSize: 12, color: 'var(--color-text-error)' }}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'var(--badge-err-bg-hover, var(--badge-err-bg))' }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
-                  >
-                    <AlertTriangle size={10} strokeWidth={2} />
-                    {f}
-                  </div>
-                ))}
+                {conflicts.map(f => {
+                  const rowId = `conflicts:${f}`
+                  const isSel = selected === rowId
+                  return (
+                    <div
+                      key={f}
+                      onClick={() => { setSelected(rowId); onShowDiff(f, { staged: false, conflict: true }) }}
+                      onDoubleClick={() => onOpenFile(`${projectPath}/${f}`)}
+                      style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 4px', cursor: 'pointer', borderRadius: 4, fontSize: 12, color: 'var(--color-text-error)', background: isSel ? 'var(--gitpanel-sel-bg)' : 'transparent' }}
+                      onMouseEnter={e => { if (!isSel) e.currentTarget.style.background = 'var(--badge-err-bg-hover, var(--badge-err-bg))' }}
+                      onMouseLeave={e => { if (!isSel) e.currentTarget.style.background = 'transparent' }}
+                    >
+                      <AlertTriangle size={10} strokeWidth={2} />
+                      {f}
+                    </div>
+                  )
+                })}
               </div>
             )}
 

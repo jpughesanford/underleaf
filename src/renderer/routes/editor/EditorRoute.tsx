@@ -8,6 +8,7 @@ import { FileExplorer } from '@/features/file-explorer'
 import { GitPanel } from '@/features/git-panel'
 import { CompilePanel } from '@/features/compile-panel'
 import { PdfPane } from '@/features/pdf-viewer'
+import { DiffView, type DiffTarget } from '@/features/diff-view'
 
 import Toolbar from './components/Toolbar'
 import RailButton from './components/RailButton'
@@ -32,6 +33,10 @@ export default function EditorRoute({ projectPath, projectName, onBack, onRename
   const [compileTarget, setCompileTarget] = useState<CompileTarget>('root')
   const [compileOnSave, setCompileOnSave] = useState(true)
   const [showSettings, setShowSettings] = useState(false)
+  // When set, the center column shows a git diff / conflict view instead of the
+  // editor. gitRefresh is bumped after a resolution so the panel re-reads status.
+  const [diffTarget, setDiffTarget] = useState<DiffTarget | null>(null)
+  const [gitRefresh, setGitRefresh] = useState(0)
   const editorRef = useRef<EditorPaneHandle>(null)
 
   // Load compile-on-save preference; reloaded after the settings modal closes.
@@ -69,6 +74,23 @@ export default function EditorRoute({ projectPath, projectName, onBack, onRename
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [compileResult?.success, pdfVersion])
 
+  // ── Diff view ↔ editor switching ────────────────────────────────────────
+  // Opening a file or switching tabs leaves the diff view; clicking a file in
+  // Source Control enters it.
+  const openFileFromPanel = useCallback((path: string) => {
+    setDiffTarget(null)
+    tabs.openFile(path)
+  }, [tabs])
+
+  const activateTab = useCallback((path: string) => {
+    setDiffTarget(null)
+    tabs.setActiveTab(path)
+  }, [tabs])
+
+  const showDiff = useCallback((relPath: string, opts: { staged: boolean; conflict: boolean }) => {
+    setDiffTarget({ filePath: relPath, staged: opts.staged, conflict: opts.conflict })
+  }, [])
+
   // ── Save-then-maybe-compile (used by Cmd-S in the tab + the menu listener) ──
   const saveAndMaybeCompile = useCallback(async (filePath: string) => {
     await tabs.saveFile(filePath)
@@ -90,6 +112,7 @@ export default function EditorRoute({ projectPath, projectName, onBack, onRename
   // ── Jump-to-error from the compile panel ───────────────────────────────
   const jumpToError = useCallback(async (file: string, line: number | null) => {
     if (!line) return
+    setDiffTarget(null)
     await tabs.openFile(resolveErrorPath(projectPath, file))
     // rAF lets React commit a fresh EditorPane (if a new tab opened) before jump.
     requestAnimationFrame(() => editorRef.current?.jump(line))
@@ -203,14 +226,19 @@ export default function EditorRoute({ projectPath, projectName, onBack, onRename
               <FileExplorer
                 projectPath={projectPath}
                 activeFile={tabs.activeTab}
-                onOpenFile={tabs.openFile}
+                onOpenFile={openFileFromPanel}
                 mainDoc={mainDoc}
                 detectedMainDoc={detectedMainDoc}
                 onSetMainDoc={setMainDoc}
               />
             )}
             {layout.sidebarTab === 'git' && (
-              <GitPanel projectPath={projectPath} onOpenFile={tabs.openFile} />
+              <GitPanel
+                projectPath={projectPath}
+                onOpenFile={openFileFromPanel}
+                onShowDiff={showDiff}
+                refreshToken={gitRefresh}
+              />
             )}
             {layout.sidebarTab === 'compile' && (
               <CompilePanel result={compileResult} compiling={compiling} onJumpToError={jumpToError} />
@@ -232,40 +260,52 @@ export default function EditorRoute({ projectPath, projectName, onBack, onRename
           // Below that the PDF resize handle starts breaking the layout,
           // so the flex item refuses to shrink past it.
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 320 }}>
-            {tabs.tabs.length > 0 && (
-              <div style={{
-                display: 'flex',
-                background: 'var(--color-bg-app)',
-                borderBottom: '1px solid var(--color-border)',
-                overflowX: 'auto', flexShrink: 0,
-              }}>
-                {tabs.tabs.map(tab => (
-                  <TabItem
-                    key={tab.path}
-                    tab={tab}
-                    active={tab.path === tabs.activeTab}
-                    onActivate={() => tabs.setActiveTab(tab.path)}
-                    onClose={() => tabs.closeTab(tab.path)}
-                    onSave={() => saveAndMaybeCompile(tab.path)}
-                  />
-                ))}
-              </div>
-            )}
+            {diffTarget ? (
+              <DiffView
+                projectPath={projectPath}
+                target={diffTarget}
+                onClose={() => setDiffTarget(null)}
+                onOpenInEditor={(rel) => openFileFromPanel(`${projectPath}/${rel}`)}
+                onResolved={() => setGitRefresh(n => n + 1)}
+              />
+            ) : (
+              <>
+                {tabs.tabs.length > 0 && (
+                  <div style={{
+                    display: 'flex',
+                    background: 'var(--color-bg-app)',
+                    borderBottom: '1px solid var(--color-border)',
+                    overflowX: 'auto', flexShrink: 0,
+                  }}>
+                    {tabs.tabs.map(tab => (
+                      <TabItem
+                        key={tab.path}
+                        tab={tab}
+                        active={tab.path === tabs.activeTab}
+                        onActivate={() => activateTab(tab.path)}
+                        onClose={() => tabs.closeTab(tab.path)}
+                        onSave={() => saveAndMaybeCompile(tab.path)}
+                      />
+                    ))}
+                  </div>
+                )}
 
-            <div style={{ flex: 1, overflow: 'hidden' }}>
-              {tabs.activeTabData ? (
-                <EditorPane
-                  ref={editorRef}
-                  key={tabs.activeTabData.path}
-                  filePath={tabs.activeTabData.path}
-                  content={tabs.activeTabData.content}
-                  onChange={(content) => tabs.updateContent(tabs.activeTabData!.path, content)}
-                  onSave={() => saveAndMaybeCompile(tabs.activeTabData!.path)}
-                />
-              ) : (
-                <EmptyEditor />
-              )}
-            </div>
+                <div style={{ flex: 1, overflow: 'hidden' }}>
+                  {tabs.activeTabData ? (
+                    <EditorPane
+                      ref={editorRef}
+                      key={tabs.activeTabData.path}
+                      filePath={tabs.activeTabData.path}
+                      content={tabs.activeTabData.content}
+                      onChange={(content) => tabs.updateContent(tabs.activeTabData!.path, content)}
+                      onSave={() => saveAndMaybeCompile(tabs.activeTabData!.path)}
+                    />
+                  ) : (
+                    <EmptyEditor />
+                  )}
+                </div>
+              </>
+            )}
           </div>
         )}
 

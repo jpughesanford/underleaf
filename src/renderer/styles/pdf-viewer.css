@@ -78,7 +78,7 @@
   cursor: pointer;
 }
 .annotationLayer .linkAnnotation > a:hover {
-  background: rgba(76, 175, 80, 0.18);
-  box-shadow: 0 0 0 1px rgba(76, 175, 80, 0.5);
+  background: var(--color-brand-tint-strong);
+  box-shadow: 0 0 0 1px var(--color-brand-edge-strong);
   border-radius: 1px;
 }

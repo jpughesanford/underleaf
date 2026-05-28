@@ -249,7 +249,7 @@ export default function Toolbar({
                   onClick={() => { onChangeTarget(opt.value); setShowTargetMenu(false) }}
                   style={{
                     padding: '7px 10px', borderRadius: 4, cursor: 'pointer',
-                    background: compileTarget === opt.value ? 'rgba(76,175,80,0.1)' : 'transparent',
+                    background: compileTarget === opt.value ? 'var(--color-brand-tint-soft)' : 'transparent',
                     display: 'flex', alignItems: 'flex-start', gap: 8,
                   }}
                 >

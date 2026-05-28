@@ -114,6 +114,19 @@ function readFg(theme: UnderleafTheme['theme']): string | undefined {
   return typeof v === 'string' ? v : undefined
 }
 
+// Convert a #rrggbb / #rgb brand color into an rgba() string at the given alpha.
+// Used to derive the brand-tint ladder so translucent "selected/active" fills
+// track each theme's own brand instead of a hardcoded green.
+function hexToRgba(hex: string, alpha: number): string {
+  if (!hex.startsWith('#')) return hex
+  const h = hex.slice(1)
+  const full = h.length === 3 ? h.split('').map(ch => ch + ch).join('') : h
+  const r = parseInt(full.slice(0, 2), 16)
+  const g = parseInt(full.slice(2, 4), 16)
+  const b = parseInt(full.slice(4, 6), 16)
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
+
 // Defaults for the per-mode chrome (badges, toolbar accents, git-panel selection).
 // Themes can override individual entries via chrome.badges / chrome.toolbar.
 
@@ -174,6 +187,22 @@ function applyTheme(theme: UnderleafTheme) {
   set('--color-info',           c.info)
   set('--scrollbar-thumb',      c.scrollbar)
   set('--scrollbar-thumb-hover',c.scrollbarHover)
+
+  // Brand-tint ladder — translucent brand fills for selected/active/drag states.
+  // Derived from the theme's own brand so tints match the accent in every theme.
+  const tint = (a: number) => hexToRgba(c.brand, a)
+  set('--color-brand-tint',        tint(0.15)) // active / selected row fill
+  set('--color-brand-tint-soft',   tint(0.1))  // softer selected / drag-over fill
+  set('--color-brand-tint-faint',  tint(0.04)) // very subtle drop-zone wash
+  set('--color-brand-tint-strong', tint(0.18)) // emphasized hover (e.g. PDF link)
+  set('--color-brand-edge',        tint(0.4))  // dashed drop outline / chip border
+  set('--color-brand-edge-strong', tint(0.5))  // drop outline / ring over a tint
+
+  // Hover overlay for ghost/transparent surfaces — a translucent wash that works
+  // over any background (white in dark themes, black in light themes).
+  set('--color-overlay-hover', theme.dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)')
+  // Pressed/hover state for the danger button (a step darker than --color-error).
+  set('--color-error-hover',   theme.dark ? '#dc2626' : '#b71c1c')
 
   // Editor surface — CodeMirror handles its own colors via theme.theme; we expose
   // bg/fg as CSS vars so the surrounding chrome can paint matching backgrounds.
