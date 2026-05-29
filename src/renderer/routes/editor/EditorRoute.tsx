@@ -302,7 +302,12 @@ export default function EditorRoute({ projectPath, projectName, onBack, onRename
                 target={diffTarget}
                 onClose={() => setDiffTarget(null)}
                 onOpenInEditor={(rel) => openFileFromPanel(`${projectPath}/${rel}`)}
-                onResolved={() => setGitRefresh(n => n + 1)}
+                onResolved={() => {
+                  setGitRefresh(n => n + 1)
+                  // The diff view just wrote this file (revert / conflict
+                  // resolution) — refresh its open editor tab so it isn't stale.
+                  tabs.reloadFromDisk(`${projectPath}/${diffTarget.filePath}`)
+                }}
               />
             ) : (
               <>

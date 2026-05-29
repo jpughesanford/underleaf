@@ -14,6 +14,9 @@ interface UseOpenTabsResult {
   setActiveTab: (path: string | null) => void
   openFile: (filePath: string) => Promise<void>
   closeTab: (filePath: string) => Promise<void>
+  /** Re-read an open tab from disk after an external write (e.g. a diff-view
+      revert), discarding the in-memory copy. No-op if the file isn't open. */
+  reloadFromDisk: (filePath: string) => Promise<void>
   updateContent: (filePath: string, content: string) => void
   /** Save a specific file. Returns true if a write happened. */
   saveFile: (filePath: string) => Promise<boolean>
@@ -87,6 +90,24 @@ export function useOpenTabs({ projectPath, rootDocRelative }: UseOpenTabsOptions
     })
   }, [])
 
+  const reloadFromDisk = useCallback(async (filePath: string) => {
+    if (!tabsRef.current.some(t => t.path === filePath)) return
+    const content = await window.api.files.read(filePath)
+    if (content === null) {
+      // The file no longer exists (e.g. reverting a newly-added file removed it).
+      // Drop the tab; pick a neighbour as active if this one was showing.
+      const before = tabsRef.current
+      setTabs(before.filter(t => t.path !== filePath))
+      if (activeTabRef.current === filePath) {
+        const idx = before.findIndex(t => t.path === filePath)
+        const remaining = before.filter(t => t.path !== filePath)
+        setActiveTab(remaining[Math.min(idx, remaining.length - 1)]?.path ?? null)
+      }
+      return
+    }
+    setTabs(prev => prev.map(t => (t.path === filePath ? { ...t, content, isDirty: false } : t)))
+  }, [])
+
   const updateContent = useCallback((filePath: string, content: string) => {
     setTabs(prev => prev.map(t =>
       t.path === filePath ? { ...t, content, isDirty: true } : t,
@@ -117,7 +138,7 @@ export function useOpenTabs({ projectPath, rootDocRelative }: UseOpenTabsOptions
 
   return {
     tabs, activeTab, activeTabData, setActiveTab,
-    openFile, closeTab, updateContent,
+    openFile, closeTab, reloadFromDisk, updateContent,
     saveFile, saveAllDirty,
     tabsRef, activeTabRef,
   }

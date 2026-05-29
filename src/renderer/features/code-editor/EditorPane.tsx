@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useRef, useState, useImperativeHandle, forwardRef } from 'react'
-import { EditorState, Extension, Compartment, StateField, StateEffect, Text } from '@codemirror/state'
+import { EditorState, Extension, Compartment, StateField, StateEffect, Text, Annotation } from '@codemirror/state'
 import {
   EditorView, keymap, lineNumbers, highlightActiveLineGutter, highlightSpecialChars,
   drawSelection, dropCursor, rectangularSelection, crosshairCursor, highlightActiveLine,
@@ -91,6 +91,10 @@ function buildThemeExtension(theme: UnderleafTheme): Extension {
 const themeCompartment = new Compartment()
 // Lets spell checking toggle on/off without rebuilding the whole editor.
 const spellCompartment = new Compartment()
+// Marks doc changes we push in programmatically (external content sync) so they
+// aren't reported back as user edits — otherwise syncing a reverted file would
+// re-mark the tab dirty.
+const externalSync = Annotation.define<boolean>()
 
 // ─── Error line highlight ─────────────────────────────────────────────────────
 const setErrorLine = StateEffect.define<number | null>()
@@ -200,7 +204,11 @@ function buildExtensions(
     conflictHighlighter,
     errorLineField,
     EditorView.updateListener.of(update => {
-      if (update.docChanged) onChange(update.state.doc.toString())
+      // Skip changes we applied via externalSync (e.g. a reverted file reloaded
+      // from disk) — those aren't user edits and must not dirty the tab.
+      if (update.docChanged && !update.transactions.some(tr => tr.annotation(externalSync))) {
+        onChange(update.state.doc.toString())
+      }
     }),
     EditorView.lineWrapping,
   ]
@@ -327,6 +335,7 @@ const EditorPane = forwardRef<EditorPaneHandle, Props>(function EditorPane(
     if (current !== content && content !== contentRef.current) {
       view.dispatch({
         changes: { from: 0, to: current.length, insert: content },
+        annotations: externalSync.of(true),
       })
       contentRef.current = content
     }
