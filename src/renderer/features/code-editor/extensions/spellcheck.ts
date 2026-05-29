@@ -6,13 +6,20 @@ import { getSpeller, spellerSync } from '../spellcheck/speller'
 
 // Prose lives in `Normal` nodes (verified against the grammar). Commands, math,
 // comments, verbatim, URLs and file paths are distinct node types and are never
-// `Normal`, so they're skipped for free. The one exception: identifier-like
-// command arguments (\label{…}, \ref{…}, \cite{…}, \usepackage{…}, …) DO wrap a
-// `Normal`, so we skip any `Normal` with one of these argument ancestors. Section
-// titles and \emph{…} have no such ancestor and stay checked.
+// `Normal`, so they're skipped for free. But several argument contexts DO wrap a
+// `Normal` while holding config rather than prose; we skip a `Normal` under any
+// of these ancestors:
+//   - identifier args:  \label{…} \ref{…} \cite{…} \usepackage{…} \documentclass{…}
+//   - paths / urls:      \input{…} \href{…}{…}
+//   - OptionalArgument:  every [key=value] options block (e.g. [colorlinks=true])
+//   - UnknownCommand:    args of commands the grammar doesn't know (e.g.
+//                        \newtcolorbox{…}{colback=…}) — typically key=value config
+// Known prose commands keep their own argument nodes (SectioningArgument for
+// \section{…}, etc.) and stay checked.
 const SKIP_ANCESTORS = new Set([
   'LabelArgument', 'RefArgument', 'BibKeyArgument', 'PackageArgument',
   'DocumentClassArgument', 'FilePathArgument', 'BareFilePathArgument', 'UrlArgument',
+  'OptionalArgument', 'UnknownCommand',
 ])
 
 // Letters with internal apostrophes ("don't", "scholars’"). No digits, so tokens

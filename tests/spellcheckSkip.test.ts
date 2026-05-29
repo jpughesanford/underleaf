@@ -34,6 +34,25 @@ describe('collectMisspellings — LaTeX-aware skipping', () => {
     }
   })
 
+  it('skips [key=value] option blocks but checks the prose around them', () => {
+    const words = checkableWords('\\usepackage[colorlinks=true,linkcolor=red]{hyperref}')
+    for (const skipped of ['colorlinks', 'true', 'linkcolor', 'red', 'hyperref']) {
+      expect(words).not.toContain(skipped)
+    }
+  })
+
+  it('skips unknown-command config args (e.g. \\newtcolorbox keys)', () => {
+    const words = checkableWords('\\newtcolorbox{takeaway}{colback=blue!8!white, boxrule=0pt}')
+    for (const skipped of ['takeaway', 'colback', 'blue', 'white', 'boxrule']) {
+      expect(words).not.toContain(skipped)
+    }
+  })
+
+  it('still checks prose in known commands alongside skipped config', () => {
+    const words = checkableWords('\\section{Real prose title}\nBody sentence here.')
+    expect(words).toEqual(expect.arrayContaining(['Real', 'prose', 'title', 'Body', 'sentence', 'here']))
+  })
+
   it('checks \\emph and href display text', () => {
     const words = checkableWords('\\emph{wonderful} \\href{http://x.com}{click here}')
     expect(words).toEqual(expect.arrayContaining(['wonderful', 'click', 'here']))
