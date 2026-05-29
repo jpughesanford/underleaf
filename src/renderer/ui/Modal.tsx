@@ -31,6 +31,11 @@ export default function Modal({ title, onClose, children, width = 440 }: Props) 
         borderRadius: 12,
         width,
         maxWidth: '90vw',
+        // Cap to the viewport so tall content (e.g. a long Settings panel) never
+        // runs off-screen; the body below scrolls while the header stays fixed.
+        maxHeight: '90vh',
+        display: 'flex',
+        flexDirection: 'column',
         boxShadow: 'var(--shadow-lg)',
         overflow: 'hidden',
       }}>
@@ -38,6 +43,7 @@ export default function Modal({ title, onClose, children, width = 440 }: Props) 
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '16px 20px',
           borderBottom: '1px solid var(--color-border)',
+          flexShrink: 0,
         }}>
           <span style={{ fontWeight: 600, fontSize: 15, color: 'var(--color-text-primary)' }}>{title}</span>
           <button
@@ -50,7 +56,8 @@ export default function Modal({ title, onClose, children, width = 440 }: Props) 
             </svg>
           </button>
         </div>
-        <div style={{ padding: 20 }}>
+        {/* minHeight:0 lets this flex child shrink below content size so it can scroll. */}
+        <div style={{ padding: 20, overflowY: 'auto', flex: 1, minHeight: 0 }}>
           {children}
         </div>
       </div>

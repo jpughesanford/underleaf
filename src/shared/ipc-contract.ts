@@ -96,6 +96,10 @@ export interface IpcContract {
   'synctex:forward': (projectPath: string, args: { file: string; line: number; column: number }) => Promise<SyncForwardResult | null>
   /** Inverse search: PDF location → source position. Null if synctex/data missing. */
   'synctex:inverse': (projectPath: string, args: { page: number; x: number; y: number }) => Promise<SyncInverseResult | null>
+
+  // ── spellcheck ────────────────────────────────────────────────────────────
+  /** Hunspell dictionary (aff+dic text) for the renderer's nspell instance. */
+  'spellcheck:dictionary': (lang: string) => Promise<{ aff: string; dic: string }>
 }
 
 export type IpcChannel = keyof IpcContract

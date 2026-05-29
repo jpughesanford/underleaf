@@ -9,7 +9,7 @@
 ## Mid Term
 
 - [x] can we add the "Find in PDF" and "Find in Source" buttons that over leaf has that jump between the editor and pdf? (SyncTeX forward/inverse: two buttons on the editor/PDF divider + ⌘-click on the PDF)
-- [ ] add spell check to editor. 
+- [x] add spell check to editor. (Hunspell via nspell; dictionary loaded in main, sent over IPC; LaTeX-aware skipping; right-click suggestions + add-to-dictionary; toggle in Settings → Editor)
 
 ## Deffered 
 

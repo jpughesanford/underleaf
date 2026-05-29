@@ -1,0 +1,29 @@
+diff --git a/node_modules/emscripten-wasm-loader/dist/esm/getModuleLoader.js b/node_modules/emscripten-wasm-loader/dist/esm/getModuleLoader.js
+index 357dbf1..8fbdcc7 100644
+--- a/node_modules/emscripten-wasm-loader/dist/esm/getModuleLoader.js
++++ b/node_modules/emscripten-wasm-loader/dist/esm/getModuleLoader.js
+@@ -19,7 +19,10 @@ const getModuleLoader = (factoryLoader, runtimeModule, module, { timeout, binary
+     const constructedModule = constructModule(module || {}, binaryRemoteEndpoint);
+     log(`loadModule: constructed module object for runtime`);
+     try {
+-        const asmModule = runtimeModule(constructedModule);
++        // Tolerate an ESM namespace import (bundled renderer) as well as a bare
++        // CJS function (node) — the emscripten factory is the module's default.
++        const runtimeFactory = typeof runtimeModule === 'function' ? runtimeModule : runtimeModule.default;
++        const asmModule = runtimeFactory(constructedModule);
+         const result = await asmModule.initializeRuntime(timeout);
+         if (!result) {
+             log(`loadModule: failed to initialize runtime in time`);
+diff --git a/node_modules/emscripten-wasm-loader/dist/esm/path/mountBuffer.js b/node_modules/emscripten-wasm-loader/dist/esm/path/mountBuffer.js
+index a494e92..b06f2e6 100644
+--- a/node_modules/emscripten-wasm-loader/dist/esm/path/mountBuffer.js
++++ b/node_modules/emscripten-wasm-loader/dist/esm/path/mountBuffer.js
+@@ -1,4 +1,7 @@
+-import * as nanoid from 'nanoid';
++// Patched: nanoid removed — its v2/v3 ESM-interop is broken for bundlers and its
++// browser build needs window.crypto. These ids are throwaway in-memory FS path
++// names, so a plain random string is sufficient. See patches/.
++const nanoid = (n = 21) => { let s = ''; while (s.length < n) s += Math.random().toString(36).slice(2); return s.slice(0, n); };
+ import { log } from '../util/logger';
+ import { isMounted } from './isMounted';
+ /**

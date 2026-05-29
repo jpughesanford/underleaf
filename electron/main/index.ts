@@ -6,6 +6,7 @@ import { registerProjectIPC } from './ipc/projects'
 import { registerFileIPC } from './ipc/files'
 import { registerGitIPC } from './ipc/git'
 import { registerCompileIPC } from './ipc/compile'
+import { loadDictionary } from './services/spellcheck'
 
 const store = new Store<Record<string, unknown>>({
   defaults: {
@@ -64,6 +65,9 @@ app.whenReady().then(() => {
   // Store IPC
   ipcMain.handle('store:get', (_, key: string) => store.get(key))
   ipcMain.handle('store:set', (_, key: string, value: unknown) => { store.set(key, value) })
+
+  // Hunspell dictionary for the renderer's spell checker (cached per language).
+  ipcMain.handle('spellcheck:dictionary', (_, lang: string) => loadDictionary(lang))
 
   // Dialog IPC
   ipcMain.handle('dialog:openFolder', async () => {

@@ -1,0 +1,14 @@
+diff --git a/node_modules/hunspell-asm/dist/esm/hunspellLoader.js b/node_modules/hunspell-asm/dist/esm/hunspellLoader.js
+index a95a3d3..d020c0c 100644
+--- a/node_modules/hunspell-asm/dist/esm/hunspellLoader.js
++++ b/node_modules/hunspell-asm/dist/esm/hunspellLoader.js
+@@ -1,5 +1,8 @@
+ import { mountBuffer, unmount } from 'emscripten-wasm-loader';
+-import * as nanoid from 'nanoid';
++// Patched: nanoid removed — its v2/v3 ESM-interop is broken for bundlers and its
++// browser build needs window.crypto. These ids are throwaway in-memory FS path
++// names, so a plain random string is sufficient. See patches/.
++const nanoid = (n = 21) => { let s = ''; while (s.length < n) s += Math.random().toString(36).slice(2); return s.slice(0, n); };
+ import { log } from './util/logger';
+ import { wrapHunspellInterface } from './wrapHunspellInterface';
+ /**

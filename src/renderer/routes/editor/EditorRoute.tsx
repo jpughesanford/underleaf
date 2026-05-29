@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import type { CompileTarget } from '@shared/types'
 import { resolveErrorPath } from '@shared/error-path'
+import { DEFAULT_SPELL_LANGUAGE } from '@shared/spell-languages'
 
 import { SettingsModal } from '@/features/settings'
 import { EditorPane, type EditorPaneHandle } from '@/features/code-editor'
@@ -33,6 +34,8 @@ interface Props {
 export default function EditorRoute({ projectPath, projectName, onBack, onRename }: Props) {
   const [compileTarget, setCompileTarget] = useState<CompileTarget>('root')
   const [compileOnSave, setCompileOnSave] = useState(true)
+  const [spellCheck, setSpellCheck] = useState(true)
+  const [spellLanguage, setSpellLanguage] = useState(DEFAULT_SPELL_LANGUAGE)
   const [showSettings, setShowSettings] = useState(false)
   // When set, the center column shows a git diff / conflict view instead of the
   // editor. gitRefresh is bumped after a resolution so the panel re-reads status.
@@ -41,11 +44,13 @@ export default function EditorRoute({ projectPath, projectName, onBack, onRename
   const editorRef = useRef<EditorPaneHandle>(null)
   const pdfRef = useRef<PdfPaneHandle>(null)
 
-  // Load compile-on-save preference; reloaded after the settings modal closes.
+  // Load editor preferences; reloaded after the settings modal closes.
   useEffect(() => {
     window.api.store.get('settings').then((s) => {
-      const settings = s as { compileOnSave?: boolean } | null
+      const settings = s as { compileOnSave?: boolean; spellCheck?: boolean; spellLanguage?: string } | null
       if (settings?.compileOnSave !== undefined) setCompileOnSave(settings.compileOnSave)
+      if (settings?.spellCheck !== undefined) setSpellCheck(settings.spellCheck)
+      if (settings?.spellLanguage) setSpellLanguage(settings.spellLanguage)
     })
   }, [])
 
@@ -180,8 +185,10 @@ export default function EditorRoute({ projectPath, projectName, onBack, onRename
         <SettingsModal
           onClose={async () => {
             setShowSettings(false)
-            const s = await window.api.store.get('settings') as { compileOnSave?: boolean } | null
+            const s = await window.api.store.get('settings') as { compileOnSave?: boolean; spellCheck?: boolean; spellLanguage?: string } | null
             if (s?.compileOnSave !== undefined) setCompileOnSave(s.compileOnSave)
+            if (s?.spellCheck !== undefined) setSpellCheck(s.spellCheck)
+            if (s?.spellLanguage) setSpellLanguage(s.spellLanguage)
           }}
           onChangeRoot={() => setShowSettings(false)}
         />
@@ -328,6 +335,8 @@ export default function EditorRoute({ projectPath, projectName, onBack, onRename
                       content={tabs.activeTabData.content}
                       onChange={(content) => tabs.updateContent(tabs.activeTabData!.path, content)}
                       onSave={() => saveAndMaybeCompile(tabs.activeTabData!.path)}
+                      spellCheck={spellCheck}
+                      spellLanguage={spellLanguage}
                     />
                   ) : (
                     <EmptyEditor />

@@ -1,5 +1,12 @@
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import styles from './ContextMenu.module.css'
+
+// Keep a floating menu fully on screen. Clamps the click point so the menu's far
+// edge stays inside the window (with a small margin) instead of bleeding off.
+const EDGE_MARGIN = 8
+function clamp(value: number, size: number, viewport: number) {
+  return Math.max(EDGE_MARGIN, Math.min(value, viewport - size - EDGE_MARGIN))
+}
 
 interface ContextMenuProps {
   /** Click x in viewport coordinates (e.g. from event.clientX). */
@@ -18,6 +25,19 @@ interface ContextMenuProps {
  */
 function ContextMenu({ x, y, onClose, header, children }: ContextMenuProps) {
   const ref = useRef<HTMLDivElement>(null)
+  // Start at the raw click point, then correct before paint once we can measure
+  // the menu, so it never extends past the right/bottom edge of the window.
+  const [pos, setPos] = useState({ x, y })
+
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const { width, height } = el.getBoundingClientRect()
+    setPos({
+      x: clamp(x, width, window.innerWidth),
+      y: clamp(y, height, window.innerHeight),
+    })
+  }, [x, y])
 
   // Close on outside click. mousedown (not click) so it beats child handlers
   // that stopPropagation on their own click — those handlers still fire.
@@ -40,7 +60,7 @@ function ContextMenu({ x, y, onClose, header, children }: ContextMenuProps) {
     <div
       ref={ref}
       className={styles.menu}
-      style={{ top: y, left: x }}
+      style={{ top: pos.y, left: pos.x }}
       onMouseDown={e => e.stopPropagation()}
     >
       {header && <div className={styles.header}>{header}</div>}

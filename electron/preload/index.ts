@@ -108,6 +108,10 @@ const api = {
       invoke('synctex:inverse', projectPath, args),
   },
 
+  spellcheck: {
+    dictionary: (lang: string) => invoke('spellcheck:dictionary', lang),
+  },
+
   events: {
     onCompileProgress: (cb: (chunk: string) => void) => {
       const handler = (_: Electron.IpcRendererEvent, chunk: string) => cb(chunk)

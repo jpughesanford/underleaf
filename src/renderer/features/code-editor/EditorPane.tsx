@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useRef, useImperativeHandle, forwardRef } from 'react'
+import React, { useEffect, useLayoutEffect, useRef, useState, useImperativeHandle, forwardRef } from 'react'
 import { EditorState, Extension, Compartment, StateField, StateEffect, Text } from '@codemirror/state'
 import {
   EditorView, keymap, lineNumbers, highlightActiveLineGutter, highlightSpecialChars,
@@ -17,6 +17,10 @@ import { overleafLatexLanguage, overleafClassHighlighter } from './extensions/la
 import { latexCompletions } from './extensions/completions'
 import { createUnderleafSearchPanel, underleafSearchPanelTheme } from './extensions/search-panel'
 import { classifyConflictLines } from './extensions/conflicts'
+import { spellcheckExtension, spellWordAt, recheckSpelling, type SpellWord } from './extensions/spellcheck'
+import { spellerSync } from './spellcheck/speller'
+import { DEFAULT_SPELL_LANGUAGE } from '@shared/spell-languages'
+import ContextMenu from '@/ui/ContextMenu'
 import { useTheme } from '@/theme/ThemeProvider'
 import { UnderleafTheme } from '@/theme/schema'
 
@@ -25,6 +29,10 @@ interface Props {
   content: string
   onChange: (content: string) => void
   onSave: () => void
+  /** Toggle inline spell checking (squiggles + right-click suggestions). */
+  spellCheck?: boolean
+  /** Dictionary language code (see shared/spell-languages). */
+  spellLanguage?: string
 }
 
 export interface EditorPaneHandle {
@@ -81,6 +89,8 @@ function buildThemeExtension(theme: UnderleafTheme): Extension {
 }
 
 const themeCompartment = new Compartment()
+// Lets spell checking toggle on/off without rebuilding the whole editor.
+const spellCompartment = new Compartment()
 
 // ─── Error line highlight ─────────────────────────────────────────────────────
 const setErrorLine = StateEffect.define<number | null>()
@@ -140,8 +150,11 @@ function buildExtensions(
   initialTheme: UnderleafTheme,
   onChange: (val: string) => void,
   onSave: () => void,
+  spellCheck: boolean,
+  spellLanguage: string,
 ): Extension[] {
   return [
+    spellCompartment.of(spellCheck ? spellcheckExtension(spellLanguage) : []),
     lineNumbers(),
     highlightActiveLineGutter(),
     highlightSpecialChars(),
@@ -195,7 +208,7 @@ function buildExtensions(
 
 // ─── Component ────────────────────────────────────────────────────────────────
 const EditorPane = forwardRef<EditorPaneHandle, Props>(function EditorPane(
-  { filePath, content, onChange, onSave },
+  { filePath, content, onChange, onSave, spellCheck = true, spellLanguage = DEFAULT_SPELL_LANGUAGE },
   ref,
 ) {
   const { theme } = useTheme()
@@ -205,6 +218,10 @@ const EditorPane = forwardRef<EditorPaneHandle, Props>(function EditorPane(
   const onChangeRef = useRef(onChange)
   const onSaveRef = useRef(onSave)
   const themeRef = useRef(theme)
+  const spellCheckRef = useRef(spellCheck)
+  const spellLanguageRef = useRef(spellLanguage)
+  // Right-click spell-suggestion menu (viewport coords + the misspelled word).
+  const [spellMenu, setSpellMenu] = useState<{ x: number; y: number; word: SpellWord } | null>(null)
   // Pending jump target — set by jump() when called before the view exists,
   // replayed by the mount effect once the EditorView is ready. Lets the
   // compile panel's jumpToError work even when it opens a not-yet-mounted file.
@@ -213,6 +230,8 @@ const EditorPane = forwardRef<EditorPaneHandle, Props>(function EditorPane(
   onChangeRef.current = onChange
   onSaveRef.current = onSave
   themeRef.current = theme
+  spellCheckRef.current = spellCheck
+  spellLanguageRef.current = spellLanguage
 
   function runJump(view: EditorView, line: number) {
     if (line < 1 || line > view.state.doc.lines) return
@@ -261,6 +280,8 @@ const EditorPane = forwardRef<EditorPaneHandle, Props>(function EditorPane(
           themeRef.current,
           (v) => onChangeRef.current(v),
           () => onSaveRef.current(),
+          spellCheckRef.current,
+          spellLanguageRef.current,
         ),
       }),
       parent: containerRef.current,
@@ -290,6 +311,15 @@ const EditorPane = forwardRef<EditorPaneHandle, Props>(function EditorPane(
     })
   }, [theme])
 
+  // Toggle spell checking / switch dictionary language without rebuilding.
+  useEffect(() => {
+    const view = viewRef.current
+    if (!view) return
+    view.dispatch({
+      effects: spellCompartment.reconfigure(spellCheck ? spellcheckExtension(spellLanguage) : []),
+    })
+  }, [spellCheck, spellLanguage])
+
   useEffect(() => {
     const view = viewRef.current
     if (!view) return
@@ -302,12 +332,53 @@ const EditorPane = forwardRef<EditorPaneHandle, Props>(function EditorPane(
     }
   }, [content])
 
+  // Right-click: if the click is on a misspelled word, show suggestions instead
+  // of doing nothing (Electron has no native editor menu here).
+  function onContextMenu(e: React.MouseEvent) {
+    const view = viewRef.current
+    if (!view || !spellCheck) return
+    const pos = view.posAtCoords({ x: e.clientX, y: e.clientY })
+    if (pos == null) return
+    const word = spellWordAt(view, pos)
+    if (!word) return
+    e.preventDefault()
+    setSpellMenu({ x: e.clientX, y: e.clientY, word })
+  }
+
+  function applySuggestion(word: SpellWord, suggestion: string) {
+    viewRef.current?.dispatch({ changes: { from: word.from, to: word.to, insert: suggestion } })
+    setSpellMenu(null)
+  }
+
+  function addToDictionary(word: SpellWord) {
+    spellerSync()?.add(word.word)
+    viewRef.current?.dispatch({ effects: recheckSpelling.of(null) })
+    setSpellMenu(null)
+  }
+
   return (
-    <div
-      ref={containerRef}
-      style={{ height: '100%', overflow: 'hidden' }}
-      className="cm-editor-container"
-    />
+    <>
+      <div
+        ref={containerRef}
+        onContextMenu={onContextMenu}
+        style={{ height: '100%', overflow: 'hidden' }}
+        className="cm-editor-container"
+      />
+      {spellMenu && (
+        <ContextMenu
+          x={spellMenu.x}
+          y={spellMenu.y}
+          onClose={() => setSpellMenu(null)}
+          header={spellMenu.word.suggestions.length ? 'Suggestions' : 'No suggestions'}
+        >
+          {spellMenu.word.suggestions.map((s) => (
+            <ContextMenu.Item key={s} label={s} onClick={() => applySuggestion(spellMenu.word, s)} />
+          ))}
+          {spellMenu.word.suggestions.length > 0 && <ContextMenu.Separator />}
+          <ContextMenu.Item label="Add to dictionary" onClick={() => addToDictionary(spellMenu.word)} />
+        </ContextMenu>
+      )}
+    </>
   )
 })
 

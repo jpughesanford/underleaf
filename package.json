@@ -14,7 +14,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "coverage": "vitest run --coverage",
-    "check": "npm run typecheck && npm run lint && npm run test"
+    "check": "npm run typecheck && npm run lint && npm run test",
+    "postinstall": "patch-package"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.2",
@@ -31,11 +32,29 @@
     "@lezer/highlight": "^1.2.3",
     "codemirror": "^6.0.1",
     "codemirror-lang-latex": "^0.4.1",
+    "dictionary-de": "^3.0.0",
+    "dictionary-en": "^4.0.0",
+    "dictionary-en-gb": "^3.0.0",
+    "dictionary-es": "^4.0.0",
+    "dictionary-fr": "^3.0.0",
+    "dictionary-it": "^2.0.0",
+    "dictionary-nl": "^2.0.0",
+    "dictionary-pl": "^2.0.0",
+    "dictionary-pt-br": "^2.0.1",
+    "dictionary-ru": "^3.0.0",
+    "dictionary-sv": "^4.0.0",
     "electron-store": "^8.2.0",
     "electron-updater": "^6.3.9",
+    "hunspell-asm": "4.0.2",
     "lucide-react": "^1.16.0",
     "pdfjs-dist": "^4.9.155",
     "simple-git": "^3.27.0"
+  },
+  "comments": {
+    "pinned": "hunspell-asm and emscripten-wasm-loader are pinned to exact versions because patches/ targets those exact versions; a bump would silently stop applying and break spell check."
+  },
+  "overrides": {
+    "emscripten-wasm-loader": "3.0.3"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
@@ -50,6 +69,7 @@
     "electron-vite": "^2.3.0",
     "eslint": "^8.57.1",
     "eslint-plugin-react-hooks": "^4.6.2",
+    "patch-package": "^8.0.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "typescript": "^5.7.2",

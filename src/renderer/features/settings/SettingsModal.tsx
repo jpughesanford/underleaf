@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import Modal from '@/ui/Modal'
 import { useTheme } from '@/theme/ThemeProvider'
 import { UnderleafTheme } from '@/theme/schema'
+import { SPELL_LANGUAGES, DEFAULT_SPELL_LANGUAGE } from '@shared/spell-languages'
 
 interface Props {
   onClose: () => void
@@ -11,6 +12,8 @@ interface Props {
 export default function SettingsModal({ onClose, onChangeRoot }: Props) {
   const [engine, setEngine] = useState('pdflatex')
   const [compileOnSave, setCompileOnSave] = useState(true)
+  const [spellCheck, setSpellCheck] = useState(true)
+  const [spellLanguage, setSpellLanguage] = useState(DEFAULT_SPELL_LANGUAGE)
   const [root, setRoot] = useState('')
   const { themes, mode, darkThemeId, lightThemeId, setDarkThemeId, setLightThemeId } = useTheme()
 
@@ -26,9 +29,11 @@ export default function SettingsModal({ onClose, onChangeRoot }: Props) {
       window.api.projects.getRoot(),
     ]).then(([settings, r]) => {
       if (settings) {
-        const s = settings as { defaultEngine?: string; compileOnSave?: boolean }
+        const s = settings as { defaultEngine?: string; compileOnSave?: boolean; spellCheck?: boolean; spellLanguage?: string }
         setEngine(s.defaultEngine || 'pdflatex')
         setCompileOnSave(s.compileOnSave !== false)
+        setSpellCheck(s.spellCheck !== false)
+        if (s.spellLanguage) setSpellLanguage(s.spellLanguage)
       }
       setRoot(r || '')
     })
@@ -52,7 +57,7 @@ export default function SettingsModal({ onClose, onChangeRoot }: Props) {
 
   async function save() {
     const existing = (await window.api.store.get('settings')) as Record<string, unknown> | null ?? {}
-    await window.api.store.set('settings', { ...existing, defaultEngine: engine, compileOnSave })
+    await window.api.store.set('settings', { ...existing, defaultEngine: engine, compileOnSave, spellCheck, spellLanguage })
     onClose()
   }
 
@@ -140,6 +145,44 @@ export default function SettingsModal({ onClose, onChangeRoot }: Props) {
               />
               Auto-compile on save
             </label>
+          </div>
+        </section>
+
+        {/* Editor */}
+        <section>
+          <SectionLabel>Editor</SectionLabel>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <label
+              style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                cursor: 'pointer', padding: '4px 0',
+                fontSize: 13, color: 'var(--color-text-primary)',
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={spellCheck}
+                onChange={e => setSpellCheck(e.target.checked)}
+                style={{ accentColor: 'var(--color-brand)', cursor: 'pointer' }}
+              />
+              Check spelling
+            </label>
+            <div style={{ opacity: spellCheck ? 1 : 0.5, transition: 'opacity 120ms' }}>
+              <label style={{ display: 'block', color: 'var(--color-text-secondary)', fontSize: 12, marginBottom: 6 }}>
+                Dictionary language
+              </label>
+              <select
+                className="input"
+                value={spellLanguage}
+                onChange={e => setSpellLanguage(e.target.value)}
+                disabled={!spellCheck}
+                style={{ cursor: spellCheck ? 'pointer' : 'default' }}
+              >
+                {SPELL_LANGUAGES.map(l => (
+                  <option key={l.code} value={l.code}>{l.label}</option>
+                ))}
+              </select>
+            </div>
           </div>
         </section>
 
