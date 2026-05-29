@@ -161,6 +161,27 @@ export async function showStaged(projectPath: string, filePath: string): Promise
   }
 }
 
+/**
+ * Discard ALL changes to a file, restoring it to the last commit (HEAD) in both
+ * the index and the working tree. An untracked/new file has no HEAD version, so
+ * "reverting all changes" means removing it. Used by the diff view's
+ * "Revert all changes" action.
+ */
+export async function revertFile(projectPath: string, filePath: string): Promise<GitOpResult> {
+  try {
+    const git = simpleGit(projectPath)
+    const tracked = await git.raw(['cat-file', '-e', `HEAD:${filePath}`]).then(() => true).catch(() => false)
+    if (tracked) {
+      await git.raw(['checkout', 'HEAD', '--', filePath])
+    } else {
+      await git.raw(['clean', '-f', '--', filePath])
+    }
+    return { success: true }
+  } catch (e) {
+    return failResult(e)
+  }
+}
+
 // ─── Conflicts ───────────────────────────────────────────────────────────
 
 export async function resolveConflict(projectPath: string, filePath: string, resolution: ConflictResolution): Promise<void> {

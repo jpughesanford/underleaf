@@ -24,4 +24,7 @@ export function registerGitIPC(): void {
 
   ipcMain.handle('git:resolveConflict', (_, projectPath: string, filePath: string, resolution: ConflictResolution) =>
     git.resolveConflict(projectPath, filePath, resolution))
+
+  ipcMain.handle('git:revertFile', (_, projectPath: string, filePath: string) =>
+    git.revertFile(projectPath, filePath))
 }

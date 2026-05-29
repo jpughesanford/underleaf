@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react'
-import { ChevronsUpDown } from 'lucide-react'
+import { ChevronsUpDown, RotateCcw } from 'lucide-react'
 import CodeContent from './CodeContent'
 import { alignHunk, type ParsedDiff, type Hunk, type SideRow } from './diff-engine'
 
@@ -9,6 +9,9 @@ interface Props {
   /** Working-tree contents, used to reveal the unchanged lines git collapsed
       between hunks. Null when unavailable (then gaps stay collapsed). */
   sourceText: string | null
+  /** When set (working-tree split view), each hunk gets a revert button on the
+      divider that discards just that change. Omitted ⇒ no per-hunk buttons. */
+  onRevertHunk?: (hunkIndex: number) => void
 }
 
 // Old-/new-side line counts of a hunk. Additions don't exist on the old side,
@@ -17,7 +20,7 @@ interface Props {
 const oldLineSpan = (h: Hunk) => h.lines.filter(l => l.kind !== 'add').length
 const newLineSpan = (h: Hunk) => h.lines.filter(l => l.kind !== 'del').length
 
-export default function FileDiffBody({ diff, layout, sourceText }: Props) {
+export default function FileDiffBody({ diff, layout, sourceText, onRevertHunk }: Props) {
   const lines = useMemo(() => (sourceText !== null ? sourceText.split('\n') : null), [sourceText])
   // Which collapsed gaps (keyed by the index of the hunk that follows) the user
   // has revealed. Reset whenever the file changes via the key in DiffView.
@@ -64,9 +67,24 @@ export default function FileDiffBody({ diff, layout, sourceText }: Props) {
                     </div>
                   )
             )}
-            {layout === 'split'
-              ? alignHunk(hunk).map((row, j) => <SplitRow key={j} row={row} />)
-              : <InlineRows hunk={hunk} />}
+            {layout === 'split' ? (
+              <div className="dv-hunk">
+                {alignHunk(hunk).map((row, j) => <SplitRow key={j} row={row} />)}
+                {onRevertHunk && (
+                  <button
+                    type="button"
+                    className="dv-revert-hunk"
+                    title="Revert this change"
+                    aria-label="Revert this change"
+                    onClick={() => onRevertHunk(i)}
+                  >
+                    <RotateCcw size={12} strokeWidth={2.4} />
+                  </button>
+                )}
+              </div>
+            ) : (
+              <InlineRows hunk={hunk} />
+            )}
           </div>
         )
       })}

@@ -117,6 +117,23 @@ export function wholeFileAsAdditions(content: string): ParsedDiff {
   }
 }
 
+/**
+ * Revert a single hunk against the new-side file text, returning the file as it
+ * would read with that one change undone (other hunks untouched). The hunk's
+ * new-side span (context + additions) starting at `newStart` is replaced with its
+ * old-side lines (context + deletions). `sourceText` must be the same new-side
+ * content the diff was computed against — its `newNo`s index straight into it.
+ */
+export function revertHunk(sourceText: string, diff: ParsedDiff, hunkIndex: number): string {
+  const hunk = diff.hunks[hunkIndex]
+  if (!hunk) return sourceText
+  const lines = sourceText.split('\n')
+  const newSpan = hunk.lines.filter(l => l.kind !== 'del').length  // new side = context + additions
+  const oldLines = hunk.lines.filter(l => l.kind !== 'add').map(l => l.text)  // old side = context + deletions
+  const start = hunk.newStart - 1
+  return [...lines.slice(0, start), ...oldLines, ...lines.slice(start + newSpan)].join('\n')
+}
+
 // ─── Side-by-side alignment ─────────────────────────────────────────────────
 
 export interface SideCell {

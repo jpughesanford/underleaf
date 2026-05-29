@@ -45,6 +45,7 @@
 /* Mode bar. Matches the panel section-header height (--header-h, §6.2) so it
    lines up with the Source Control header in the column to its left. */
 .dv-header {
+  position: relative; /* anchors the absolutely-centered "revert all" control */
   display: flex;
   align-items: center;
   gap: 10px;
@@ -123,6 +124,119 @@
 .dv-seg button + button { border-left: 1px solid var(--color-border); }
 .dv-seg button:hover:not(.on) { background: var(--color-bg-card-hover); color: var(--color-text-primary); }
 .dv-seg button.on { background: var(--color-brand-tint); color: var(--color-brand); }
+
+/* ── Revert all (centered header control) ──────────────────────────────── */
+/* True header midpoint, not pushed by the side groups. Reads as quiet chrome at
+   rest and only takes on the delete-red on hover, signalling a destructive act. */
+.dv-revert {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 5;
+}
+.dv-revert-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 11px;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-input);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+.dv-revert-all:hover:not(:disabled) {
+  border-color: var(--dv-del-accent);
+  color: var(--dv-del-accent);
+  background: var(--dv-del-line);
+}
+.dv-revert-all:disabled { opacity: 0.5; cursor: default; }
+
+/* Confirmation popover — drops below the centered button, over the diff. */
+.dv-revert-pop {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 264px;
+  padding: 12px 13px 11px;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: 9px;
+  box-shadow: var(--shadow-lg);
+  z-index: 30;
+  animation: dv-pop-in 140ms cubic-bezier(.2, .7, .2, 1);
+}
+@keyframes dv-pop-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(-4px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+.dv-revert-pop-msg {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+  margin-bottom: 11px;
+}
+.dv-revert-pop-msg b,
+.dv-revert-pop-msg .fn { color: var(--color-text-primary); font-weight: 600; }
+.dv-revert-pop-actions { display: flex; justify-content: flex-end; gap: 7px; }
+.dv-revert-cancel,
+.dv-revert-confirm {
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 5px 11px;
+  border-radius: 6px;
+  cursor: pointer;
+  border: 1px solid var(--color-border-light);
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease, filter 120ms ease;
+}
+.dv-revert-cancel { background: var(--color-bg-input); color: var(--color-text-secondary); }
+.dv-revert-cancel:hover { background: var(--color-bg-card-hover); color: var(--color-text-primary); }
+.dv-revert-confirm { background: var(--dv-del-accent); border-color: var(--dv-del-accent); color: #fff; }
+.dv-revert-confirm:hover { filter: brightness(1.08); }
+
+/* ── Per-hunk revert (button on the split divider) ─────────────────────── */
+/* The two split halves are equal width, so the centre divider is exactly 50%.
+   One round button per change, vertically centred on the hunk: faint at rest,
+   brightening on hunk hover and taking the delete-red on its own hover. */
+.dv-hunk { position: relative; }
+.dv-revert-hunk {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 4;
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-card);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  opacity: 0.5;
+  box-shadow: var(--shadow-sm);
+  transition: opacity 120ms ease, color 120ms ease, border-color 120ms ease, transform 120ms ease;
+}
+.dv-hunk:hover .dv-revert-hunk { opacity: 1; }
+.dv-revert-hunk:hover {
+  opacity: 1;
+  color: var(--dv-del-accent);
+  border-color: var(--dv-del-accent);
+  transform: translate(-50%, -50%) scale(1.12);
+}
+.dv-revert-hunk:active { transform: translate(-50%, -50%) scale(0.96); }
 
 /* ── Scroll body + change-overview rail ────────────────────────────────── */
 /* The file diff lays the scroll body and the minimap rail side by side; the

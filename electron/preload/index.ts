@@ -88,6 +88,8 @@ const api = {
       invoke('git:showStaged', projectPath, file),
     resolveConflict: (projectPath: string, file: string, resolution: ConflictResolution) =>
       invoke('git:resolveConflict', projectPath, file, resolution),
+    revertFile: (projectPath: string, file: string) =>
+      invoke('git:revertFile', projectPath, file),
   },
 
   compile: {

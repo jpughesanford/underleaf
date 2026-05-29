@@ -81,6 +81,8 @@ export interface IpcContract {
       isn't in the index. Used to reveal collapsed context in a staged diff. */
   'git:showStaged': (projectPath: string, filePath: string) => Promise<string | null>
   'git:resolveConflict': (projectPath: string, filePath: string, resolution: ConflictResolution) => Promise<void>
+  /** Discard all changes to a file back to HEAD (untracked files are removed). */
+  'git:revertFile': (projectPath: string, filePath: string) => Promise<GitOpResult>
 
   // ── compile ─────────────────────────────────────────────────────────────
   'compile:run': (projectPath: string, opts?: CompileOptions) => Promise<CompileResult>

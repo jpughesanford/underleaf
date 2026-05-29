@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { AlertTriangle, Columns, AlignJustify, X, ExternalLink, SquarePen, CheckCircle } from 'lucide-react'
+import { AlertTriangle, Columns, AlignJustify, X, ExternalLink, SquarePen, CheckCircle, RotateCcw } from 'lucide-react'
 import IconButton from '@/ui/IconButton'
 import FileDiffBody from './FileDiffBody'
 import DiffMinimap from './DiffMinimap'
 import ConflictBody from './ConflictBody'
 import {
-  parseUnifiedDiff, wholeFileAsAdditions, parseConflicts, hasConflictMarkers,
+  parseUnifiedDiff, wholeFileAsAdditions, parseConflicts, hasConflictMarkers, revertHunk,
   type ParsedDiff, type MergeSegment,
 } from './diff-engine'
 
@@ -43,7 +43,11 @@ export default function DiffView({ projectPath, target, onClose, onOpenInEditor,
   const [diff, setDiff] = useState<ParsedDiff | null>(null)
   const [text, setText] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  // Bumped after a per-hunk revert so the diff re-derives from the rewritten file.
+  const [reloadKey, setReloadKey] = useState(0)
+  const [confirmRevert, setConfirmRevert] = useState(false)
   const bodyRef = useRef<HTMLDivElement>(null)
+  const revertRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -82,7 +86,19 @@ export default function DiffView({ projectPath, target, onClose, onOpenInEditor,
       }
     })()
     return () => { cancelled = true }
-  }, [projectPath, absPath, filePath, staged, conflict])
+  }, [projectPath, absPath, filePath, staged, conflict, reloadKey])
+
+  // Dismiss the "revert all" confirmation on outside-click or Escape.
+  useEffect(() => {
+    if (!confirmRevert) return
+    const onDown = (e: MouseEvent) => {
+      if (revertRef.current && !revertRef.current.contains(e.target as Node)) setConfirmRevert(false)
+    }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setConfirmRevert(false) }
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey) }
+  }, [confirmRevert])
 
   const segments: MergeSegment[] = useMemo(
     () => (text !== null ? parseConflicts(text) : []),
@@ -124,6 +140,38 @@ export default function DiffView({ projectPath, target, onClose, onOpenInEditor,
     }
   }, [projectPath, filePath, onResolved, onClose])
 
+  // Revert one change: splice its old-side lines back into the working file.
+  // Then reload so the remaining hunks re-render against the rewritten file.
+  const revertOneHunk = useCallback(async (hunkIndex: number) => {
+    if (!diff || text === null) return
+    setBusy(true)
+    try {
+      await window.api.files.write(absPath, revertHunk(text, diff, hunkIndex))
+      onResolved?.()
+      setReloadKey(k => k + 1)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBusy(false)
+    }
+  }, [diff, text, absPath, onResolved])
+
+  // Revert everything: restore the file to the last commit (destructive — gated
+  // behind the header confirmation). The file then matches HEAD, so close.
+  const revertAll = useCallback(async () => {
+    setConfirmRevert(false)
+    setBusy(true)
+    try {
+      const res = await window.api.git.revertFile(projectPath, filePath)
+      if (!res.success) throw new Error(res.error || 'Revert failed')
+      onResolved?.()
+      onClose()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+      setBusy(false)
+    }
+  }, [projectPath, filePath, onResolved, onClose])
+
   return (
     <div className="dv-root">
       <div className="dv-header">
@@ -142,6 +190,33 @@ export default function DiffView({ projectPath, target, onClose, onOpenInEditor,
             {diff.additions > 0 && diff.deletions > 0 && ' '}
             {diff.deletions > 0 && <span className="del">−{diff.deletions}</span>}
           </span>
+        )}
+
+        {/* True-centered revert-all: absolutely positioned at the header midpoint,
+            destructive so gated behind a confirmation popover. */}
+        {!conflict && diff && diff.hunks.length > 0 && (
+          <div className="dv-revert" ref={revertRef}>
+            <button
+              className="dv-revert-all"
+              onClick={() => setConfirmRevert(v => !v)}
+              disabled={busy}
+              title="Discard all changes to this file"
+            >
+              <RotateCcw size={13} strokeWidth={2} />
+              Revert all changes
+            </button>
+            {confirmRevert && (
+              <div className="dv-revert-pop" role="dialog" aria-label="Confirm revert">
+                <div className="dv-revert-pop-msg">
+                  Discard <b>all</b> your changes to <span className="fn">{fileName}</span>? This can’t be undone.
+                </div>
+                <div className="dv-revert-pop-actions">
+                  <button className="dv-revert-cancel" onClick={() => setConfirmRevert(false)}>Cancel</button>
+                  <button className="dv-revert-confirm" onClick={revertAll}>Revert all</button>
+                </div>
+              </div>
+            )}
+          </div>
         )}
 
         <span className="dv-spacer" />
@@ -197,7 +272,13 @@ export default function DiffView({ projectPath, target, onClose, onOpenInEditor,
       ) : diff ? (
         <div className="dv-stage">
           <div className="dv-body" ref={bodyRef}>
-            <FileDiffBody key={`${filePath}:${staged}`} diff={diff} layout={layout} sourceText={text} />
+            <FileDiffBody
+              key={`${filePath}:${staged}`}
+              diff={diff}
+              layout={layout}
+              sourceText={text}
+              onRevertHunk={!staged ? revertOneHunk : undefined}
+            />
           </div>
           <DiffMinimap key={`${filePath}:${staged}:${layout}`} scrollRef={bodyRef} />
         </div>
