@@ -81,6 +81,8 @@ const api = {
     resetToRemote: (projectPath: string) => invoke('git:resetToRemote', projectPath),
     addRemote: (projectPath: string, url: string) => invoke('git:addRemote', projectPath, url),
     forcePush: (projectPath: string) => invoke('git:forcePush', projectPath),
+    hasRemote: (projectPath: string) => invoke('git:hasRemote', projectPath),
+    removeRemote: (projectPath: string) => invoke('git:removeRemote', projectPath),
     log: (projectPath: string, maxCount?: number) => invoke('git:log', projectPath, maxCount),
     diff: (projectPath: string, file: string, staged: boolean) =>
       invoke('git:diff', projectPath, file, staged),

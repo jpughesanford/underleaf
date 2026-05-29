@@ -15,6 +15,8 @@ export function registerGitIPC(): void {
   ipcMain.handle('git:resetToRemote', (_, projectPath: string) => git.resetToRemote(projectPath))
   ipcMain.handle('git:addRemote', (_, projectPath: string, url: string) => git.addRemote(projectPath, url))
   ipcMain.handle('git:forcePush', (_, projectPath: string) => git.forcePush(projectPath))
+  ipcMain.handle('git:hasRemote', (_, projectPath: string) => git.hasRemote(projectPath))
+  ipcMain.handle('git:removeRemote', (_, projectPath: string) => git.removeRemote(projectPath))
 
   ipcMain.handle('git:log', (_, projectPath: string, maxCount?: number) => git.log(projectPath, maxCount))
   ipcMain.handle('git:diff', (_, projectPath: string, filePath: string, staged: boolean) =>

@@ -83,8 +83,12 @@ export default function GitPanel({ projectPath, onOpenFile, onShowDiff, refreshT
   const refresh = useCallback(async () => {
     setLoading(true)
     try {
-      const s = await window.api.git.status(projectPath)
+      const [s, remote] = await Promise.all([
+        window.api.git.status(projectPath),
+        window.api.git.hasRemote(projectPath),
+      ])
       setStatus(s)
+      setHasRemote(remote)
     } catch (e) {
       console.error('git status failed', e)
     } finally {

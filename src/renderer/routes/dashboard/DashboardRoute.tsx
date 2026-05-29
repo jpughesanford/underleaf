@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
-import { Folder } from 'lucide-react'
+import { Folder, Link2, Unlink } from 'lucide-react'
 import type { ProjectInfo } from '@shared/types'
 import ProjectCard from './ProjectCard'
 import NewProjectModal from './NewProjectModal'
 import CloneModal from './CloneModal'
+import AddRemoteModal from '@/features/git-panel/AddRemoteModal'
 import { SettingsModal } from '@/features/settings'
 import AppIcon from '@/ui/AppIcon'
 import ModeToggle from '@/ui/ModeToggle'
@@ -34,6 +35,7 @@ export default function Dashboard({ onOpenProject, onResetRoot }: Props) {
   const [actionProject, setActionProject] = useState<string | null>(null)
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [resetConfirm, setResetConfirm] = useState<ProjectInfo | null>(null)
+  const [addRemoteProject, setAddRemoteProject] = useState<ProjectInfo | null>(null)
   const [fetchSuccess, setFetchSuccess] = useState(false)
   const [badgeFlashKeys, setBadgeFlashKeys] = useState<Record<string, number>>({})
   const fetchSuccessTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -115,6 +117,19 @@ export default function Dashboard({ onOpenProject, onResetRoot }: Props) {
   const handleResetToRemote = async (project: ProjectInfo) => {
     setContextMenu(null)
     setResetConfirm(project)
+  }
+
+  const handleAddRemote = (project: ProjectInfo) => {
+    setContextMenu(null)
+    setAddRemoteProject(project)
+  }
+
+  const handleRemoveRemote = async (project: ProjectInfo) => {
+    setContextMenu(null)
+    setActionProject(project.id)
+    await window.api.git.removeRemote(project.path)
+    await silentLoad()
+    setActionProject(null)
   }
 
   const confirmResetToRemote = async () => {
@@ -353,12 +368,17 @@ export default function Dashboard({ onOpenProject, onResetRoot }: Props) {
             icon={<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>}
             onClick={() => handleRename(contextMenu.project)}
           />
-          {contextMenu.project.hasRemote && <>
+          {contextMenu.project.hasRemote ? <>
             <ContextMenu.Separator />
             <ContextMenu.Item
               label="Fetch"
               icon={<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>}
               onClick={() => handleFetch(contextMenu.project)}
+            />
+            <ContextMenu.Item
+              label="Remove Remote"
+              icon={<Unlink size={13} strokeWidth={2.2} />}
+              onClick={() => handleRemoveRemote(contextMenu.project)}
             />
             <ContextMenu.Separator />
             <ContextMenu.Item
@@ -366,6 +386,13 @@ export default function Dashboard({ onOpenProject, onResetRoot }: Props) {
               danger
               icon={<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.51"/></svg>}
               onClick={() => handleResetToRemote(contextMenu.project)}
+            />
+          </> : <>
+            <ContextMenu.Separator />
+            <ContextMenu.Item
+              label="Add Remote…"
+              icon={<Link2 size={13} strokeWidth={2.2} />}
+              onClick={() => handleAddRemote(contextMenu.project)}
             />
           </>}
           <ContextMenu.Separator />
@@ -443,6 +470,14 @@ export default function Dashboard({ onOpenProject, onResetRoot }: Props) {
             </div>
           </div>
         </div>
+      )}
+
+      {addRemoteProject && (
+        <AddRemoteModal
+          projectPath={addRemoteProject.path}
+          onClose={() => setAddRemoteProject(null)}
+          onAdded={() => { setAddRemoteProject(null); silentLoad() }}
+        />
       )}
 
       {showNew && (

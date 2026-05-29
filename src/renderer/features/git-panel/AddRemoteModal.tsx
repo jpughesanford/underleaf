@@ -67,7 +67,7 @@ export default function AddRemoteModal({ projectPath, onClose, onAdded }: Props)
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
             <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
             <button className="btn btn-danger" onClick={handleForcePush} disabled={loading}>
-              {loading ? 'Pushing...' : 'Force Push'}
+              {loading ? 'Pushing...' : 'Overwrite Remote'}
             </button>
           </div>
         </div>

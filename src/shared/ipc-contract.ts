@@ -75,6 +75,10 @@ export interface IpcContract {
   'git:resetToRemote': (projectPath: string) => Promise<GitOpResult>
   'git:addRemote': (projectPath: string, url: string) => Promise<GitAddRemoteResult>
   'git:forcePush': (projectPath: string) => Promise<GitOpResult>
+  /** True if the repo has a remote configured (false ⇒ local-only project). */
+  'git:hasRemote': (projectPath: string) => Promise<boolean>
+  /** Disconnect the project from its remote (removes origin). */
+  'git:removeRemote': (projectPath: string) => Promise<GitOpResult>
   'git:log': (projectPath: string, maxCount?: number) => Promise<GitLogEntry[]>
   'git:diff': (projectPath: string, filePath: string, staged: boolean) => Promise<string>
   /** Contents of a file as currently staged (the index version), or null if it

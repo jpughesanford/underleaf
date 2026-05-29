@@ -1,15 +1,11 @@
 
 ## Short Term
 
-- [x] in the git panel, the amend button is not very visible in light mode. its not readable. 
-- [x] in the find and replace panel, make the all button the same color as the replace button. Change the replace and all hover styling to match that of the up and down arrow buttons.
-- [x] there seems to be a bug where if the utility panel is closed and you click on the utility button that is already open (but hidden) the panel does not reappear. It only reappears when you change utilities. It should appear either way.  
-- [x] brightness window can extend beyond the app window, moving off screen. 
+- [ ] add git commit histery to commit panel 
 
 ## Mid Term
 
-- [x] can we add the "Find in PDF" and "Find in Source" buttons that over leaf has that jump between the editor and pdf? (SyncTeX forward/inverse: two buttons on the editor/PDF divider + ⌘-click on the PDF)
-- [x] add spell check to editor. (Hunspell via nspell; dictionary loaded in main, sent over IPC; LaTeX-aware skipping; right-click suggestions + add-to-dictionary; toggle in Settings → Editor)
+- [ ] make git panel more user friendly. have a better way to look at git history, have git log and errors be persistent
 
 ## Deffered 
 
